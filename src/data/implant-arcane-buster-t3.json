@@ -1,0 +1,2040 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "page": "https://corepunk.help/items/implant/implant-arcane-buster-t3?type=implant",
+    "api": "https://corepunk.help/api/items/implant-arcane-buster-t3",
+    "assetBase": "https://d2fwno52vggyhx.cloudfront.net",
+    "scrapedAt": "2026-07-05T14:59:35.090Z",
+    "language": "en"
+  },
+  "rootSlug": "implant-arcane-buster-t3",
+  "relatedSlugs": [
+    "implant-modular-glove-t2-uncommon",
+    "implant-battle-sleeve-t2-uncommon",
+    "blood-honey",
+    "thermium-liquidum",
+    "recipe-construction",
+    "implant-modular-glove-t2-rare",
+    "implant-battle-sleeve-t2-rare",
+    "implant-modular-glove-t2-epic",
+    "implant-battle-sleeve-t2-epic",
+    "implant-arcane-buster-t3-uncommon",
+    "implant-arcane-buster-t3-rare",
+    "implant-arcane-buster-t3-epic"
+  ],
+  "records": [
+    {
+      "id": 203267,
+      "documentId": "isxk5mtbpl3iqwu0xe2w9go8",
+      "name": "Arcane Buster",
+      "slug": "implant-arcane-buster-t3",
+      "quality": "common",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "craftsman",
+      "level": 20,
+      "descriptionEffect": "",
+      "tier": 3,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "",
+      "createdAt": "2026-04-09T11:40:32.199Z",
+      "updatedAt": "2026-04-09T11:40:32.199Z",
+      "publishedAt": "2026-04-09T11:40:33.793Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1350504,
+          "quantity": 2,
+          "name": "implant-modular-glove-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350508,
+          "quantity": 1,
+          "name": "implant-battle-sleeve-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350514,
+          "quantity": 2,
+          "name": "blood-honey",
+          "type": "resource"
+        },
+        {
+          "id": 1350520,
+          "quantity": 1,
+          "name": "thermium-liquidum",
+          "type": "resource"
+        },
+        {
+          "id": 1350524,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255804,
+          "type": "armor",
+          "min": 30,
+          "max": 50
+        },
+        {
+          "id": 255806,
+          "type": "ap",
+          "min": 20,
+          "max": 40
+        }
+      ],
+      "tags": [
+        {
+          "id": 304373,
+          "name": "armor"
+        },
+        {
+          "id": 304375,
+          "name": "ap"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": {
+        "id": 1431,
+        "title": "Dash Detonation",
+        "descriptionEffect": "On-ability use: After using a dash ability, release an energy burst at the end of the dash that deals [150 + 100% [armor]] [md] to the nearest enemy within 4 meters. <br>[cd] 10 sec."
+      },
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149495,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1350555,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350559,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350564,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350569,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350576,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        },
+        {
+          "id": 149497,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1350583,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350590,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350596,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350604,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350611,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7417,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "secondaryStats": []
+    },
+    {
+      "id": "203113-uncommon",
+      "documentId": "uki97qe100kuzpyq176utd2b-uncommon",
+      "name": "Modular Glove",
+      "slug": "implant-modular-glove-t2-uncommon",
+      "quality": "uncommon",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "journeyman",
+      "level": 10,
+      "descriptionEffect": "",
+      "tier": 2,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "Reinforced glove which protects the wearer, while adding strength. With this, you can break walls or epically drown in lava.",
+      "createdAt": "2026-04-09T11:39:02.393Z",
+      "updatedAt": "2026-04-09T11:39:02.393Z",
+      "publishedAt": "2026-04-09T11:39:04.070Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1347846,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        },
+        {
+          "id": 1347853,
+          "quantity": 1,
+          "name": "implant-steroid-implant-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347858,
+          "quantity": 1,
+          "name": "implant-armour-plate-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347862,
+          "quantity": 1,
+          "name": "petrified-spike",
+          "type": "resource"
+        },
+        {
+          "id": 1347865,
+          "quantity": 1,
+          "name": "tungsten",
+          "type": "resource"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255443,
+          "type": "ap",
+          "min": 10,
+          "max": 20
+        },
+        {
+          "id": 255446,
+          "type": "armor",
+          "min": 30,
+          "max": 50
+        }
+      ],
+      "tags": [
+        {
+          "id": 303963,
+          "name": "ap"
+        },
+        {
+          "id": 303965,
+          "name": "armor"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149186,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1347889,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347896,
+              "quantity": 1,
+              "name": "implant-armour-plate-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347903,
+              "quantity": 1,
+              "name": "implant-steroid-implant-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347910,
+              "quantity": 1,
+              "name": "petrified-spike",
+              "type": "resource"
+            },
+            {
+              "id": 1347918,
+              "quantity": 1,
+              "name": "tungsten",
+              "type": "resource"
+            }
+          ]
+        },
+        {
+          "id": 149189,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1347925,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347930,
+              "quantity": 1,
+              "name": "implant-armour-plate-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347934,
+              "quantity": 1,
+              "name": "implant-steroid-implant-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347940,
+              "quantity": 1,
+              "name": "petrified-spike",
+              "type": "resource"
+            },
+            {
+              "id": 1347942,
+              "quantity": 1,
+              "name": "tungsten",
+              "type": "resource"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7262,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-modular-glove-t2",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": "203065-uncommon",
+      "documentId": "wrm1lcc2xv52wn3itavve0ry-uncommon",
+      "name": "Battle Sleeve",
+      "slug": "implant-battle-sleeve-t2-uncommon",
+      "quality": "uncommon",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "journeyman",
+      "level": 10,
+      "descriptionEffect": "",
+      "tier": 2,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "Military grade tech. Used by elite storm troopers. Dramatically increases your chance of winning in a serious fight. Or in arm-wrestling.",
+      "createdAt": "2026-04-09T11:38:44.087Z",
+      "updatedAt": "2026-04-09T11:38:44.087Z",
+      "publishedAt": "2026-04-09T11:38:45.718Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1347267,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        },
+        {
+          "id": 1347270,
+          "quantity": 2,
+          "name": "implant-steroid-implant-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347273,
+          "quantity": 2,
+          "name": "petrified-spike",
+          "type": "resource"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255364,
+          "type": "ap",
+          "min": 20,
+          "max": 40
+        }
+      ],
+      "tags": [
+        {
+          "id": 303883,
+          "name": "ap"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149092,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1347296,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347300,
+              "quantity": 2,
+              "name": "implant-steroid-implant-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347305,
+              "quantity": 2,
+              "name": "petrified-spike",
+              "type": "resource"
+            }
+          ]
+        },
+        {
+          "id": 149094,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1347311,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347318,
+              "quantity": 2,
+              "name": "implant-steroid-implant-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347326,
+              "quantity": 2,
+              "name": "petrified-spike",
+              "type": "resource"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7216,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-battle-sleeve-t2",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": 202868,
+      "documentId": "xqx8mqil92lq5g79jf3v6dm4",
+      "name": "Blood Honey",
+      "slug": "blood-honey",
+      "quality": "epic",
+      "type": "resource",
+      "profession": "logging",
+      "professionLevel": "craftsman",
+      "level": 1,
+      "descriptionEffect": "",
+      "tier": 1,
+      "upgradable": false,
+      "priceModifier": 1,
+      "description": "Incredibly rare find. Innumerable applications. Top tip: as soon as you find it, vacate the vicinity at speed.",
+      "createdAt": "2026-03-21T23:51:07.547Z",
+      "updatedAt": "2026-03-21T23:51:07.547Z",
+      "publishedAt": "2026-03-21T23:51:08.562Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": null,
+      "npc": null,
+      "position": null,
+      "ingredients": [],
+      "stats": [],
+      "tags": [],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [],
+      "price": {
+        "id": 7004,
+        "type": "gold",
+        "amount": "1200"
+      },
+      "requirements": null,
+      "assetType": "resource",
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-3",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": 202895,
+      "documentId": "gtij2gtaxmbxs2ggnh1llbp3",
+      "name": "Thermium Liquidum",
+      "slug": "thermium-liquidum",
+      "quality": "epic",
+      "type": "resource",
+      "profession": "mining",
+      "professionLevel": "craftsman",
+      "level": 1,
+      "descriptionEffect": "",
+      "tier": 1,
+      "upgradable": false,
+      "priceModifier": 1,
+      "description": "Store in a cool place. Otherwise, it'll kind of melt itself and... you. Absolutely essential when doing experiments with radiation. As you do.",
+      "createdAt": "2026-03-21T23:51:09.430Z",
+      "updatedAt": "2026-03-21T23:51:09.430Z",
+      "publishedAt": "2026-03-21T23:51:10.481Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": null,
+      "npc": null,
+      "position": null,
+      "ingredients": [],
+      "stats": [],
+      "tags": [],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [],
+      "price": {
+        "id": 7031,
+        "type": "gold",
+        "amount": "800"
+      },
+      "requirements": null,
+      "assetType": "resource",
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-3",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": 203009,
+      "documentId": "vlmdlvv1vra5qrtky1r3ghv4",
+      "name": "Recipe Construction",
+      "slug": "recipe-construction",
+      "quality": "common",
+      "type": "resource",
+      "profession": "construction",
+      "professionLevel": "newbie",
+      "level": 1,
+      "descriptionEffect": "Recipes are used for crafting and synthesizing the corresponding item. <br>Common recipes are always used for crafting and synthesizing the item. <br>Uncommon, Rare, and Epic recipes are only used in the Synthesis machine, and they are added to all other ingredients specified in the recipe, allowing you to increase the rarity of the item.",
+      "tier": 1,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "",
+      "createdAt": "2026-03-21T23:51:35.461Z",
+      "updatedAt": "2026-03-21T23:51:35.461Z",
+      "publishedAt": "2026-03-21T23:51:36.497Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": null,
+      "npc": null,
+      "position": null,
+      "ingredients": [],
+      "stats": [],
+      "tags": [],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [],
+      "price": {
+        "id": 7154,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "consumable",
+      "secondaryStats": []
+    },
+    {
+      "id": "203113-rare",
+      "documentId": "uki97qe100kuzpyq176utd2b-rare",
+      "name": "Modular Glove",
+      "slug": "implant-modular-glove-t2-rare",
+      "quality": "rare",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "journeyman",
+      "level": 10,
+      "descriptionEffect": "",
+      "tier": 2,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "Reinforced glove which protects the wearer, while adding strength. With this, you can break walls or epically drown in lava.",
+      "createdAt": "2026-04-09T11:39:02.393Z",
+      "updatedAt": "2026-04-09T11:39:02.393Z",
+      "publishedAt": "2026-04-09T11:39:04.070Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1347846,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        },
+        {
+          "id": 1347853,
+          "quantity": 1,
+          "name": "implant-steroid-implant-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347858,
+          "quantity": 1,
+          "name": "implant-armour-plate-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347862,
+          "quantity": 1,
+          "name": "petrified-spike",
+          "type": "resource"
+        },
+        {
+          "id": 1347865,
+          "quantity": 1,
+          "name": "tungsten",
+          "type": "resource"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255443,
+          "type": "ap",
+          "min": 10,
+          "max": 20
+        },
+        {
+          "id": 255446,
+          "type": "armor",
+          "min": 30,
+          "max": 50
+        }
+      ],
+      "tags": [
+        {
+          "id": 303963,
+          "name": "ap"
+        },
+        {
+          "id": 303965,
+          "name": "armor"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149186,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1347889,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347896,
+              "quantity": 1,
+              "name": "implant-armour-plate-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347903,
+              "quantity": 1,
+              "name": "implant-steroid-implant-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347910,
+              "quantity": 1,
+              "name": "petrified-spike",
+              "type": "resource"
+            },
+            {
+              "id": 1347918,
+              "quantity": 1,
+              "name": "tungsten",
+              "type": "resource"
+            }
+          ]
+        },
+        {
+          "id": 149189,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1347925,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347930,
+              "quantity": 1,
+              "name": "implant-armour-plate-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347934,
+              "quantity": 1,
+              "name": "implant-steroid-implant-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347940,
+              "quantity": 1,
+              "name": "petrified-spike",
+              "type": "resource"
+            },
+            {
+              "id": 1347942,
+              "quantity": 1,
+              "name": "tungsten",
+              "type": "resource"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7262,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-modular-glove-t2",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": "203065-rare",
+      "documentId": "wrm1lcc2xv52wn3itavve0ry-rare",
+      "name": "Battle Sleeve",
+      "slug": "implant-battle-sleeve-t2-rare",
+      "quality": "rare",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "journeyman",
+      "level": 10,
+      "descriptionEffect": "",
+      "tier": 2,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "Military grade tech. Used by elite storm troopers. Dramatically increases your chance of winning in a serious fight. Or in arm-wrestling.",
+      "createdAt": "2026-04-09T11:38:44.087Z",
+      "updatedAt": "2026-04-09T11:38:44.087Z",
+      "publishedAt": "2026-04-09T11:38:45.718Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1347267,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        },
+        {
+          "id": 1347270,
+          "quantity": 2,
+          "name": "implant-steroid-implant-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347273,
+          "quantity": 2,
+          "name": "petrified-spike",
+          "type": "resource"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255364,
+          "type": "ap",
+          "min": 20,
+          "max": 40
+        }
+      ],
+      "tags": [
+        {
+          "id": 303883,
+          "name": "ap"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149092,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1347296,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347300,
+              "quantity": 2,
+              "name": "implant-steroid-implant-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347305,
+              "quantity": 2,
+              "name": "petrified-spike",
+              "type": "resource"
+            }
+          ]
+        },
+        {
+          "id": 149094,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1347311,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347318,
+              "quantity": 2,
+              "name": "implant-steroid-implant-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347326,
+              "quantity": 2,
+              "name": "petrified-spike",
+              "type": "resource"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7216,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-battle-sleeve-t2",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": "203113-epic",
+      "documentId": "uki97qe100kuzpyq176utd2b-epic",
+      "name": "Modular Glove",
+      "slug": "implant-modular-glove-t2-epic",
+      "quality": "epic",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "journeyman",
+      "level": 10,
+      "descriptionEffect": "",
+      "tier": 2,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "Reinforced glove which protects the wearer, while adding strength. With this, you can break walls or epically drown in lava.",
+      "createdAt": "2026-04-09T11:39:02.393Z",
+      "updatedAt": "2026-04-09T11:39:02.393Z",
+      "publishedAt": "2026-04-09T11:39:04.070Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1347846,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        },
+        {
+          "id": 1347853,
+          "quantity": 1,
+          "name": "implant-steroid-implant-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347858,
+          "quantity": 1,
+          "name": "implant-armour-plate-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347862,
+          "quantity": 1,
+          "name": "petrified-spike",
+          "type": "resource"
+        },
+        {
+          "id": 1347865,
+          "quantity": 1,
+          "name": "tungsten",
+          "type": "resource"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255443,
+          "type": "ap",
+          "min": 10,
+          "max": 20
+        },
+        {
+          "id": 255446,
+          "type": "armor",
+          "min": 30,
+          "max": 50
+        }
+      ],
+      "tags": [
+        {
+          "id": 303963,
+          "name": "ap"
+        },
+        {
+          "id": 303965,
+          "name": "armor"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149186,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1347889,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347896,
+              "quantity": 1,
+              "name": "implant-armour-plate-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347903,
+              "quantity": 1,
+              "name": "implant-steroid-implant-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347910,
+              "quantity": 1,
+              "name": "petrified-spike",
+              "type": "resource"
+            },
+            {
+              "id": 1347918,
+              "quantity": 1,
+              "name": "tungsten",
+              "type": "resource"
+            }
+          ]
+        },
+        {
+          "id": 149189,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1347925,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347930,
+              "quantity": 1,
+              "name": "implant-armour-plate-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347934,
+              "quantity": 1,
+              "name": "implant-steroid-implant-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347940,
+              "quantity": 1,
+              "name": "petrified-spike",
+              "type": "resource"
+            },
+            {
+              "id": 1347942,
+              "quantity": 1,
+              "name": "tungsten",
+              "type": "resource"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7262,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-modular-glove-t2",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-3",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": "203065-epic",
+      "documentId": "wrm1lcc2xv52wn3itavve0ry-epic",
+      "name": "Battle Sleeve",
+      "slug": "implant-battle-sleeve-t2-epic",
+      "quality": "epic",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "journeyman",
+      "level": 10,
+      "descriptionEffect": "",
+      "tier": 2,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "Military grade tech. Used by elite storm troopers. Dramatically increases your chance of winning in a serious fight. Or in arm-wrestling.",
+      "createdAt": "2026-04-09T11:38:44.087Z",
+      "updatedAt": "2026-04-09T11:38:44.087Z",
+      "publishedAt": "2026-04-09T11:38:45.718Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1347267,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        },
+        {
+          "id": 1347270,
+          "quantity": 2,
+          "name": "implant-steroid-implant-t1-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1347273,
+          "quantity": 2,
+          "name": "petrified-spike",
+          "type": "resource"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255364,
+          "type": "ap",
+          "min": 20,
+          "max": 40
+        }
+      ],
+      "tags": [
+        {
+          "id": 303883,
+          "name": "ap"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": null,
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149092,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1347296,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347300,
+              "quantity": 2,
+              "name": "implant-steroid-implant-t1-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1347305,
+              "quantity": 2,
+              "name": "petrified-spike",
+              "type": "resource"
+            }
+          ]
+        },
+        {
+          "id": 149094,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1347311,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            },
+            {
+              "id": 1347318,
+              "quantity": 2,
+              "name": "implant-steroid-implant-t1-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1347326,
+              "quantity": 2,
+              "name": "petrified-spike",
+              "type": "resource"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7216,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-battle-sleeve-t2",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-3",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": "203267-uncommon",
+      "documentId": "isxk5mtbpl3iqwu0xe2w9go8-uncommon",
+      "name": "Arcane Buster",
+      "slug": "implant-arcane-buster-t3-uncommon",
+      "quality": "uncommon",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "craftsman",
+      "level": 20,
+      "descriptionEffect": "",
+      "tier": 3,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "",
+      "createdAt": "2026-04-09T11:40:32.199Z",
+      "updatedAt": "2026-04-09T11:40:32.199Z",
+      "publishedAt": "2026-04-09T11:40:33.793Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1350504,
+          "quantity": 2,
+          "name": "implant-modular-glove-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350508,
+          "quantity": 1,
+          "name": "implant-battle-sleeve-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350514,
+          "quantity": 2,
+          "name": "blood-honey",
+          "type": "resource"
+        },
+        {
+          "id": 1350520,
+          "quantity": 1,
+          "name": "thermium-liquidum",
+          "type": "resource"
+        },
+        {
+          "id": 1350524,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255804,
+          "type": "armor",
+          "min": 30,
+          "max": 50
+        },
+        {
+          "id": 255806,
+          "type": "ap",
+          "min": 20,
+          "max": 40
+        }
+      ],
+      "tags": [
+        {
+          "id": 304373,
+          "name": "armor"
+        },
+        {
+          "id": 304375,
+          "name": "ap"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": {
+        "id": 1431,
+        "title": "Dash Detonation",
+        "descriptionEffect": "On-ability use: After using a dash ability, release an energy burst at the end of the dash that deals [150 + 100% [armor]] [md] to the nearest enemy within 4 meters. <br>[cd] 10 sec."
+      },
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149495,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1350555,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350559,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350564,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350569,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350576,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        },
+        {
+          "id": 149497,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1350583,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350590,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350596,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350604,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350611,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7417,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-arcane-buster-t3",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": "203267-rare",
+      "documentId": "isxk5mtbpl3iqwu0xe2w9go8-rare",
+      "name": "Arcane Buster",
+      "slug": "implant-arcane-buster-t3-rare",
+      "quality": "rare",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "craftsman",
+      "level": 20,
+      "descriptionEffect": "",
+      "tier": 3,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "",
+      "createdAt": "2026-04-09T11:40:32.199Z",
+      "updatedAt": "2026-04-09T11:40:32.199Z",
+      "publishedAt": "2026-04-09T11:40:33.793Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1350504,
+          "quantity": 2,
+          "name": "implant-modular-glove-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350508,
+          "quantity": 1,
+          "name": "implant-battle-sleeve-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350514,
+          "quantity": 2,
+          "name": "blood-honey",
+          "type": "resource"
+        },
+        {
+          "id": 1350520,
+          "quantity": 1,
+          "name": "thermium-liquidum",
+          "type": "resource"
+        },
+        {
+          "id": 1350524,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255804,
+          "type": "armor",
+          "min": 30,
+          "max": 50
+        },
+        {
+          "id": 255806,
+          "type": "ap",
+          "min": 20,
+          "max": 40
+        }
+      ],
+      "tags": [
+        {
+          "id": 304373,
+          "name": "armor"
+        },
+        {
+          "id": 304375,
+          "name": "ap"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": {
+        "id": 1431,
+        "title": "Dash Detonation",
+        "descriptionEffect": "On-ability use: After using a dash ability, release an energy burst at the end of the dash that deals [150 + 100% [armor]] [md] to the nearest enemy within 4 meters. <br>[cd] 10 sec."
+      },
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149495,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1350555,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350559,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350564,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350569,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350576,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        },
+        {
+          "id": 149497,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1350583,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350590,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350596,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350604,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350611,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7417,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-arcane-buster-t3",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    },
+    {
+      "id": "203267-epic",
+      "documentId": "isxk5mtbpl3iqwu0xe2w9go8-epic",
+      "name": "Arcane Buster",
+      "slug": "implant-arcane-buster-t3-epic",
+      "quality": "epic",
+      "type": "implant",
+      "profession": "construction",
+      "professionLevel": "craftsman",
+      "level": 20,
+      "descriptionEffect": "",
+      "tier": 3,
+      "upgradable": true,
+      "priceModifier": 1,
+      "description": "",
+      "createdAt": "2026-04-09T11:40:32.199Z",
+      "updatedAt": "2026-04-09T11:40:32.199Z",
+      "publishedAt": "2026-04-09T11:40:33.793Z",
+      "mastery": null,
+      "category": "",
+      "subcategory": "",
+      "archetype": null,
+      "sex": null,
+      "slot": "artifact",
+      "npc": null,
+      "position": null,
+      "ingredients": [
+        {
+          "id": 1350504,
+          "quantity": 2,
+          "name": "implant-modular-glove-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350508,
+          "quantity": 1,
+          "name": "implant-battle-sleeve-t2-uncommon",
+          "type": "implant"
+        },
+        {
+          "id": 1350514,
+          "quantity": 2,
+          "name": "blood-honey",
+          "type": "resource"
+        },
+        {
+          "id": 1350520,
+          "quantity": 1,
+          "name": "thermium-liquidum",
+          "type": "resource"
+        },
+        {
+          "id": 1350524,
+          "quantity": 1,
+          "name": "recipe-construction",
+          "type": "consumable"
+        }
+      ],
+      "stats": [
+        {
+          "id": 255804,
+          "type": "armor",
+          "min": 30,
+          "max": 50
+        },
+        {
+          "id": 255806,
+          "type": "ap",
+          "min": 20,
+          "max": 40
+        }
+      ],
+      "tags": [
+        {
+          "id": 304373,
+          "name": "armor"
+        },
+        {
+          "id": 304375,
+          "name": "ap"
+        }
+      ],
+      "modifications": [],
+      "specialEffect": {
+        "id": 1431,
+        "title": "Dash Detonation",
+        "descriptionEffect": "On-ability use: After using a dash ability, release an energy burst at the end of the dash that deals [150 + 100% [armor]] [md] to the nearest enemy within 4 meters. <br>[cd] 10 sec."
+      },
+      "scale": null,
+      "scales": [],
+      "rangeScale": null,
+      "recipes": [
+        {
+          "id": 149495,
+          "name": "Upgraded",
+          "ingredients": [
+            {
+              "id": 1350555,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350559,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-rare",
+              "type": "implant"
+            },
+            {
+              "id": 1350564,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350569,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350576,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        },
+        {
+          "id": 149497,
+          "name": "Overclocked",
+          "ingredients": [
+            {
+              "id": 1350583,
+              "quantity": 2,
+              "name": "implant-modular-glove-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350590,
+              "quantity": 1,
+              "name": "implant-battle-sleeve-t2-epic",
+              "type": "implant"
+            },
+            {
+              "id": 1350596,
+              "quantity": 2,
+              "name": "blood-honey",
+              "type": "resource"
+            },
+            {
+              "id": 1350604,
+              "quantity": 1,
+              "name": "thermium-liquidum",
+              "type": "resource"
+            },
+            {
+              "id": 1350611,
+              "quantity": 1,
+              "name": "recipe-construction",
+              "type": "consumable"
+            }
+          ]
+        }
+      ],
+      "price": {
+        "id": 7417,
+        "type": "gold",
+        "amount": "1"
+      },
+      "requirements": null,
+      "assetType": "implant",
+      "baseSlug": "implant-arcane-buster-t3",
+      "synthesizedQualityVariant": true,
+      "secondaryStats": [
+        {
+          "id": "random-secondary-1",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-2",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        },
+        {
+          "id": "random-secondary-3",
+          "type": "random",
+          "min": null,
+          "max": null,
+          "label": "Random secondary stat"
+        }
+      ]
+    }
+  ],
+  "media": {
+    "items": {
+      "implant-arcane-buster-t3": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-arcane-buster-t3.png",
+        "local": "/game-assets/items/implant/implant-arcane-buster-t3.png",
+        "downloaded": true
+      },
+      "implant-modular-glove-t2-uncommon": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-modular-glove-t2-uncommon.png",
+        "local": "/game-assets/items/implant/implant-modular-glove-t2-uncommon.png",
+        "downloaded": true
+      },
+      "implant-battle-sleeve-t2-uncommon": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-battle-sleeve-t2-uncommon.png",
+        "local": "/game-assets/items/implant/implant-battle-sleeve-t2-uncommon.png",
+        "downloaded": true
+      },
+      "blood-honey": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/resource/blood-honey.png",
+        "local": "/game-assets/items/resource/blood-honey.png",
+        "downloaded": true
+      },
+      "thermium-liquidum": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/resource/thermium-liquidum.png",
+        "local": "/game-assets/items/resource/thermium-liquidum.png",
+        "downloaded": true
+      },
+      "recipe-construction": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/consumable/recipe-construction.png",
+        "local": "/game-assets/items/consumable/recipe-construction.png",
+        "downloaded": true
+      },
+      "implant-modular-glove-t2-rare": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-modular-glove-t2-rare.png",
+        "local": "/game-assets/items/implant/implant-modular-glove-t2-rare.png",
+        "downloaded": true
+      },
+      "implant-battle-sleeve-t2-rare": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-battle-sleeve-t2-rare.png",
+        "local": "/game-assets/items/implant/implant-battle-sleeve-t2-rare.png",
+        "downloaded": true
+      },
+      "implant-modular-glove-t2-epic": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-modular-glove-t2-epic.png",
+        "local": "/game-assets/items/implant/implant-modular-glove-t2-epic.png",
+        "downloaded": true
+      },
+      "implant-battle-sleeve-t2-epic": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-battle-sleeve-t2-epic.png",
+        "local": "/game-assets/items/implant/implant-battle-sleeve-t2-epic.png",
+        "downloaded": true
+      },
+      "implant-arcane-buster-t3-uncommon": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-arcane-buster-t3-uncommon.png",
+        "local": "/game-assets/items/implant/implant-arcane-buster-t3-uncommon.png",
+        "downloaded": true
+      },
+      "implant-arcane-buster-t3-rare": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-arcane-buster-t3-rare.png",
+        "local": "/game-assets/items/implant/implant-arcane-buster-t3-rare.png",
+        "downloaded": true
+      },
+      "implant-arcane-buster-t3-epic": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/items/implant/implant-arcane-buster-t3-epic.png",
+        "local": "/game-assets/items/implant/implant-arcane-buster-t3-epic.png",
+        "downloaded": true
+      }
+    },
+    "stats": {
+      "armor": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/stats/armor.png",
+        "local": "/game-assets/stats/armor.png",
+        "downloaded": true,
+        "label": "Armor"
+      },
+      "ap": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/stats/ap.png",
+        "local": "/game-assets/stats/ap.png",
+        "downloaded": true,
+        "label": "Attack Power"
+      },
+      "cd": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/stats/cd.png",
+        "local": "/game-assets/stats/cd.png",
+        "downloaded": true,
+        "label": "Cooldown"
+      }
+    },
+    "professions": {
+      "construction": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/professions/construction.png",
+        "local": "/game-assets/professions/construction.png",
+        "downloaded": true
+      },
+      "logging": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/professions/logging.png",
+        "local": "/game-assets/professions/logging.png",
+        "downloaded": true
+      },
+      "mining": {
+        "remote": "https://d2fwno52vggyhx.cloudfront.net/professions/mining.png",
+        "local": "/game-assets/professions/mining.png",
+        "downloaded": true
+      }
+    }
+  }
+}
