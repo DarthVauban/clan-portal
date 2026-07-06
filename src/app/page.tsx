@@ -20,7 +20,7 @@ export default function DashboardPage() {
     <div className="page-stack">
       <section className="dashboard-hero">
         <div className="hero-copy">
-          <div className="eyebrow">Центр управления кланом</div>
+          <div className="eyebrow">Центр управления кланом!</div>
           <h1>Всё важное для клана<br /><span>в одном пространстве.</span></h1>
           <p>Единая точка для составов клана, ресурсов, предметов, заявок и совместного крафта.</p>
           <div className="hero-actions">
