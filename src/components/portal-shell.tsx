@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   ShieldX,
   Sparkles,
+  UserPlus,
   UsersRound,
   X,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const primaryNavigation = [
 ];
 
 const requestNavigation = [
+  { href: "/requests/membership", label: "Заявки на вступление", icon: UserPlus },
   { href: "/requests/resources", label: "На получение ресурсов", icon: HandCoins, restricted: true },
   { href: "/requests/crafting", label: "На крафт предметов", icon: ScrollText, restricted: true },
 ];
@@ -123,7 +125,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
           <div className="nav-group">
             <div className="nav-group-label">Заявки</div>
-            {requestNavigation.map((item) => <NavLink key={item.href} {...item} locked={!collectiveAccess} onNavigate={closeMenu} />)}
+            {requestNavigation.map((item) => <NavLink key={item.href} {...item} locked={Boolean("restricted" in item && item.restricted && !collectiveAccess)} onNavigate={closeMenu} />)}
           </div>
 
           <div className="nav-group nav-group--last">

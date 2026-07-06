@@ -64,26 +64,15 @@ export const portalRoles: Array<{ value: PortalRole; label: string }> = [
   { value: "member", label: portalRoleLabels.member },
 ];
 
-const demoPlayers: DirectoryPlayer[] = [
-  { id: "player-aelita", displayName: "Aelita", discordNickname: "aelita.cp", mainCharacterId: "aelita-main", local: false, characters: [{ id: "aelita-main", name: "Aelita", classSlug: "shaman" }, { id: "aelita-alt", name: "Mosswitch", classSlug: "ranger" }] },
-  { id: "player-brann", displayName: "Brann", discordNickname: "brann_guard", mainCharacterId: "brann-main", local: false, characters: [{ id: "brann-main", name: "Iron Brann", classSlug: "defender" }] },
-  { id: "player-vesper", displayName: "Vesper", discordNickname: "vesper.exe", mainCharacterId: "vesper-main", local: false, characters: [{ id: "vesper-main", name: "Vesper", classSlug: "infiltrator" }] },
-  { id: "player-kael", displayName: "Kael", discordNickname: "kaelboom", mainCharacterId: "kael-main", local: false, characters: [{ id: "kael-main", name: "Kael Boom", classSlug: "blast-medic" }] },
-  { id: "player-mira", displayName: "Mira", discordNickname: "mira.wild", mainCharacterId: "mira-main", local: false, characters: [{ id: "mira-main", name: "Mira Wild", classSlug: "ranger" }] },
-  { id: "player-ragnar", displayName: "Ragnar", discordNickname: "ragnar_cp", mainCharacterId: "ragnar-main", local: false, characters: [{ id: "ragnar-main", name: "Ragnar", classSlug: "destroyer" }] },
-  { id: "player-sable", displayName: "Sable", discordNickname: "sable.shadow", mainCharacterId: "sable-main", local: false, characters: [{ id: "sable-main", name: "Sable", classSlug: "infiltrator" }] },
-  { id: "player-torin", displayName: "Torin", discordNickname: "torin.wall", mainCharacterId: "torin-main", local: false, characters: [{ id: "torin-main", name: "Torin", classSlug: "legionnary" }] },
-  { id: "player-yuna", displayName: "Yuna", discordNickname: "yuna.spirit", mainCharacterId: "yuna-main", local: false, characters: [{ id: "yuna-main", name: "Yuna", classSlug: "shaman" }] },
-  { id: "player-zed", displayName: "Zed", discordNickname: "zed.med", mainCharacterId: "zed-main", local: false, characters: [{ id: "zed-main", name: "Zed Remedy", classSlug: "blast-medic" }] },
-  { id: "player-nyx", displayName: "Nyx", discordNickname: "nyx.core", mainCharacterId: "nyx-main", local: false, characters: [{ id: "nyx-main", name: "Nyx", classSlug: "destroyer" }] },
-  { id: "player-orion", displayName: "Orion", discordNickname: "orion.aegis", mainCharacterId: "orion-main", local: false, characters: [{ id: "orion-main", name: "Orion Aegis", classSlug: "defender" }] },
-];
+const legacyDemoPlayerIds = new Set([
+  "player-aelita", "player-brann", "player-vesper", "player-kael", "player-mira", "player-ragnar",
+  "player-sable", "player-torin", "player-yuna", "player-zed", "player-nyx", "player-orion",
+]);
 
 const STORAGE_KEY = "clan-portal:collectives";
 const STORE_EVENT = "clan-portal:collectives-change";
 const DEFAULT_PORTAL_ROLES: Record<string, PortalRole> = {
   [LOCAL_PLAYER_ID]: "administrator",
-  "player-aelita": "clan-leader",
 };
 const EMPTY_STATE: CollectiveState = { collectives: [], portalRoles: DEFAULT_PORTAL_ROLES, revokedPlayerIds: [] };
 const validRoles = new Set<CollectiveRole>(collectiveRoles.map((role) => role.value));
@@ -103,7 +92,7 @@ function normalizeState(value: unknown): CollectiveState {
     const members = Array.isArray(item.members) ? item.members.flatMap((member) => {
       if (!member || typeof member !== "object") return [];
       const entry = member as Partial<CollectiveMember>;
-      if (typeof entry.playerId !== "string" || assignedPlayers.has(entry.playerId)) return [];
+      if (typeof entry.playerId !== "string" || assignedPlayers.has(entry.playerId) || legacyDemoPlayerIds.has(entry.playerId)) return [];
       const role = typeof entry.role === "string" && validRoles.has(entry.role as CollectiveRole) ? entry.role as CollectiveRole : "member";
       assignedPlayers.add(entry.playerId);
       return [{ playerId: entry.playerId, role, joinedAt: typeof entry.joinedAt === "string" ? entry.joinedAt : todayIso() }];
@@ -117,11 +106,11 @@ function normalizeState(value: unknown): CollectiveState {
     }];
   });
   const portalRoleEntries = candidate.portalRoles && typeof candidate.portalRoles === "object"
-    ? Object.entries(candidate.portalRoles).flatMap(([playerId, role]) => typeof role === "string" && validPortalRoles.has(role as PortalRole) ? [[playerId, role as PortalRole] as const] : [])
+    ? Object.entries(candidate.portalRoles).flatMap(([playerId, role]) => !legacyDemoPlayerIds.has(playerId) && typeof role === "string" && validPortalRoles.has(role as PortalRole) ? [[playerId, role as PortalRole] as const] : [])
     : [];
   const portalRoleMap = Object.fromEntries(portalRoleEntries) as Record<string, PortalRole>;
   const revokedPlayerIds = Array.isArray(candidate.revokedPlayerIds)
-    ? [...new Set(candidate.revokedPlayerIds.filter((playerId): playerId is string => typeof playerId === "string" && playerId !== LOCAL_PLAYER_ID))]
+    ? [...new Set(candidate.revokedPlayerIds.filter((playerId): playerId is string => typeof playerId === "string" && playerId !== LOCAL_PLAYER_ID && !legacyDemoPlayerIds.has(playerId)))]
     : [];
   return { collectives, portalRoles: { ...DEFAULT_PORTAL_ROLES, ...portalRoleMap }, revokedPlayerIds };
 }
@@ -176,7 +165,7 @@ export function getPlayerDirectory(profile: LocalProfile, state?: CollectiveStat
     mainCharacterId: profile.mainCharacterId,
     local: true,
   };
-  const players = [localPlayer, ...demoPlayers];
+  const players = [localPlayer];
   return state ? players.filter((player) => !state.revokedPlayerIds.includes(player.id)) : players;
 }
 

@@ -14,7 +14,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useCollectiveStore } from "@/lib/collective-store";
+import { collectiveRoleLabels, findMembership, getPortalRole, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { LOCAL_PLAYER_ID } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
 import styles from "@/app/craft-calculator/craft-calculator.module.css";
 
@@ -50,20 +51,9 @@ export type CalculatorReferenceItem = {
   ingredients: CalculatorIngredient[];
 };
 
-type TestRole = "member" | "raid-leader" | "treasurer" | "collective-leader" | "clan-leader" | "administrator";
-
 type Requirement = CalculatorReferenceItem & {
   quantity: number;
 };
-
-const testRoles: Array<{ value: TestRole; label: string; extended: boolean }> = [
-  { value: "member", label: "Участник", extended: false },
-  { value: "raid-leader", label: "Рейд-лидер", extended: true },
-  { value: "treasurer", label: "Казначей", extended: true },
-  { value: "collective-leader", label: "Лидер коллектива", extended: true },
-  { value: "clan-leader", label: "Лидер клана", extended: true },
-  { value: "administrator", label: "Администратор", extended: true },
-];
 
 const typeLabels: Record<string, string> = {
   weapon: "Оружие",
@@ -75,7 +65,7 @@ const typeLabels: Record<string, string> = {
 };
 
 const categoryOptions = ["all", "weapon", "implant", "chip", "rune", "consumable", "resource"] as const;
-const extendedRoles = new Set<TestRole>(["raid-leader", "treasurer", "collective-leader", "clan-leader", "administrator"]);
+const tierOptions = [1, 2, 3] as const;
 const numberFormatter = new Intl.NumberFormat("ru-RU");
 
 function formatAmount(value: number) {
@@ -89,19 +79,30 @@ function fallbackName(slug: string) {
 export function CraftCalculator({ craftItems, referenceItems }: { craftItems: CalculatorCraftItem[]; referenceItems: CalculatorReferenceItem[] }) {
   const { state: collectiveState } = useCollectiveStore();
   const { state: resourceState } = useResourceStore();
-  const [testRole, setTestRole] = useState<TestRole>("member");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<(typeof categoryOptions)[number]>("all");
+  const [tier, setTier] = useState<number | "all">("all");
   const [selectedItemSlug, setSelectedItemSlug] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState("");
   const [quantity, setQuantity] = useState(1);
 
-  const hasExtendedAccess = extendedRoles.has(testRole);
+  const membership = findMembership(collectiveState, LOCAL_PLAYER_ID);
+  const portalRole = getPortalRole(collectiveState, LOCAL_PLAYER_ID);
+  const collectiveRole = membership?.member.role;
+  const hasExtendedAccess = portalRole === "administrator"
+    || portalRole === "clan-leader"
+    || collectiveRole === "leader"
+    || collectiveRole === "treasurer"
+    || collectiveRole === "raid-leader";
+  const accessRoleLabel = portalRole !== "member"
+    ? portalRoleLabels[portalRole]
+    : collectiveRole ? collectiveRoleLabels[collectiveRole] : "Участник";
   const referenceBySlug = useMemo(() => new Map(referenceItems.map((item) => [item.slug, item])), [referenceItems]);
   const selectedItem = craftItems.find((item) => item.slug === selectedItemSlug) ?? null;
   const selectedRecipe = selectedItem?.recipes.find((recipe) => recipe.id === selectedRecipeId) ?? selectedItem?.recipes[0] ?? null;
   const normalizedQuery = query.trim().toLocaleLowerCase("ru");
   const visibleItems = craftItems.filter((item) => (category === "all" || item.type === category)
+    && (tier === "all" || item.tier === tier)
     && (!normalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery)))).slice(0, 80);
 
   const clanBalances = useMemo(() => {
@@ -178,21 +179,25 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
           <span className={hasExtendedAccess ? styles.accessIconExtended : ""}>{hasExtendedAccess ? <ShieldCheck size={18} /> : <UserRound size={18} />}</span>
           <div><small>Режим калькулятора</small><strong>{hasExtendedAccess ? "Расширенный расчёт" : "Личный расчёт"}</strong><p>{hasExtendedAccess ? "Доступно сравнение с суммарным банком всех коллективов." : "Расчёт компонентов без доступа к балансам клана."}</p></div>
         </div>
-        <label className={styles.roleSwitcher}>
-          <span>Тестовая роль</span>
-          <select value={testRole} onChange={(event) => setTestRole(event.target.value as TestRole)} data-testid="craft-role-switcher">
-            {testRoles.map((role) => <option value={role.value} key={role.value}>{role.label}</option>)}
-          </select>
-          <em>Локальный режим тестирования</em>
-        </label>
+        <div className={styles.accessRole}><span>Ваша роль</span><strong>{accessRoleLabel}</strong></div>
       </section>
 
       <div className={styles.workspace}>
         <section className={styles.recipeSelector}>
           <header><span>Шаг 1</span><h2>Выберите предмет</h2><p>Доступны все предметы с рецептом из базы знаний.</p></header>
           <label className={styles.searchBox}><Search size={15} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по названию..." /></label>
-          <div className={styles.categoryFilters}>
-            {categoryOptions.map((value) => <button type="button" className={category === value ? styles.filterActive : ""} onClick={() => setCategory(value)} key={value}>{value === "all" ? "Все" : typeLabels[value]}</button>)}
+          <div className={styles.filterBlock}>
+            <span className={styles.filterLabel}>Тип предмета</span>
+            <div className={styles.categoryFilters}>
+              {categoryOptions.map((value) => <button type="button" className={category === value ? styles.filterActive : ""} onClick={() => setCategory(value)} key={value}>{value === "all" ? "Все" : typeLabels[value]}</button>)}
+            </div>
+          </div>
+          <div className={styles.filterBlock}>
+            <span className={styles.filterLabel}>Тир предмета</span>
+            <div className={styles.categoryFilters}>
+              <button type="button" className={tier === "all" ? styles.filterActive : ""} onClick={() => setTier("all")}>Все</button>
+              {tierOptions.map((value) => <button type="button" className={tier === value ? styles.filterActive : ""} onClick={() => setTier(value)} key={value}>T{value}</button>)}
+            </div>
           </div>
           <div className={styles.itemList} data-testid="craft-item-list">
             {visibleItems.map((item) => (

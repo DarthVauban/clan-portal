@@ -79,7 +79,9 @@ async function seedCorepunkItems(client) {
     readFile(localizationPath, "utf8"),
     readFile(glossaryPath, "utf8"),
   ]);
-  const contentHash = sha256(`${itemsRaw}\n${localizationRaw}\n${glossaryRaw}`);
+  const modificationRuleResult = await client.query("SELECT item_type, tier_min, tier_max, modification_type, source_id, effect_en, effect_ru FROM corepunk_item_modification_rules ORDER BY rule_id");
+  const modificationRules = modificationRuleResult.rows;
+  const contentHash = sha256(`${itemsRaw}\n${localizationRaw}\n${glossaryRaw}\n${JSON.stringify(modificationRules)}`);
   const current = await client.query("SELECT content_hash FROM corepunk_datasets WHERE dataset_key = 'corepunk-items'");
   if (current.rows[0]?.content_hash === contentHash) {
     console.log("[database] Corepunk item dataset is up to date");
@@ -165,14 +167,23 @@ async function seedCorepunkItems(client) {
     label_en: stat.label ?? "",
     label_ru: translate(stat.label),
   })));
-  const modifications = database.records.flatMap((item) => (item.modifications ?? []).map((modification, position) => ({
-    item_slug: item.slug,
-    position,
-    source_id: String(modification.id ?? ""),
-    modification_type: modification.type ?? "",
-    effect_en: modification.effect ?? "",
-    effect_ru: translate(modification.effect),
-  })));
+  const modifications = database.records.flatMap((item) => {
+    const matchingRules = modificationRules.filter((rule) => rule.item_type === item.type && item.tier >= rule.tier_min && item.tier <= rule.tier_max);
+    const replacedTypes = new Set(matchingRules.map((rule) => rule.modification_type));
+    const sourceModifications = (item.modifications ?? []).filter((modification) => !replacedTypes.has(modification.type)).map((modification) => ({
+      source_id: String(modification.id ?? ""),
+      modification_type: modification.type ?? "",
+      effect_en: modification.effect ?? "",
+      effect_ru: translate(modification.effect),
+    }));
+    const generatedModifications = matchingRules.map((rule) => ({
+      source_id: rule.source_id,
+      modification_type: rule.modification_type,
+      effect_en: rule.effect_en,
+      effect_ru: rule.effect_ru,
+    }));
+    return [...sourceModifications, ...generatedModifications].map((modification, position) => ({ item_slug: item.slug, position, ...modification }));
+  });
   const tags = database.records.flatMap((item) => (item.tags ?? []).map((tag, position) => ({
     item_slug: item.slug,
     position,

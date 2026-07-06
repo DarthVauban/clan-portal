@@ -23,6 +23,7 @@ node scripts/migrate-and-seed.mjs
 - `corepunk_item_recipes` и `corepunk_recipe_ingredients` — варианты рецептов и их компоненты;
 - `corepunk_item_stats` и `corepunk_item_secondary_stats` — характеристики;
 - `corepunk_item_modifications`, `corepunk_item_tags`, `corepunk_item_special_effects`, `corepunk_item_prices` — дополнительные данные карточек;
+- `corepunk_item_modification_rules` — единые правила модификаций оружия и артефактов по тиру;
 - `corepunk_media_assets` — локальные пути и метаданные иконок;
 - `corepunk_relation_targets` и `corepunk_relation_edges` — связи между предметами;
 - `corepunk_datasets` — версия и контрольный хэш импорта;
