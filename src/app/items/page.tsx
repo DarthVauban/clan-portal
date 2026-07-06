@@ -1,10 +1,13 @@
 import { Database } from "lucide-react";
 import { Suspense } from "react";
 import { KnowledgeCatalog } from "@/components/knowledge-catalog";
-import { catalogDataset, itemDatabaseCounts } from "@/lib/corepunk-item-data";
+import { getCatalogDataset, getItemDatabaseCounts } from "@/lib/corepunk-item-repository";
 import styles from "./item-card.module.css";
 
-export default function ItemsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ItemsPage() {
+  const [catalogDataset, itemDatabaseCounts] = await Promise.all([getCatalogDataset(), getItemDatabaseCounts()]);
   return (
     <div className="page-stack">
       <section className="page-hero">

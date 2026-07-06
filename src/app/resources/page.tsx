@@ -1,7 +1,10 @@
 import { ResourcesManager, type ResourceCatalogItem } from "@/components/resources-manager";
-import { catalogDataset } from "@/lib/corepunk-item-data";
+import { getCatalogDataset } from "@/lib/corepunk-item-repository";
 
-export default function ResourcesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ResourcesPage() {
+  const catalogDataset = await getCatalogDataset();
   const resources: ResourceCatalogItem[] = catalogDataset.items
     .filter((item) => item.type === "resource")
     .map((item) => ({

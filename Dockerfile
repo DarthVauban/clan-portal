@@ -35,9 +35,15 @@ COPY --from=builder /app/public ./public
 RUN mkdir .next && chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/database ./database
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate-and-seed.mjs ./scripts/migrate-and-seed.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/src/data/corepunk-items.json ./src/data/corepunk-items.json
+COPY --from=builder --chown=nextjs:nodejs /app/src/data/corepunk-items-ru.json ./src/data/corepunk-items-ru.json
+COPY --from=builder --chown=nextjs:nodejs /app/src/localization/corepunk-glossary.json ./src/localization/corepunk-glossary.json
 
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node scripts/migrate-and-seed.mjs && node server.js"]

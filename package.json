@@ -4,9 +4,10 @@
   "private": true,
   "packageManager": "pnpm@11.7.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/migrate-and-seed.mjs && next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/migrate-and-seed.mjs && node .next/standalone/server.js",
+    "db:migrate": "node scripts/migrate-and-seed.mjs",
     "lint": "eslint .",
     "scrape:test-item": "node scripts/scrape-corepunk-item.mjs implant-arcane-buster-t3",
     "scrape:items": "node scripts/scrape-corepunk-items.mjs",
@@ -15,11 +16,13 @@
   "dependencies": {
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
+    "pg": "^8.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",

@@ -4,7 +4,9 @@ import {
   type CalculatorIngredient,
   type CalculatorReferenceItem,
 } from "@/components/craft-calculator";
-import { baseItemSlugs, getAllItems, getItem, getItemImage } from "@/lib/corepunk-item-data";
+import { getAllItems, getBaseItemSlugs, getItemImageMap } from "@/lib/corepunk-item-repository";
+
+export const dynamic = "force-dynamic";
 
 const recipeNames: Record<string, string> = {
   Upgraded: "Улучшенный",
@@ -15,19 +17,21 @@ function mapIngredients(ingredients: Array<{ name: string; quantity: number; typ
   return ingredients.map((ingredient) => ({ slug: ingredient.name, quantity: ingredient.quantity, type: ingredient.type }));
 }
 
-export default function CraftCalculatorPage() {
-  const referenceItems: CalculatorReferenceItem[] = getAllItems().map((item) => ({
+export default async function CraftCalculatorPage() {
+  const [allItems, baseItemSlugs, imageMap] = await Promise.all([getAllItems(), getBaseItemSlugs(), getItemImageMap()]);
+  const itemsBySlug = new Map(allItems.map((item) => [item.slug, item]));
+  const referenceItems: CalculatorReferenceItem[] = allItems.map((item) => ({
     slug: item.slug,
     name: item.name,
     englishName: item.englishName ?? item.name,
     type: item.type,
     tier: item.tier,
-    image: getItemImage(item.slug) ?? null,
+    image: imageMap[item.slug] ?? null,
     ingredients: mapIngredients(item.ingredients ?? []),
   }));
 
   const craftItems: CalculatorCraftItem[] = baseItemSlugs.flatMap((slug) => {
-    const item = getItem(slug);
+    const item = itemsBySlug.get(slug);
     if (!item) return [];
     const recipes = [
       ...(item.ingredients?.length ? [{ id: `base-${item.slug}`, name: "Базовый", ingredients: mapIngredients(item.ingredients) }] : []),
@@ -40,7 +44,7 @@ export default function CraftCalculatorPage() {
       englishName: item.englishName ?? item.name,
       type: item.type,
       tier: item.tier,
-      image: getItemImage(item.slug) ?? null,
+      image: imageMap[item.slug] ?? null,
       recipes,
     }];
   });
