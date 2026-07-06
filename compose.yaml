@@ -33,7 +33,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-clan_portal}:${POSTGRES_PASSWORD:-clan_portal_dev}@db:5432/${POSTGRES_DB:-clan_portal}
     ports:
-      - "${CLAN_PORT:-3000}:3000"
+      - "${CLAN_PORT:-4000}:3000"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 15s
