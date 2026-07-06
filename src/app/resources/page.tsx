@@ -1,21 +1,30 @@
-import { ModulePage } from "@/components/module-page";
-import { Boxes, Layers3, WalletCards } from "lucide-react";
+import { ResourcesManager, type ResourceCatalogItem } from "@/components/resources-manager";
+import { catalogDataset } from "@/lib/corepunk-item-data";
 
 export default function ResourcesPage() {
+  const resources: ResourceCatalogItem[] = catalogDataset.items
+    .filter((item) => item.type === "resource")
+    .map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      englishName: item.englishName,
+      tier: item.tier,
+      quality: item.quality,
+      qualities: [...new Set(item.variations.map((variation) => variation.quality))],
+      profession: item.profession,
+      image: item.variations[0]?.image ?? null,
+    }));
+
   return (
-    <ModulePage
-      eyebrow="Экономика · Активы"
-      title="Управление ресурсами"
-      description="Точный учёт валюты и материалов каждого коллектива с возможностью видеть общий баланс всего клана."
-      features={["Баланс каждого коллектива", "Суммарный баланс клана", "Поступления и списания", "История операций и ответственные", "Изображения и названия из базы предметов"]}
-    >
-      <div className="resource-preview">
-        <div className="resource-summary"><Layers3 size={20} /><span>Все коллективы</span><strong>Сводный баланс</strong></div>
-        <div className="resource-tiles">
-          <div><span><WalletCards size={18} /></span><small>Валюта</small><strong>—</strong></div>
-          <div><span><Boxes size={18} /></span><small>Ресурсы</small><strong>—</strong></div>
+    <div className="page-stack">
+      <section className="page-hero">
+        <div>
+          <div className="eyebrow">Экономика · Активы</div>
+          <h1>Управление ресурсами</h1>
+          <p>Баланс валюты и материалов каждого коллектива с автоматической сводкой по всему клану.</p>
         </div>
-      </div>
-    </ModulePage>
+      </section>
+      <ResourcesManager resources={resources} />
+    </div>
   );
 }

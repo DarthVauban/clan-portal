@@ -241,6 +241,10 @@ export function getItem(slug: string) {
   return recordsBySlug.get(slug);
 }
 
+export function getAllItems() {
+  return [...recordsBySlug.values()];
+}
+
 export function getBaseItem(slug: string) {
   if (!baseSlugSet.has(slug)) return undefined;
   return getItem(slug);

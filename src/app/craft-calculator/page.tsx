@@ -1,19 +1,60 @@
-import { ModulePage } from "@/components/module-page";
-import { Calculator } from "lucide-react";
+import {
+  CraftCalculator,
+  type CalculatorCraftItem,
+  type CalculatorIngredient,
+  type CalculatorReferenceItem,
+} from "@/components/craft-calculator";
+import { baseItemSlugs, getAllItems, getItem, getItemImage } from "@/lib/corepunk-item-data";
+
+const recipeNames: Record<string, string> = {
+  Upgraded: "Улучшенный",
+  Overclocked: "Разогнанный",
+};
+
+function mapIngredients(ingredients: Array<{ name: string; quantity: number; type: string }>): CalculatorIngredient[] {
+  return ingredients.map((ingredient) => ({ slug: ingredient.name, quantity: ingredient.quantity, type: ingredient.type }));
+}
 
 export default function CraftCalculatorPage() {
+  const referenceItems: CalculatorReferenceItem[] = getAllItems().map((item) => ({
+    slug: item.slug,
+    name: item.name,
+    englishName: item.englishName ?? item.name,
+    type: item.type,
+    tier: item.tier,
+    image: getItemImage(item.slug) ?? null,
+    ingredients: mapIngredients(item.ingredients ?? []),
+  }));
+
+  const craftItems: CalculatorCraftItem[] = baseItemSlugs.flatMap((slug) => {
+    const item = getItem(slug);
+    if (!item) return [];
+    const recipes = [
+      ...(item.ingredients?.length ? [{ id: `base-${item.slug}`, name: "Базовый", ingredients: mapIngredients(item.ingredients) }] : []),
+      ...(item.recipes ?? []).map((recipe) => ({ id: `recipe-${recipe.id}`, name: recipeNames[recipe.name] ?? recipe.name, ingredients: mapIngredients(recipe.ingredients) })),
+    ];
+    if (recipes.length === 0) return [];
+    return [{
+      slug: item.slug,
+      name: item.name,
+      englishName: item.englishName ?? item.name,
+      type: item.type,
+      tier: item.tier,
+      image: getItemImage(item.slug) ?? null,
+      recipes,
+    }];
+  });
+
   return (
-    <ModulePage
-      eyebrow="Инструменты · Планирование"
-      title="Калькулятор крафта"
-      description="Разложите предмет на все уровни компонентов и сразу увидите, что есть в банках клана, а чего не хватает."
-      features={["Расчёт для заданного количества", "Многоуровневые вложенные рецепты", "Сравнение с балансом клана", "Исключение собственных материалов", "Создание заявки из результата"]}
-    >
-      <div className="calculator-preview">
-        <div className="calculator-input"><Calculator size={19} /><div><small>Что хотите создать?</small><strong>Выберите предмет</strong></div><span>1 шт.</span></div>
-        <div className="formula-line"><span className="formula-node formula-node--main">?</span><i /><span className="formula-node" /><i /><span className="formula-node" /><i /><span className="formula-node" /></div>
-        <div className="calculator-footer"><span>Рецепт появится после импорта базы предметов</span><button disabled>Рассчитать</button></div>
-      </div>
-    </ModulePage>
+    <div className="page-stack">
+      <section className="page-hero">
+        <div>
+          <div className="eyebrow">Инструменты · Планирование</div>
+          <h1>Калькулятор крафта</h1>
+          <p>Выберите предмет, вариант рецепта и количество. Калькулятор разложит крафт на итоговые материалы, а для управляющих ролей сопоставит результат с общим банком клана.</p>
+        </div>
+      </section>
+      <CraftCalculator craftItems={craftItems} referenceItems={referenceItems} />
+    </div>
   );
 }

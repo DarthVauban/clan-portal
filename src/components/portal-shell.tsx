@@ -11,42 +11,53 @@ import {
   Database,
   HandCoins,
   Home,
+  LockKeyhole,
   Menu,
   ScrollText,
   ShieldCheck,
+  ShieldX,
   Sparkles,
   UsersRound,
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 
 const primaryNavigation = [
   { href: "/", label: "Обзор", icon: Home },
   { href: "/collectives", label: "Коллективы", icon: UsersRound },
   { href: "/items", label: "База предметов", icon: Database },
-  { href: "/resources", label: "Ресурсы", icon: Boxes },
+  { href: "/resources", label: "Ресурсы", icon: Boxes, restricted: true },
 ];
 
 const requestNavigation = [
-  { href: "/requests/resources", label: "На получение ресурсов", icon: HandCoins },
-  { href: "/requests/crafting", label: "На крафт предметов", icon: ScrollText },
+  { href: "/requests/resources", label: "На получение ресурсов", icon: HandCoins, restricted: true },
+  { href: "/requests/crafting", label: "На крафт предметов", icon: ScrollText, restricted: true },
 ];
 
 const utilityNavigation = [
-  { href: "/craft-calculator", label: "Калькулятор крафта", icon: Calculator },
+  { href: "/craft-calculator", label: "Калькулятор крафта", icon: Calculator, restricted: true },
   { href: "/profile", label: "Мой профиль", icon: CircleUserRound },
 ];
 
-function NavLink({ href, label, icon: Icon, onNavigate }: {
+function NavLink({ href, label, icon: Icon, onNavigate, locked = false }: {
   href: string;
   label: string;
   icon: typeof Home;
   onNavigate: () => void;
+  locked?: boolean;
 }) {
   const pathname = usePathname();
   const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
 
-  return (
+  return locked ? (
+    <span className="nav-link nav-link--locked" title="Доступно только участникам коллективов">
+      <Icon aria-hidden="true" size={18} strokeWidth={1.8} />
+      <span>{label}</span>
+      <LockKeyhole size={12} className="nav-lock" />
+    </span>
+  ) : (
     <Link className={`nav-link${active ? " nav-link--active" : ""}`} href={href} onClick={onNavigate}>
       <Icon aria-hidden="true" size={18} strokeWidth={1.8} />
       <span>{label}</span>
@@ -55,8 +66,30 @@ function NavLink({ href, label, icon: Icon, onNavigate }: {
   );
 }
 
+function AccessDenied({ revoked = false }: { revoked?: boolean }) {
+  return (
+    <section className="portal-access-denied">
+      <span><ShieldX size={28} /></span>
+      <h1>{revoked ? "Доступ к порталу отозван" : "Раздел недоступен"}</h1>
+      <p>{revoked ? "Профиль игрока был удалён администратором или лидером клана." : "Этот раздел доступен только игрокам, состоящим в одном из коллективов, а также администрации клана."}</p>
+      {!revoked && <Link href="/collectives">Перейти к коллективам</Link>}
+    </section>
+  );
+}
+
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const { profile } = useLocalProfile();
+  const { state } = useCollectiveStore();
+  const membership = findMembership(state, LOCAL_PLAYER_ID);
+  const portalRole = getPortalRole(state, LOCAL_PLAYER_ID);
+  const absoluteRights = hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
+  const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
+  const collectiveAccess = absoluteRights || Boolean(membership);
+  const restrictedRoute = ["/resources", "/requests/resources", "/requests/crafting", "/craft-calculator"]
+    .some((href) => pathname.startsWith(href));
+  const initials = profile.displayName.trim().slice(0, 2).toLocaleUpperCase("ru") || "CP";
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -85,25 +118,25 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         <nav className="navigation" aria-label="Основная навигация">
           <div className="nav-group">
             <div className="nav-group-label">Клан</div>
-            {primaryNavigation.map((item) => <NavLink key={item.href} {...item} onNavigate={closeMenu} />)}
+            {primaryNavigation.map((item) => <NavLink key={item.href} {...item} locked={Boolean("restricted" in item && item.restricted && !collectiveAccess)} onNavigate={closeMenu} />)}
           </div>
 
           <div className="nav-group">
             <div className="nav-group-label">Заявки</div>
-            {requestNavigation.map((item) => <NavLink key={item.href} {...item} onNavigate={closeMenu} />)}
+            {requestNavigation.map((item) => <NavLink key={item.href} {...item} locked={!collectiveAccess} onNavigate={closeMenu} />)}
           </div>
 
           <div className="nav-group nav-group--last">
             <div className="nav-group-label">Инструменты</div>
-            {utilityNavigation.map((item) => <NavLink key={item.href} {...item} onNavigate={closeMenu} />)}
+            {utilityNavigation.map((item) => <NavLink key={item.href} {...item} locked={Boolean("restricted" in item && item.restricted && !collectiveAccess)} onNavigate={closeMenu} />)}
           </div>
         </nav>
 
         <div className="sidebar-status">
           <div className="status-icon"><ShieldCheck size={18} /></div>
           <div>
-            <strong>Версия 0.1</strong>
-            <span>Каркас портала</span>
+            <strong>{portalRoleLabels[portalRole]}</strong>
+            <span>Версия 0.1</span>
           </div>
           <Sparkles size={15} className="status-spark" />
         </div>
@@ -120,17 +153,17 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="topbar-actions">
             <button className="collective-switcher" type="button" aria-label="Выбранный коллектив">
-              <span className="collective-symbol">I</span>
-              <span className="collective-name">Основной состав</span>
+              <span className="collective-symbol">{membership?.collective.tag?.slice(0, 1) || "—"}</span>
+              <span className="collective-name">{membership?.collective.name ?? "Без коллектива"}</span>
               <ChevronDown size={16} />
             </button>
             <Link className="profile-chip" href="/profile" aria-label="Открыть профиль">
-              <span>DK</span>
+              <span>{initials}</span>
             </Link>
           </div>
         </header>
 
-        <main className="main-content">{children}</main>
+        <main className="main-content">{revoked ? <AccessDenied revoked /> : restrictedRoute && !collectiveAccess ? <AccessDenied /> : children}</main>
       </div>
     </div>
   );
