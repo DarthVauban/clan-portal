@@ -12,20 +12,40 @@ import {
   PackageSearch,
   Sparkles,
 } from "lucide-react";
-import { KnowledgeSearch } from "@/components/knowledge-search";
+import { KnowledgeSearch, type KnowledgeSearchItem } from "@/components/knowledge-search";
+import { ItemNameLanguageToggle } from "@/components/item-name-language-toggle";
 import {
   type CorepunkItem,
   type CorepunkItemDataset,
   type ItemIngredient,
-  formatQuality,
   getDirectRecipeItems,
 } from "@/lib/corepunk-item-data";
+import { modificationLabel, priceTypeLabel, professionLabel, professionLevelLabel, slotLabel } from "@/lib/corepunk-localization";
+import { useItemNameLanguage } from "@/lib/use-item-name-language";
 import styles from "@/app/items/item-card.module.css";
 
 const qualityOrder = ["common", "uncommon", "rare", "epic"];
+const qualityLabels: Record<string, string> = {
+  common: "Обычный",
+  uncommon: "Необычный",
+  rare: "Редкий",
+  epic: "Эпический",
+};
+const typeLabels: Record<string, string> = {
+  weapon: "Оружие",
+  implant: "Артефакт",
+  chip: "Чип",
+  rune: "Руна",
+  consumable: "Расходный материал",
+  resource: "Ресурс",
+};
 
 function qualityClass(quality: string) {
   return styles[quality] ?? styles.common;
+}
+
+function qualityLabel(quality: string) {
+  return qualityLabels[quality] ?? quality;
 }
 
 function RandomSecondaryIcon() {
@@ -52,7 +72,7 @@ function RichDescription({ text, dataset }: { text: string; dataset: CorepunkIte
 
             const token = tokenMatch[1].toLowerCase();
             const asset = dataset.media.stats[token];
-            if (asset) {
+            if (asset?.downloaded) {
               return (
                 <span className={styles.inlineStat} key={`${token}-${partIndex}`}>
                   <Image src={asset.local} alt="" width={18} height={18} />
@@ -61,8 +81,8 @@ function RichDescription({ text, dataset }: { text: string; dataset: CorepunkIte
               );
             }
 
-            if (token === "md") return <span className={styles.magicDamage} key={partIndex}>Magic Damage</span>;
-            if (token === "pd") return <span className={styles.physicalDamage} key={partIndex}>Physical Damage</span>;
+            if (token === "md") return <span className={styles.magicDamage} key={partIndex}>Магический урон</span>;
+            if (token === "pd") return <span className={styles.physicalDamage} key={partIndex}>Физический урон</span>;
             return <span key={partIndex}>{part}</span>;
           })}
         </p>
@@ -71,27 +91,50 @@ function RichDescription({ text, dataset }: { text: string; dataset: CorepunkIte
   );
 }
 
-function IngredientTile({
-  ingredient,
-  dataset,
-}: {
-  ingredient: ItemIngredient;
-  dataset: CorepunkItemDataset;
-}) {
+function IngredientTile({ ingredient, dataset, showEnglishNames }: { ingredient: ItemIngredient; dataset: CorepunkItemDataset; showEnglishNames: boolean }) {
   const item = dataset.records.find((record) => record.slug === ingredient.name);
   const media = dataset.media.items[ingredient.name];
+  const relation = dataset.relations.targets[ingredient.name];
   const quality = item?.quality ?? "common";
-
-  return (
-    <div className={styles.ingredientTile}>
+  const itemName = item ? (showEnglishNames ? item.englishName ?? item.name : item.name) : ingredient.name;
+  const content = (
+    <>
       <div className={`${styles.ingredientImage} ${qualityClass(quality)}`}>
-        {media && <Image src={media.local} alt={item?.name ?? ingredient.name} width={72} height={72} />}
+        {media?.downloaded && <Image src={media.local} alt={itemName} width={72} height={72} />}
         <span>{ingredient.quantity}</span>
       </div>
       <div>
-        <strong>{item?.name ?? ingredient.name}</strong>
-        <small>{item ? `${formatQuality(item.quality)} · ${item.type}` : ingredient.type}</small>
+        <strong>{itemName}</strong>
+        <small>{item ? `${qualityLabel(item.quality)} · ${typeLabels[item.type] ?? item.type}` : ingredient.type}</small>
       </div>
+    </>
+  );
+
+  if (relation?.resolved && relation.href) {
+    return (
+      <Link
+        href={relation.href}
+        className={styles.ingredientTile}
+        data-item-href={relation.href}
+        data-target-slug={relation.routeSlug ?? undefined}
+        data-hover-preview-slug={relation.previewSlug ?? undefined}
+        data-relation-resolved="true"
+        data-testid={`ingredient-link-${ingredient.name}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      className={styles.ingredientTile}
+      data-item-href={relation?.href ?? undefined}
+      data-target-slug={relation?.routeSlug ?? undefined}
+      data-hover-preview-slug={relation?.previewSlug ?? undefined}
+      data-relation-resolved={relation?.resolved ? "true" : "false"}
+    >
+      {content}
     </div>
   );
 }
@@ -102,12 +145,14 @@ function RecipeBlock({
   ingredients,
   dataset,
   synthesis = false,
+  showEnglishNames,
 }: {
   title: string;
   subtitle: string;
   ingredients: ItemIngredient[];
   dataset: CorepunkItemDataset;
   synthesis?: boolean;
+  showEnglishNames: boolean;
 }) {
   return (
     <article className={styles.recipeBlock}>
@@ -116,15 +161,20 @@ function RecipeBlock({
         <div><strong>{title}</strong><small>{subtitle}</small></div>
       </div>
       <div className={styles.ingredientGrid}>
-        {ingredients.map((ingredient) => (
-          <IngredientTile key={ingredient.id} ingredient={ingredient} dataset={dataset} />
-        ))}
+        {ingredients.map((ingredient) => <IngredientTile key={ingredient.id} ingredient={ingredient} dataset={dataset} showEnglishNames={showEnglishNames} />)}
       </div>
     </article>
   );
 }
 
-export function CorepunkItemDetail({ dataset }: { dataset: CorepunkItemDataset }) {
+export function CorepunkItemDetail({
+  dataset,
+  searchItems,
+}: {
+  dataset: CorepunkItemDataset;
+  searchItems: KnowledgeSearchItem[];
+}) {
+  const { showEnglishNames, setShowEnglishNames } = useItemNameLanguage();
   const item = dataset.records.find((record) => record.slug === dataset.rootSlug) as CorepunkItem;
   const variations = dataset.records
     .filter((record) => record.slug === item.slug || record.baseSlug === item.slug)
@@ -132,99 +182,116 @@ export function CorepunkItemDetail({ dataset }: { dataset: CorepunkItemDataset }
   const [selectedSlug, setSelectedSlug] = useState(item.slug);
   const selectedItem = variations.find((variation) => variation.slug === selectedSlug) ?? item;
   const mainImage = dataset.media.items[selectedItem.slug];
-  const relatedItems = getDirectRecipeItems(item);
+  const relatedItems = getDirectRecipeItems(item, dataset);
   const professionAsset = selectedItem.profession ? dataset.media.professions[selectedItem.profession] : undefined;
-  const searchItems = [{
-    name: item.name,
-    slug: item.slug,
-    meta: `Артефакт · Tier ${item.tier}`,
-    image: dataset.media.items[item.slug]?.local,
-  }];
+  const ingredientPositions = item.ingredients.length + item.recipes.reduce((sum, recipe) => sum + recipe.ingredients.length, 0);
+  const itemName = showEnglishNames ? item.englishName ?? item.name : item.name;
+  const localizedSearchItems = searchItems.map((searchItem) => ({
+    ...searchItem,
+    name: showEnglishNames ? searchItem.englishName ?? searchItem.name : searchItem.name,
+    aliases: [searchItem.name, searchItem.englishName, ...(searchItem.aliases ?? [])],
+  }));
 
   return (
     <div className={styles.detailPage}>
       <div className={styles.detailTopbar}>
         <Link href="/items"><ArrowLeft size={16} /> База предметов</Link>
-        <div><span className={styles.testBadge}>Тестовый импорт</span><span>Данные без перевода</span></div>
+        <div><span className={styles.testBadge}>Полный импорт</span><span>Данные предметов без перевода</span></div>
       </div>
 
-      <KnowledgeSearch items={searchItems} compact />
+      <div className={styles.knowledgeTools}>
+        <KnowledgeSearch items={localizedSearchItems} compact />
+        <ItemNameLanguageToggle showEnglishNames={showEnglishNames} onChange={setShowEnglishNames} />
+      </div>
 
       <section className={styles.itemHero}>
         <div className={`${styles.heroItemImage} ${qualityClass(selectedItem.quality)}`}>
-          {mainImage && <Image key={selectedItem.slug} src={mainImage.local} alt={`${item.name} ${selectedItem.quality}`} width={196} height={196} priority />}
+          {mainImage?.downloaded && <Image key={selectedItem.slug} src={mainImage.local} alt={`${itemName} ${selectedItem.quality}`} width={196} height={196} priority />}
           <span className={styles.tierMark}>T{selectedItem.tier}</span>
         </div>
 
         <div className={styles.itemIdentity}>
-          <div className={styles.itemType}>{item.type} · artifact slot</div>
-          <h1>{item.name}</h1>
+          <div className={styles.itemType}>{typeLabels[item.type] ?? item.type}{item.slot ? ` · ${slotLabel(item.slot)}` : ""}</div>
+          <h1>{itemName}</h1>
           <div className={styles.itemTags}>
-            <span className={qualityClass(selectedItem.quality)}>{formatQuality(selectedItem.quality)}</span>
-            <span>Tier {selectedItem.tier}</span>
-            <span>Level {selectedItem.level}</span>
-            <span>Upgradable</span>
+            <span className={qualityClass(selectedItem.quality)}>{qualityLabel(selectedItem.quality)}</span>
+            <span>Тир {selectedItem.tier}</span>
+            <span>Уровень {selectedItem.level}</span>
+            {selectedItem.upgradable && <span>Улучшаемый</span>}
           </div>
-          <div className={styles.variationLabel}>Quality variations</div>
-          <div className={styles.variationRow}>
-            {variations.map((variation) => {
-              const media = dataset.media.items[variation.slug];
-              const active = variation.slug === selectedItem.slug;
-              return (
-                <button
-                  type="button"
-                  className={`${styles.variationTile} ${qualityClass(variation.quality)} ${active ? styles.variationTileActive : ""}`}
-                  key={variation.slug}
-                  onClick={() => setSelectedSlug(variation.slug)}
-                  aria-pressed={active}
-                  aria-label={`Выбрать качество ${formatQuality(variation.quality)}`}
-                  data-testid={`quality-${variation.quality}`}
-                >
-                  {media && <Image src={media.local} alt={`${item.name} ${variation.quality}`} width={66} height={66} />}
-                  <small>{formatQuality(variation.quality)}</small>
-                </button>
-              );
-            })}
-          </div>
+          {variations.length > 1 && (
+            <>
+              <div className={styles.variationLabel}>Варианты качества</div>
+              <div className={styles.variationRow}>
+                {variations.map((variation) => {
+                  const media = dataset.media.items[variation.slug];
+                  const active = variation.slug === selectedItem.slug;
+                  return (
+                    <button
+                      type="button"
+                      className={`${styles.variationTile} ${qualityClass(variation.quality)} ${active ? styles.variationTileActive : ""}`}
+                      key={variation.slug}
+                      onClick={() => setSelectedSlug(variation.slug)}
+                      aria-pressed={active}
+                      aria-label={`Выбрать качество: ${qualityLabel(variation.quality)}`}
+                      data-testid={`quality-${variation.quality}`}
+                    >
+                      {media?.downloaded && <Image src={media.local} alt={`${itemName} ${variation.quality}`} width={66} height={66} />}
+                      <small>{qualityLabel(variation.quality)}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         <aside className={styles.itemFacts}>
-          <div><span>Type</span><strong>{selectedItem.type}</strong></div>
-          <div><span>Tier</span><strong>{selectedItem.tier}</strong></div>
-          <div><span>Level</span><strong>{selectedItem.level}</strong></div>
-          <div><span>Slot</span><strong>{selectedItem.slot ?? "—"}</strong></div>
-          <div><span>Price</span><strong><Coins size={14} /> {selectedItem.price?.amount ?? "—"} {selectedItem.price?.type ?? ""}</strong></div>
+          <div><span>Тип</span><strong>{typeLabels[selectedItem.type] ?? selectedItem.type}</strong></div>
+          <div><span>Тир</span><strong>{selectedItem.tier}</strong></div>
+          <div><span>Уровень</span><strong>{selectedItem.level}</strong></div>
+          <div><span>Слот</span><strong>{slotLabel(selectedItem.slot)}</strong></div>
+          <div><span>Цена</span><strong><Coins size={14} /> {selectedItem.price?.amount ?? "—"} {priceTypeLabel(selectedItem.price?.type)}</strong></div>
         </aside>
       </section>
 
       <div className={styles.detailColumns}>
         <div className={styles.detailMain}>
-          <section className={styles.detailSection}>
-            <div className={styles.sectionTitle}><span>Main stats</span><small>{selectedItem.stats.length} characteristics</small></div>
-            <div className={styles.statsPanel}>
-              {selectedItem.stats.map((stat) => {
-                const asset = dataset.media.stats[stat.type];
-                return (
-                  <div className={styles.statRow} key={stat.type}>
-                    <span>{asset && <Image src={asset.local} alt="" width={25} height={25} />}</span>
-                    <strong>[{stat.min} – {stat.max}] {asset?.label ?? stat.type}</strong>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          {(selectedItem.description || selectedItem.descriptionEffect) && (
+            <section className={styles.detailSection}>
+              <div className={styles.sectionTitle}><span>Описание</span></div>
+              <div className={styles.effectCard}>
+                {selectedItem.description && <p>{selectedItem.description}</p>}
+                {selectedItem.descriptionEffect && <RichDescription text={selectedItem.descriptionEffect} dataset={dataset} />}
+              </div>
+            </section>
+          )}
+
+          {selectedItem.stats.length > 0 && (
+            <section className={styles.detailSection}>
+              <div className={styles.sectionTitle}><span>Основные характеристики</span><small>{selectedItem.stats.length}</small></div>
+              <div className={styles.statsPanel}>
+                {selectedItem.stats.map((stat) => {
+                  const asset = dataset.media.stats[stat.type];
+                  return (
+                    <div className={styles.statRow} key={`${stat.type}-${stat.id}`}>
+                      <span>{asset?.downloaded && <Image src={asset.local} alt="" width={25} height={25} />}</span>
+                      <strong>[{stat.min} – {stat.max}] {asset?.label ?? stat.type}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {selectedItem.secondaryStats.length > 0 && (
             <section className={styles.detailSection} data-testid="secondary-stats">
-              <div className={styles.sectionTitle}>
-                <span>Secondary stats</span>
-                <small>{selectedItem.secondaryStats.length} random {selectedItem.secondaryStats.length === 1 ? "slot" : "slots"}</small>
-              </div>
+              <div className={styles.sectionTitle}><span>Вторичные характеристики</span><small>{selectedItem.secondaryStats.length}</small></div>
               <div className={styles.secondaryStatsPanel}>
                 {selectedItem.secondaryStats.map((stat) => (
                   <div className={styles.secondaryStatRow} key={stat.id}>
                     <span><RandomSecondaryIcon /></span>
-                    <strong>[?? – ??] {stat.label}</strong>
+                    <strong>[?? – ??] Случайная вторичная характеристика</strong>
                   </div>
                 ))}
               </div>
@@ -233,7 +300,7 @@ export function CorepunkItemDetail({ dataset }: { dataset: CorepunkItemDataset }
 
           {selectedItem.specialEffect && (
             <section className={styles.detailSection}>
-              <div className={styles.sectionTitle}><span>Passive bonus</span><Sparkles size={17} /></div>
+              <div className={styles.sectionTitle}><span>Пассивный бонус</span><Sparkles size={17} /></div>
               <div className={styles.effectCard}>
                 <h2>{selectedItem.specialEffect.title}</h2>
                 <RichDescription text={selectedItem.specialEffect.descriptionEffect} dataset={dataset} />
@@ -241,62 +308,78 @@ export function CorepunkItemDetail({ dataset }: { dataset: CorepunkItemDataset }
             </section>
           )}
 
-          <section className={styles.detailSection}>
-            <div className={styles.sectionTitle}><span>Modifications</span><small>Quality progression</small></div>
-            <div className={styles.modifications}>
-              <div><span>Upgraded</span><p>1 additional talent improvement.</p></div>
-              <div><span>Overclocked</span><p>2 additional talents improvement.</p></div>
-            </div>
-          </section>
+          {selectedItem.modifications && selectedItem.modifications.length > 0 && (
+            <section className={styles.detailSection}>
+              <div className={styles.sectionTitle}><span>Модификации</span><small>Развитие предмета</small></div>
+              <div className={styles.modifications}>
+                {selectedItem.modifications.map((modification) => (
+                  <div key={modification.id}><span>{modificationLabel(modification.type)}</span><RichDescription text={modification.effect} dataset={dataset} /></div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <aside className={styles.professionCard}>
-          <div className={styles.sectionTitle}><span>Profession</span></div>
+          <div className={styles.sectionTitle}><span>Профессия</span></div>
           <div className={styles.professionIdentity}>
-            {professionAsset && <Image src={professionAsset.local} alt="" width={58} height={58} />}
-            <div><small>Specialization</small><strong>{selectedItem.profession}</strong></div>
+            {professionAsset?.downloaded && <Image src={professionAsset.local} alt="" width={58} height={58} />}
+            <div><small>Специализация</small><strong>{professionLabel(selectedItem.profession)}</strong></div>
           </div>
-          <div className={styles.proficiency}><span>Proficiency</span><strong>{selectedItem.professionLevel}</strong></div>
+          <div className={styles.proficiency}><span>Уровень мастерства</span><strong>{professionLevelLabel(selectedItem.professionLevel)}</strong></div>
           <div className={styles.dataCoverage}>
             <PackageSearch size={17} />
-            <div><strong>{dataset.records.length} records</strong><span>{relatedItems.length} direct recipe items + 3 quality variations</span></div>
+            <div><strong>{dataset.records.length} связанных записей</strong><span>{relatedItems.length} прямых компонентов</span></div>
           </div>
         </aside>
       </div>
 
-      <section className={styles.craftingSection}>
-        <div className={styles.craftingHeader}>
-          <div><span className="surface-kicker">Crafting</span><h2>Recipes and ingredients</h2></div>
-          <span>{item.ingredients.length + item.recipes.reduce((sum, recipe) => sum + recipe.ingredients.length, 0)} ingredient positions</span>
-        </div>
-        <div className={styles.recipeStack}>
-          <RecipeBlock title="Workbench recipe" subtitle="Base quality" ingredients={item.ingredients} dataset={dataset} />
-          {item.recipes.map((recipe) => (
-            <RecipeBlock key={recipe.id} title={recipe.name} subtitle="Synthesis machine" ingredients={recipe.ingredients} dataset={dataset} synthesis />
-          ))}
-        </div>
-      </section>
+      {ingredientPositions > 0 && (
+        <section className={styles.craftingSection}>
+          <div className={styles.craftingHeader}>
+            <div><span className="surface-kicker">Крафт</span><h2>Рецепты и компоненты</h2></div>
+            <span>{ingredientPositions} позиций компонентов</span>
+          </div>
+          <div className={styles.recipeStack}>
+            {item.ingredients.length > 0 && <RecipeBlock title="Рецепт верстака" subtitle="Базовое качество" ingredients={item.ingredients} dataset={dataset} showEnglishNames={showEnglishNames} />}
+            {item.recipes.map((recipe) => (
+              <RecipeBlock key={recipe.id} title={recipe.name} subtitle="Синтез-машина" ingredients={recipe.ingredients} dataset={dataset} synthesis showEnglishNames={showEnglishNames} />
+            ))}
+          </div>
+        </section>
+      )}
 
-      <section className={styles.relatedSection}>
-        <div className={styles.craftingHeader}>
-          <div><span className="surface-kicker">Relations</span><h2>Directly related items</h2></div>
-          <span><Link2 size={14} /> {relatedItems.length} unique items</span>
-        </div>
-        <div className={styles.relatedGrid}>
-          {relatedItems.map((related) => {
-            const media = dataset.media.items[related.slug];
-            return (
-              <article className={styles.relatedCard} key={related.slug}>
-                <div className={`${styles.relatedImage} ${qualityClass(related.quality)}`}>
-                  {media && <Image src={media.local} alt={related.name} width={76} height={76} />}
-                </div>
-                <div><strong>{related.name}</strong><small>{formatQuality(related.quality)} · {related.type}</small></div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
+      {relatedItems.length > 0 && (
+        <section className={styles.relatedSection}>
+          <div className={styles.craftingHeader}>
+            <div><span className="surface-kicker">Связи</span><h2>Связанные предметы</h2></div>
+            <span><Link2 size={14} /> {relatedItems.length}</span>
+          </div>
+          <div className={styles.relatedGrid}>
+            {relatedItems.map((related) => {
+              const media = dataset.media.items[related.slug];
+              const relation = dataset.relations.targets[related.slug];
+              const href = relation?.href ?? `/items/${related.baseSlug ?? related.slug}`;
+              const relatedName = showEnglishNames ? related.englishName ?? related.name : related.name;
+              return (
+                <Link
+                  href={href}
+                  className={styles.relatedCard}
+                  key={related.slug}
+                  data-item-href={href}
+                  data-hover-preview-slug={relation?.previewSlug ?? undefined}
+                  data-testid={`related-link-${related.slug}`}
+                >
+                  <div className={`${styles.relatedImage} ${qualityClass(related.quality)}`}>
+                    {media?.downloaded && <Image src={media.local} alt={relatedName} width={76} height={76} />}
+                  </div>
+                  <div><strong>{relatedName}</strong><small>{qualityLabel(related.quality)} · {typeLabels[related.type] ?? related.type}</small></div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

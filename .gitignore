@@ -19,3 +19,6 @@ pnpm-debug.log*
 
 # typescript
 *.tsbuildinfo
+
+# scraper cache
+/scripts/.cache/

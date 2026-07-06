@@ -1,6 +1,7 @@
 import { Database } from "lucide-react";
+import { Suspense } from "react";
 import { KnowledgeCatalog } from "@/components/knowledge-catalog";
-import { itemDataset } from "@/lib/corepunk-item-data";
+import { catalogDataset, itemDatabaseCounts } from "@/lib/corepunk-item-data";
 import styles from "./item-card.module.css";
 
 export default function ItemsPage() {
@@ -10,11 +11,13 @@ export default function ItemsPage() {
         <div>
           <div className="eyebrow">Знания · Corepunk</div>
           <h1>База предметов</h1>
-          <p>Каталог игровых предметов по категориям с поиском, фильтрами по тиру и качеству.</p>
+          <p>Полный каталог игровых предметов по категориям с поиском и фильтрами по тиру и качеству.</p>
         </div>
-        <div className={styles.importBadge}><Database size={15} /> Импортировано: 1 предмет</div>
+        <div className={styles.importBadge}><Database size={15} /> Импортировано: {itemDatabaseCounts.uniqueBaseItems} предмет</div>
       </section>
-      <KnowledgeCatalog dataset={itemDataset} />
+      <Suspense fallback={null}>
+        <KnowledgeCatalog dataset={catalogDataset} />
+      </Suspense>
     </div>
   );
 }

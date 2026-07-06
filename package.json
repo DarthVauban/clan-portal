@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "scrape:test-item": "node scripts/scrape-corepunk-item.mjs implant-arcane-buster-t3"
+    "scrape:test-item": "node scripts/scrape-corepunk-item.mjs implant-arcane-buster-t3",
+    "scrape:items": "node scripts/scrape-corepunk-items.mjs",
+    "translate:items": "node scripts/translate-corepunk-items.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

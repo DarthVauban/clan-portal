@@ -34,7 +34,9 @@ pnpm dev
 
 Рекомендуемый технологический стек и архитектурный подход описаны в [`docs/TECH_STACK.md`](docs/TECH_STACK.md).
 
-Тестовый импорт предмета и его структура описаны в [`docs/ITEM_IMPORT.md`](docs/ITEM_IMPORT.md).
+Полный импорт базы предметов и его структура описаны в [`docs/ITEM_IMPORT.md`](docs/ITEM_IMPORT.md).
+
+Словарь и процесс русской локализации описаны в [`docs/LOCALIZATION.md`](docs/LOCALIZATION.md).
 
 ## Версия 1.0
 
