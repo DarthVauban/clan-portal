@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem, CalculatorRecipe } from "@/components/craft-calculator";
 import { collectiveRoleLabels, findMembership, getPortalRole, hasAbsolutePortalRights, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { corepunkClasses } from "@/lib/corepunk-classes";
 import { craftManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
@@ -29,6 +30,14 @@ const statusLabels: Record<RequestStatus, string> = {
   rejected: "Отклонено",
   cancelled: "Отменено",
 };
+const qualityOrder = ["common", "uncommon", "rare", "epic"];
+const qualityLabels: Record<string, string> = {
+  common: "Обычный",
+  uncommon: "Необычный",
+  rare: "Редкий",
+  epic: "Эпический",
+};
+const classOptions = corepunkClasses.map((heroClass) => ({ value: heroClass.slug, label: heroClass.name }));
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -90,6 +99,9 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const { state: resourceState } = useResourceStore();
   const { state: requestState, updateState: updateRequestState } = useRequestStore();
   const [query, setQuery] = useState("");
+  const [activeClass, setActiveClass] = useState("all");
+  const [activeTier, setActiveTier] = useState<number | "all">("all");
+  const [activeQuality, setActiveQuality] = useState("all");
   const [selectedItemSlug, setSelectedItemSlug] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -107,9 +119,37 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const selectedRecipe = selectedItem?.recipes.find((recipe) => recipe.id === selectedRecipeId) ?? selectedItem?.recipes[0] ?? null;
   const requestedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
   const requirements = buildRequirements(referenceBySlug, selectedRecipe, requestedQuantity, selectedItemSlug);
+  const tierOptions = useMemo(() => [...new Set(craftItems.map((item) => item.tier))]
+    .filter((tier) => Number.isFinite(tier) && tier > 0)
+    .sort((first, second) => first - second), [craftItems]);
+  const classCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of craftItems) {
+      if (item.mastery) counts.set(item.mastery, (counts.get(item.mastery) ?? 0) + 1);
+    }
+    return counts;
+  }, [craftItems]);
+  const qualityOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of craftItems) {
+      for (const quality of item.qualities.length > 0 ? item.qualities : [item.quality]) counts.set(quality, (counts.get(quality) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([value, count]) => ({ value, count, label: qualityLabels[value] ?? value }))
+      .sort((first, second) => {
+        const firstOrder = qualityOrder.indexOf(first.value);
+        const secondOrder = qualityOrder.indexOf(second.value);
+        return (firstOrder === -1 ? 99 : firstOrder) - (secondOrder === -1 ? 99 : secondOrder);
+      });
+  }, [craftItems]);
   const normalizedQuery = query.trim().toLocaleLowerCase("ru");
-  const visibleItems = craftItems.filter((item) => !normalizedQuery
-    || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery))).slice(0, 80);
+  const visibleItems = craftItems.filter((item) => {
+    const matchesQuery = !normalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery));
+    const matchesClass = activeClass === "all" || item.mastery === activeClass;
+    const matchesTier = activeTier === "all" || item.tier === activeTier;
+    const matchesQuality = activeQuality === "all" || item.qualities.includes(activeQuality) || item.quality === activeQuality;
+    return matchesQuery && matchesClass && matchesTier && matchesQuality;
+  }).slice(0, 80);
   const clanBalances = useMemo(() => {
     const total: Record<string, number> = {};
     for (const collective of collectiveState.collectives) {
@@ -180,72 +220,110 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
         <form className={styles.requestForm} onSubmit={createRequest}>
           <header><span>Новая заявка</span><h2>Крафт предмета</h2><p>Выберите предмет из базы, рецепт и нужное количество.</p></header>
 
-          <label className={styles.searchField}>
-            <Search size={15} />
-            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск предмета..." />
-          </label>
-
-          <div className={styles.pickList}>
-            {visibleItems.map((item) => (
-              <button
-                type="button"
-                className={selectedItem?.slug === item.slug ? styles.pickItemActive : ""}
-                onClick={() => chooseItem(item)}
-                key={item.slug}
-              >
-                <span>{item.image ? <LoadableImage src={item.image} alt="" width={42} height={42} /> : <Hammer size={18} />}</span>
-                <div><strong>{item.name}</strong><small>{typeLabels[item.type] ?? item.type} · T{item.tier} · {item.recipes.length} рецепта</small></div>
-              </button>
-            ))}
-          </div>
-
-          {selectedItem && (
-            <section className={styles.recipeBox}>
-              <div className={styles.selectedPreview}>
-                <span>{selectedItem.image ? <LoadableImage src={selectedItem.image} alt="" width={48} height={48} /> : <Hammer size={20} />}</span>
-                <div><strong>{selectedItem.name}</strong><small>{selectedItem.englishName}</small></div>
-              </div>
-              <label className={styles.field}>
-                <span>Рецепт</span>
-                <select value={selectedRecipe?.id ?? ""} onChange={(event) => setSelectedRecipeId(event.target.value)}>
-                  {selectedItem.recipes.map((recipe) => <option value={recipe.id} key={recipe.id}>{recipe.name}</option>)}
-                </select>
+          <div className={styles.requestComposer}>
+            <section className={styles.requestPickerPanel}>
+              <label className={styles.searchField}>
+                <Search size={15} />
+                <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск предмета..." />
               </label>
-            </section>
-          )}
 
-          <div className={styles.formRow}>
-            <label className={styles.field}>
-              <span>Количество</span>
-              <input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
-            </label>
-            <div className={styles.coveragePreview}>
-              <strong>{formatAmount(coveredResources)} / {formatAmount(requiredResources)}</strong>
-              <small>ресурсов покрыто банком</small>
-            </div>
-          </div>
-
-          {requirements.length > 0 && (
-            <div className={styles.requirementPreview}>
-              {requirements.slice(0, 8).map((requirement) => (
-                <div key={requirement.slug}>
-                  <span>{requirement.image && <LoadableImage src={requirement.image} alt="" width={30} height={30} />}</span>
-                  <strong>{requirement.name}</strong>
-                  <em>x{formatAmount(requirement.quantity)}</em>
+              <div className={styles.filterChips}>
+                <div>
+                  <span>Класс</span>
+                  <button type="button" className={activeClass === "all" ? styles.filterChipActive : ""} onClick={() => setActiveClass("all")}>Все</button>
+                  {classOptions.map((heroClass) => {
+                    const count = classCounts.get(heroClass.value) ?? 0;
+                    if (count === 0) return null;
+                    return (
+                      <button type="button" className={activeClass === heroClass.value ? styles.filterChipActive : ""} onClick={() => setActiveClass(heroClass.value)} key={heroClass.value}>
+                        {heroClass.label} <small>{count}</small>
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
+                <div>
+                  <span>Тир</span>
+                  <button type="button" className={activeTier === "all" ? styles.filterChipActive : ""} onClick={() => setActiveTier("all")}>Все</button>
+                  {tierOptions.map((tier) => <button type="button" className={activeTier === tier ? styles.filterChipActive : ""} onClick={() => setActiveTier(tier)} key={tier}>T{tier}</button>)}
+                </div>
+                <div>
+                  <span>Качество</span>
+                  <button type="button" className={activeQuality === "all" ? styles.filterChipActive : ""} onClick={() => setActiveQuality("all")}>Все</button>
+                  {qualityOptions.map((quality) => (
+                    <button type="button" className={`${activeQuality === quality.value ? styles.filterChipActive : ""} ${styles.qualityChip}`} onClick={() => setActiveQuality(quality.value)} key={quality.value}>
+                      <i className={styles[quality.value]} /> {quality.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <label className={styles.field}>
-            <span>Комментарий</span>
-            <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={240} placeholder="Например: приоритет для рейда, ресурсы частично мои" />
-          </label>
+              <div className={styles.pickList}>
+                {visibleItems.map((item) => (
+                  <button
+                    type="button"
+                    className={selectedItem?.slug === item.slug ? styles.pickItemActive : ""}
+                    onClick={() => chooseItem(item)}
+                    key={item.slug}
+                  >
+                    <span>{item.image ? <LoadableImage src={item.image} alt="" width={42} height={42} /> : <Hammer size={18} />}</span>
+                    <div><strong>{item.name}</strong><small>{typeLabels[item.type] ?? item.type} · T{item.tier} · {item.recipes.length} рецепта</small></div>
+                  </button>
+                ))}
+              </div>
+            </section>
 
-          <footer>
-            <span>{requesterName}</span>
-            <button type="submit" disabled={!canSubmit}>Отправить заявку</button>
-          </footer>
+            <section className={styles.requestDetailsPanel}>
+              {selectedItem ? (
+                <section className={styles.recipeBox}>
+                  <div className={styles.selectedPreview}>
+                    <span>{selectedItem.image ? <LoadableImage src={selectedItem.image} alt="" width={48} height={48} /> : <Hammer size={20} />}</span>
+                    <div><strong>{selectedItem.name}</strong><small>{selectedItem.englishName}</small></div>
+                  </div>
+                  <label className={styles.field}>
+                    <span>Рецепт</span>
+                    <select value={selectedRecipe?.id ?? ""} onChange={(event) => setSelectedRecipeId(event.target.value)}>
+                      {selectedItem.recipes.map((recipe) => <option value={recipe.id} key={recipe.id}>{recipe.name}</option>)}
+                    </select>
+                  </label>
+                </section>
+              ) : (
+                <div className={styles.selectedPreview}><p>Предмет не выбран</p></div>
+              )}
+
+              <div className={styles.compactFieldGrid}>
+                <label className={styles.field}>
+                  <span>Количество</span>
+                  <input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+                </label>
+                <div className={styles.coveragePreview}>
+                  <strong>{formatAmount(coveredResources)} / {formatAmount(requiredResources)}</strong>
+                  <small>ресурсов покрыто банком</small>
+                </div>
+              </div>
+
+              {requirements.length > 0 && (
+                <div className={styles.requirementPreview}>
+                  {requirements.slice(0, 8).map((requirement) => (
+                    <div key={requirement.slug}>
+                      <span>{requirement.image && <LoadableImage src={requirement.image} alt="" width={30} height={30} />}</span>
+                      <strong>{requirement.name}</strong>
+                      <em>x{formatAmount(requirement.quantity)}</em>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <label className={styles.field}>
+                <span>Комментарий</span>
+                <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={240} placeholder="Например: приоритет для рейда, ресурсы частично мои" />
+              </label>
+
+              <footer>
+                <span>{requesterName}</span>
+                <button type="submit" disabled={!canSubmit}>Отправить заявку</button>
+              </footer>
+            </section>
+          </div>
         </form>
 
         <section className={styles.requestList}>

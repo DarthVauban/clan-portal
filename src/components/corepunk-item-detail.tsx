@@ -2,7 +2,8 @@
 
 import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type MouseEvent } from "react";
 import {
   ArrowLeft,
   Coins,
@@ -39,6 +40,7 @@ const typeLabels: Record<string, string> = {
   consumable: "Расходный материал",
   resource: "Ресурс",
 };
+const CATALOG_RESTORE_KEY = "clan-portal:item-catalog-restore";
 
 function qualityClass(quality: string) {
   return styles[quality] ?? styles.common;
@@ -46,6 +48,19 @@ function qualityClass(quality: string) {
 
 function qualityLabel(quality: string) {
   return qualityLabels[quality] ?? quality;
+}
+
+function getStoredCatalogHref() {
+  if (typeof window === "undefined") return "/items";
+  const raw = sessionStorage.getItem(CATALOG_RESTORE_KEY);
+  if (!raw) return "/items";
+  try {
+    const restore = JSON.parse(raw) as { href?: string; at?: number };
+    if (restore.href?.startsWith("/items") && restore.at && Date.now() - restore.at < 30 * 60 * 1000) return restore.href;
+  } catch {
+    sessionStorage.removeItem(CATALOG_RESTORE_KEY);
+  }
+  return "/items";
 }
 
 function RandomSecondaryIcon() {
@@ -175,6 +190,7 @@ export function CorepunkItemDetail({
   searchItems: KnowledgeSearchItem[];
 }) {
   const { showEnglishNames, setShowEnglishNames } = useItemNameLanguage();
+  const router = useRouter();
   const item = dataset.records.find((record) => record.slug === dataset.rootSlug) as CorepunkItem;
   const variations = dataset.records
     .filter((record) => record.slug === item.slug || record.baseSlug === item.slug)
@@ -191,11 +207,17 @@ export function CorepunkItemDetail({
     name: showEnglishNames ? searchItem.englishName ?? searchItem.name : searchItem.name,
     aliases: [searchItem.name, searchItem.englishName, ...(searchItem.aliases ?? [])],
   }));
+  const openCatalog = (event: MouseEvent<HTMLAnchorElement>) => {
+    const href = getStoredCatalogHref();
+    if (href === "/items") return;
+    event.preventDefault();
+    router.push(href);
+  };
 
   return (
     <div className={styles.detailPage}>
       <div className={styles.detailTopbar}>
-        <Link href="/items"><ArrowLeft size={16} /> База предметов</Link>
+        <Link href="/items" onClick={openCatalog}><ArrowLeft size={16} /> База предметов</Link>
         <div><span className={styles.testBadge}>Полный импорт</span><span>Данные предметов без перевода</span></div>
       </div>
 

@@ -38,6 +38,9 @@ export type CalculatorCraftItem = {
   englishName: string;
   type: string;
   tier: number;
+  mastery: string | null;
+  quality: string;
+  qualities: string[];
   image: string | null;
   recipes: CalculatorRecipe[];
 };

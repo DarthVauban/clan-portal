@@ -13,7 +13,7 @@ import {
   RotateCcw,
   Swords,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KnowledgeSearch } from "@/components/knowledge-search";
 import { ItemNameLanguageToggle } from "@/components/item-name-language-toggle";
 import { type CorepunkCatalogDataset } from "@/lib/corepunk-item-data";
@@ -69,6 +69,8 @@ const typeLabels: Record<string, string> = {
   resource: "Ресурс",
 };
 const PAGE_SIZE = 60;
+const CATALOG_RESTORE_KEY = "clan-portal:item-catalog-restore";
+const weaponStatsIgnoredInFilters: ReadonlySet<string> = new Set(["wd", "as"]);
 
 type CategoryId = (typeof categories)[number]["id"];
 type CatalogState = {
@@ -77,6 +79,7 @@ type CatalogState = {
   quality: string | "all";
   weaponClass: string | "all";
   profession: string | "all";
+  statFilters: string[];
   query: string;
 };
 
@@ -95,6 +98,10 @@ function readCatalogState(searchParams: URLSearchParams | Readonly<URLSearchPara
   const qualityValue = searchParams.get("quality");
   const classValue = searchParams.get("class");
   const professionValue = searchParams.get("profession");
+  const statFilters = [...new Set((searchParams.get("stats") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => /^[a-z0-9-]+$/i.test(value)))];
   const professionOptions = category === "consumables"
     ? new Set<string>(consumableProfessions.map(({ value }) => value))
     : category === "resources"
@@ -106,6 +113,7 @@ function readCatalogState(searchParams: URLSearchParams | Readonly<URLSearchPara
     quality: qualityValue && validQualities.has(qualityValue) ? qualityValue : "all",
     weaponClass: classValue && validWeaponClasses.has(classValue) ? classValue : "all",
     profession: professionValue && validProfessions.has(professionValue) && professionOptions.has(professionValue) ? professionValue : "all",
+    statFilters: ["weapons", "artifacts"].includes(category) ? statFilters : [],
     query: searchParams.get("q") ?? "",
   };
 }
@@ -118,6 +126,7 @@ function writeCatalogState(currentParams: string, state: CatalogState) {
     ["quality", state.quality === "all" ? null : state.quality],
     ["class", state.category === "weapons" && state.weaponClass !== "all" ? state.weaponClass : null],
     ["profession", ["consumables", "resources"].includes(state.category) && state.profession !== "all" ? state.profession : null],
+    ["stats", ["weapons", "artifacts"].includes(state.category) && state.statFilters.length > 0 ? state.statFilters.join(",") : null],
     ["q", state.query.trim() || null],
   ];
   for (const [key, value] of values) {
@@ -136,6 +145,23 @@ function pluralItems(count: number) {
   return `${count} предметов`;
 }
 
+function makeStatFilterOptions(
+  items: CorepunkCatalogDataset["items"],
+  itemType: string,
+  stats: CorepunkCatalogDataset["stats"],
+  ignoredTypes: ReadonlySet<string> = new Set<string>(),
+) {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    if (item.type !== itemType) continue;
+    const uniqueTypes = new Set(item.stats.map((stat) => stat.type).filter((type) => !ignoredTypes.has(type)));
+    for (const type of uniqueTypes) counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([type, count]) => ({ type, count, asset: stats[type], label: stats[type]?.label ?? type.toUpperCase() }))
+    .sort((first, second) => first.label.localeCompare(second.label, "ru"));
+}
+
 export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset }) {
   const { showEnglishNames, setShowEnglishNames } = useItemNameLanguage();
   const router = useRouter();
@@ -150,11 +176,20 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
     quality: activeQuality,
     weaponClass: activeWeaponClass,
     profession: activeProfession,
+    statFilters: requestedStatFilters,
     query,
   } = catalogState;
 
   const updateCatalogState = (updates: Partial<CatalogState>) => {
-    const nextState = { ...catalogState, ...updates };
+    const categoryChanged = updates.category !== undefined && updates.category !== catalogState.category;
+    const nextState = {
+      ...catalogState,
+      ...updates,
+      ...(categoryChanged ? { weaponClass: "all" as const, profession: "all" as const, statFilters: [] } : {}),
+    };
+    if (!["weapons", "artifacts"].includes(nextState.category)) nextState.statFilters = [];
+    if (nextState.category !== "weapons") nextState.weaponClass = "all";
+    if (!["consumables", "resources"].includes(nextState.category)) nextState.profession = "all";
     setCatalogState(nextState);
     setVisibleLimit(PAGE_SIZE);
     const nextSearchParams = writeCatalogState(serializedSearchParams, nextState);
@@ -179,6 +214,14 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
       return item.profession === profession.value;
     }).length]),
   ), [dataset.items]);
+  const weaponStatOptions = useMemo(() => makeStatFilterOptions(dataset.items, "weapon", dataset.stats, weaponStatsIgnoredInFilters), [dataset.items, dataset.stats]);
+  const artifactStatOptions = useMemo(() => makeStatFilterOptions(dataset.items, "implant", dataset.stats), [dataset.items, dataset.stats]);
+  const activeStatOptions = useMemo(() => (
+    activeCategory === "weapons" ? weaponStatOptions : activeCategory === "artifacts" ? artifactStatOptions : []
+  ), [activeCategory, artifactStatOptions, weaponStatOptions]);
+  const availableStatTypes = useMemo(() => new Set(activeStatOptions.map((option) => option.type)), [activeStatOptions]);
+  const activeStatFilters = requestedStatFilters.filter((type) => availableStatTypes.has(type));
+  const activeStatSet = useMemo(() => new Set(activeStatFilters), [activeStatFilters]);
 
   const searchItems = useMemo(() => dataset.items.map((item) => ({
     name: showEnglishNames ? item.englishName : item.name,
@@ -204,18 +247,56 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
             : item.profession === activeProfession
         ))
         || !["consumable", "resource"].includes(activeCategoryData.type);
+      const matchesStats = activeStatFilters.length === 0 || activeStatFilters.every((statType) => item.stats.some((stat) => stat.type === statType));
       const matchesQuery = !normalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery));
-      return matchesCategory && matchesTier && matchesQuality && matchesWeaponClass && matchesProfession && matchesQuery;
+      return matchesCategory && matchesTier && matchesQuality && matchesWeaponClass && matchesProfession && matchesStats && matchesQuery;
     });
-  }, [activeCategoryData.type, activeProfession, activeQuality, activeTier, activeWeaponClass, dataset.items, query]);
+  }, [activeCategoryData.type, activeProfession, activeQuality, activeStatFilters, activeTier, activeWeaponClass, dataset.items, query]);
 
   const resetFilters = () => {
-    updateCatalogState({ tier: "all", quality: "all", weaponClass: "all", profession: "all", query: "" });
+    updateCatalogState({ tier: "all", quality: "all", weaponClass: "all", profession: "all", statFilters: [], query: "" });
   };
 
   const updateQuery = (value: string) => {
     updateCatalogState({ query: value });
   };
+
+  const toggleStatFilter = (statType: string) => {
+    updateCatalogState({
+      statFilters: activeStatSet.has(statType)
+        ? activeStatFilters.filter((type) => type !== statType)
+        : [...activeStatFilters, statType],
+    });
+  };
+
+  const rememberCatalogPosition = () => {
+    if (typeof window === "undefined") return;
+    const href = `${pathname}${serializedSearchParams ? `?${serializedSearchParams}` : ""}`;
+    sessionStorage.setItem(CATALOG_RESTORE_KEY, JSON.stringify({
+      href,
+      scrollY: window.scrollY,
+      visibleLimit,
+      at: Date.now(),
+    }));
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = sessionStorage.getItem(CATALOG_RESTORE_KEY);
+    if (!raw) return;
+    try {
+      const restore = JSON.parse(raw) as { href?: string; scrollY?: number; visibleLimit?: number; at?: number };
+      const href = `${pathname}${serializedSearchParams ? `?${serializedSearchParams}` : ""}`;
+      if (restore.href !== href || !restore.at || Date.now() - restore.at > 30 * 60 * 1000) return;
+      window.requestAnimationFrame(() => {
+        setVisibleLimit((value) => Math.max(value, restore.visibleLimit ?? PAGE_SIZE));
+        window.requestAnimationFrame(() => window.scrollTo({ top: restore.scrollY ?? 0, behavior: "auto" }));
+      });
+      sessionStorage.removeItem(CATALOG_RESTORE_KEY);
+    } catch {
+      sessionStorage.removeItem(CATALOG_RESTORE_KEY);
+    }
+  }, [pathname, serializedSearchParams]);
 
   return (
     <div className={styles.catalogLayout}>
@@ -229,7 +310,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
           <button
             type="button"
             className={`${styles.categoryButton} ${activeCategory === id ? styles.categoryButtonActive : ""}`}
-            onClick={() => updateCatalogState({ category: id, weaponClass: "all", profession: "all" })}
+            onClick={() => updateCatalogState({ category: id, weaponClass: "all", profession: "all", statFilters: [] })}
             aria-pressed={activeCategory === id}
             data-testid={`category-${id}`}
             key={id}
@@ -332,6 +413,26 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
               </div>
             </div>
           )}
+
+          {(activeCategory === "weapons" || activeCategory === "artifacts") && activeStatOptions.length > 0 && (
+            <div className={`${styles.filterGroup} ${styles.classFilterGroup} ${styles.statFilterGroup}`} data-testid="stat-filter">
+              <span>Характеристики</span>
+              <div>
+                {activeStatOptions.map((option) => (
+                  <button
+                    type="button"
+                    className={activeStatSet.has(option.type) ? styles.filterActive : ""}
+                    onClick={() => toggleStatFilter(option.type)}
+                    data-testid={`filter-stat-${option.type}`}
+                    key={option.type}
+                  >
+                    {option.asset?.downloaded && <LoadableImage src={option.asset.local} alt="" width={18} height={18} />}
+                    {option.label} <small>{option.count}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={styles.catalogResults}>
@@ -344,7 +445,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                     ? item.variations.find((variation) => variation.quality === item.quality) ?? item.variations[0]
                     : item.variations.find((variation) => variation.quality === activeQuality) ?? item.variations[0];
                   return (
-                    <Link className={styles.catalogCard} href={`/items/${item.slug}`} data-testid={`catalog-item-${item.slug}`} key={item.slug}>
+                    <Link className={styles.catalogCard} href={`/items/${item.slug}`} onClick={rememberCatalogPosition} data-testid={`catalog-item-${item.slug}`} key={item.slug}>
                       <div className={styles.catalogImage}>
                         {selectedVariation?.image && <LoadableImage src={selectedVariation.image} alt={`${showEnglishNames ? item.englishName : item.name} ${selectedVariation.quality}`} width={128} height={128} />}
                         <span className={`${styles.qualityDot} ${styles[selectedVariation?.quality ?? item.quality]}`} />

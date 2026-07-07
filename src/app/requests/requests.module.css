@@ -15,6 +15,20 @@
 .requestForm > header span,.requestList > header span { color: #967147; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .requestForm h2,.requestList h2 { margin: 5px 0 0; color: #e2ded6; font: 22px var(--font-display),serif; }
 .requestForm p { margin: 5px 0 0; color: #6a7278; font-size: 11px; line-height: 1.55; }
+.requestComposer { display: grid; grid-template-columns: minmax(360px,1.08fr) minmax(300px,.92fr); gap: 14px; padding: 16px 18px 18px; }
+.requestPickerPanel,.requestDetailsPanel { min-width: 0; display: grid; align-content: start; gap: 13px; }
+.requestDetailsPanel { position: sticky; top: 92px; padding: 13px; border: 1px solid rgba(255,255,255,.065); border-radius: 11px; background: rgba(6,8,11,.35); }
+.requestPickerPanel .searchField,.requestPickerPanel .pickList,.requestDetailsPanel .field,.requestDetailsPanel .recipeBox,.requestDetailsPanel .requirementPreview { margin: 0; }
+.requestPickerPanel .pickList { max-height: 520px; padding-right: 6px; }
+.compactFieldGrid { display: grid; grid-template-columns: 130px minmax(0,1fr); gap: 10px; align-items: stretch; }
+.filterChips { display: grid; gap: 9px; }
+.filterChips > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.filterChips span { width: 100%; color: #716458; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.filterChips button { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; color: #7c858b; border: 1px solid rgba(255,255,255,.075); border-radius: 7px; background: rgba(255,255,255,.018); font-size: 11px; cursor: pointer; }
+.filterChips button:hover,.filterChipActive { color: #e2c89e !important; border-color: rgba(210,173,120,.28) !important; background: rgba(176,138,96,.1) !important; }
+.filterChips small { min-width: 17px; height: 17px; display: inline-grid; place-items: center; color: #646c72; border-radius: 50%; background: rgba(255,255,255,.045); font-size: 10px; }
+.filterChipActive small { color: #d8bd93; background: rgba(210,173,120,.1); }
+.qualityChip i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; }
 .field,.searchField { display: grid; gap: 7px; margin: 14px 18px 0; }
 .field > span { color: #716458; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .field input,.field select,.field textarea,.searchField input { width: 100%; color: #d9d9d6; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; outline: 0; background: rgba(5,7,9,.4); font-size: 12px; }
@@ -49,10 +63,11 @@
 .requirementPreview span { width: 30px; height: 30px; display: grid; place-items: center; }
 .requirementPreview strong { overflow: hidden; color: #c7cac8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .requirementPreview em { color: #d1b986; font-size: 11px; font-style: normal; }
-.requestForm > footer { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; padding: 13px 18px; border-top: 1px solid rgba(255,255,255,.06); }
-.requestForm > footer span { color: #6f777d; font-size: 11px; }
-.requestForm > footer button,.requestActions button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; color: #e3c590; border: 1px solid rgba(210,173,120,.24); border-radius: 7px; background: rgba(176,138,96,.09); font-size: 11px; cursor: pointer; }
-.requestForm > footer button:disabled,.requestActions button:disabled { opacity: .38; cursor: not-allowed; }
+.requestForm > footer,.requestDetailsPanel > footer { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; padding: 13px 0 0; border-top: 1px solid rgba(255,255,255,.06); }
+.requestForm > footer { margin-top: 18px; padding: 13px 18px; }
+.requestForm > footer span,.requestDetailsPanel > footer span { color: #6f777d; font-size: 11px; }
+.requestForm > footer button,.requestDetailsPanel > footer button,.requestActions button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; color: #e3c590; border: 1px solid rgba(210,173,120,.24); border-radius: 7px; background: rgba(176,138,96,.09); font-size: 11px; cursor: pointer; }
+.requestForm > footer button:disabled,.requestDetailsPanel > footer button:disabled,.requestActions button:disabled { opacity: .38; cursor: not-allowed; }
 .requestList { display: grid; align-content: start; }
 .requestCard { display: grid; grid-template-columns: 58px minmax(0,1fr) auto; gap: 12px; align-items: start; margin: 10px 12px 0; padding: 12px; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; background: rgba(5,8,10,.34); }
 .requestCard:last-child { margin-bottom: 12px; }
@@ -76,17 +91,22 @@
 .emptyQueue svg,.emptyState svg { color: #9d794e; }
 .emptyQueue strong,.emptyState h2 { margin: 12px 0 0; color: #d2d1cb; font: 18px var(--font-display),serif; }
 .emptyQueue p,.emptyState p { max-width: 430px; margin: 6px 0 0; font-size: 11px; line-height: 1.6; }
+.common { color: #c3c7ca !important; border-color: rgba(195,199,202,.38) !important; }
+.uncommon { color: #63c58a !important; border-color: rgba(83,190,123,.55) !important; }
+.rare { color: #6aa7f2 !important; border-color: rgba(82,145,230,.6) !important; }
+.epic { color: #b879e7 !important; border-color: rgba(163,90,218,.58) !important; }
 
 @media (max-width: 1050px) {
-  .requestGrid { grid-template-columns: 1fr; }
+  .requestGrid,.requestComposer { grid-template-columns: 1fr; }
+  .requestDetailsPanel { position: static; }
 }
 @media (max-width: 680px) {
-  .summaryBar,.formRow,.requirementPreview { grid-template-columns: 1fr; }
+  .summaryBar,.formRow,.compactFieldGrid,.requirementPreview { grid-template-columns: 1fr; }
   .summaryBar > div { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.06); }
   .summaryBar > div:last-child { border-bottom: 0; }
   .requestCard { grid-template-columns: 48px minmax(0,1fr); }
   .requestIcon { width: 48px; height: 48px; }
   .requestActions { grid-column: 1 / -1; justify-content: stretch; max-width: none; }
-  .requestActions button,.requestForm > footer button { flex: 1; }
-  .requestForm > footer { align-items: stretch; flex-direction: column; }
+  .requestActions button,.requestForm > footer button,.requestDetailsPanel > footer button { flex: 1; }
+  .requestForm > footer,.requestDetailsPanel > footer { align-items: stretch; flex-direction: column; }
 }

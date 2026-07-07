@@ -20,6 +20,11 @@ function mapIngredients(ingredients: Array<{ name: string; quantity: number; typ
 export default async function CraftCalculatorPage() {
   const [allItems, baseItemSlugs, imageMap] = await Promise.all([getAllItems(), getBaseItemSlugs(), getItemImageMap()]);
   const itemsBySlug = new Map(allItems.map((item) => [item.slug, item]));
+  const variationsByRoot = new Map<string, typeof allItems>();
+  for (const item of allItems) {
+    const rootSlug = item.baseSlug ?? item.slug;
+    variationsByRoot.set(rootSlug, [...(variationsByRoot.get(rootSlug) ?? []), item]);
+  }
   const referenceItems: CalculatorReferenceItem[] = allItems.map((item) => ({
     slug: item.slug,
     name: item.name,
@@ -44,6 +49,9 @@ export default async function CraftCalculatorPage() {
       englishName: item.englishName ?? item.name,
       type: item.type,
       tier: item.tier,
+      mastery: item.mastery ?? null,
+      quality: item.quality,
+      qualities: [...new Set((variationsByRoot.get(item.slug) ?? [item]).map((variation) => variation.quality))],
       image: imageMap[item.slug] ?? null,
       recipes,
     }];
