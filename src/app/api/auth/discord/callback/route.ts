@@ -27,6 +27,8 @@ type DiscordUserResponse = {
   discriminator?: string | null;
 };
 
+const DISCORD_REQUEST_TIMEOUT_MS = 12_000;
+
 function redirectWithError(request: NextRequest, error: string) {
   const url = new URL("/", getPublicAppUrl(request));
   url.searchParams.set("auth_error", error);
@@ -56,6 +58,7 @@ async function exchangeCodeForToken(code: string, config: ReturnType<typeof read
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
+    signal: AbortSignal.timeout(DISCORD_REQUEST_TIMEOUT_MS),
     cache: "no-store",
   });
   if (!response.ok) return null;
@@ -66,6 +69,7 @@ async function exchangeCodeForToken(code: string, config: ReturnType<typeof read
 async function fetchDiscordUser(accessToken: string) {
   const response = await fetch("https://discord.com/api/users/@me", {
     headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(DISCORD_REQUEST_TIMEOUT_MS),
     cache: "no-store",
   });
   if (!response.ok) return null;

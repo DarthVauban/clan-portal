@@ -18,7 +18,14 @@ export async function GET(request: NextRequest) {
     return response;
   };
   if (session) {
-    const registration = await getExistingPortalRegistration(session.discordUser.id);
+    let registration: Awaited<ReturnType<typeof getExistingPortalRegistration>>;
+    try {
+      registration = await getExistingPortalRegistration(session.discordUser.id);
+    } catch {
+      return NextResponse.json(auth, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
     if (registration) {
       if (registration.applicationStatus === "blocked") return anonymousResponse();
       if (registration.applicationStatus === "revoked" && session.registeredAt) return anonymousResponse();
