@@ -4,8 +4,9 @@ import { CheckCircle2, Clock3, HandCoins, Search, ShieldCheck, XCircle } from "l
 import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { ResourceCatalogItem } from "@/components/resources-manager";
-import { findMembership, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
-import { resourceManagerRoles, roleIsIn } from "@/lib/portal-permissions";
+import { usePortalAuth } from "@/lib/auth-store";
+import { findMembership, getPortalRole, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
+import { roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
 import { makeRequestId, touchRequest, useRequestStore, type RequestStatus, type ResourceRequest } from "@/lib/request-store";
@@ -40,6 +41,7 @@ const professionLabels: Record<string, string> = {
   other: "Другое",
   weaponsmithing: "Оружейное дело",
 };
+const resourceRequestApproverRoles = ["leader", "officer"] as const;
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -51,6 +53,7 @@ function formatRequestDate(value: string) {
 
 export function ResourceRequestsManager({ resources }: { resources: ResourceCatalogItem[] }) {
   const { profile } = useLocalProfile();
+  const { auth } = usePortalAuth();
   const { state: collectiveState } = useCollectiveStore();
   const { state: resourceState, updateState: updateResourceState } = useResourceStore();
   const { state: requestState, updateState: updateRequestState } = useRequestStore();
@@ -64,6 +67,8 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
 
   const membership = findMembership(collectiveState, LOCAL_PLAYER_ID);
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
+  const portalRole = auth.isPortalAdmin ? "administrator" : getPortalRole(collectiveState, LOCAL_PLAYER_ID);
+  const clanLeadershipRights = absoluteRights || portalRole === "administrator" || portalRole === "clan-leader";
   const availableCollectives = absoluteRights ? collectiveState.collectives : membership ? [membership.collective] : [];
   const activeCollective = availableCollectives.find((collective) => collective.id === selectedCollectiveId)
     ?? availableCollectives[0]
@@ -99,6 +104,8 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   }).slice(0, 80);
   const requestedAmount = Math.max(1, Math.floor(Number(amount) || 1));
   const requesterName = profile.displayName.trim() || "Игрок";
+  const requesterId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
+  const currentActorIds = new Set([requesterId, LOCAL_PLAYER_ID]);
   const canSubmit = Boolean(activeCollective && selectedResource && requestedAmount > 0);
   const pendingCount = requestState.resourceRequests.filter((request) => request.status === "pending").length;
   const approvedCount = requestState.resourceRequests.filter((request) => request.status === "approved").length;
@@ -106,9 +113,9 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
 
   const availableAmount = (collectiveId: string, resourceSlug: string) => resourceState.balances[collectiveId]?.resources[resourceSlug] ?? 0;
   const canManageRequest = (request: ResourceRequest) => {
-    if (absoluteRights) return true;
+    if (clanLeadershipRights) return true;
     const ownMembership = findMembership(collectiveState, LOCAL_PLAYER_ID);
-    return ownMembership?.collective.id === request.collectiveId && roleIsIn(ownMembership.member.role, resourceManagerRoles);
+    return ownMembership?.collective.id === request.collectiveId && roleIsIn(ownMembership.member.role, resourceRequestApproverRoles);
   };
 
   const createRequest = (event: React.FormEvent) => {
@@ -124,7 +131,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
       collectiveName: activeCollective.name,
       amount: requestedAmount,
       purpose: purpose.trim(),
-      requester: { id: LOCAL_PLAYER_ID, name: requesterName },
+      requester: { id: requesterId, name: requesterName },
       status: "pending",
       createdAt: now,
       updatedAt: now,
@@ -287,7 +294,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                     </>
                   )}
                   {canManage && request.status === "approved" && <button type="button" onClick={() => issueRequest(request)} disabled={!canIssue}><ShieldCheck size={14} /> Выдать</button>}
-                  {request.status === "pending" && request.requester.id === LOCAL_PLAYER_ID && !canManage && <button type="button" onClick={() => updateRequestStatus(request.id, "cancelled")}><XCircle size={14} /> Отменить</button>}
+                  {request.status === "pending" && currentActorIds.has(request.requester.id) && !canManage && <button type="button" onClick={() => updateRequestStatus(request.id, "cancelled")}><XCircle size={14} /> Отменить</button>}
                 </div>
               </article>
             );

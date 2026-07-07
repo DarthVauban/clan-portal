@@ -4,12 +4,22 @@ import { CheckCircle2, Clock3, Hammer, PackageCheck, Search, ShieldCheck, XCircl
 import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem, CalculatorRecipe } from "@/components/craft-calculator";
+import { usePortalAuth } from "@/lib/auth-store";
 import { collectiveRoleLabels, findMembership, getPortalRole, hasAbsolutePortalRights, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
 import { corepunkClasses } from "@/lib/corepunk-classes";
-import { craftManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
-import { makeRequestId, touchRequest, useRequestStore, type CraftRequest, type CraftRequestRequirement, type RequestStatus } from "@/lib/request-store";
+import {
+  makeRequestId,
+  touchRequest,
+  useRequestStore,
+  type ClanCraftApprovalStatus,
+  type CraftFundingType,
+  type CraftRequest,
+  type CraftRequestRequirement,
+  type RequestActor,
+  type RequestStatus,
+} from "@/lib/request-store";
 import styles from "@/app/requests/requests.module.css";
 
 const numberFormatter = new Intl.NumberFormat("ru-RU");
@@ -38,6 +48,16 @@ const qualityLabels: Record<string, string> = {
   epic: "Эпический",
 };
 const classOptions = corepunkClasses.map((heroClass) => ({ value: heroClass.slug, label: heroClass.name }));
+const craftFundingLabels: Record<CraftFundingType, string> = {
+  personal: "Обычная заявка",
+  clan: "За счёт ресурсов клана",
+};
+const clanApprovalLabels: Record<ClanCraftApprovalStatus, string> = {
+  "not-required": "Подтверждение не требуется",
+  pending: "Ожидает подтверждения ресурсов",
+  approved: "Ресурсы клана подтверждены",
+  rejected: "Ресурсы клана отклонены",
+};
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -95,6 +115,7 @@ function buildRequirements(referenceBySlug: Map<string, CalculatorReferenceItem>
 
 export function CraftRequestsManager({ craftItems, referenceItems }: { craftItems: CalculatorCraftItem[]; referenceItems: CalculatorReferenceItem[] }) {
   const { profile } = useLocalProfile();
+  const { auth } = usePortalAuth();
   const { state: collectiveState } = useCollectiveStore();
   const { state: resourceState } = useResourceStore();
   const { state: requestState, updateState: updateRequestState } = useRequestStore();
@@ -102,6 +123,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const [activeClass, setActiveClass] = useState("all");
   const [activeTier, setActiveTier] = useState<number | "all">("all");
   const [activeQuality, setActiveQuality] = useState("all");
+  const [funding, setFunding] = useState<CraftFundingType>("personal");
   const [selectedItemSlug, setSelectedItemSlug] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -110,7 +132,8 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const membership = findMembership(collectiveState, LOCAL_PLAYER_ID);
   const portalRole = getPortalRole(collectiveState, LOCAL_PLAYER_ID);
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
-  const canManageCraft = absoluteRights || Boolean(membership && roleIsIn(membership.member.role, craftManagerRoles));
+  const effectivePortalRole = auth.isPortalAdmin ? "administrator" : portalRole;
+  const canApproveClanCraft = absoluteRights || effectivePortalRole === "administrator" || effectivePortalRole === "clan-leader" || membership?.member.role === "leader";
   const accessRoleLabel = portalRole !== "member"
     ? portalRoleLabels[portalRole]
     : membership ? collectiveRoleLabels[membership.member.role] : "Участник";
@@ -162,6 +185,9 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const coveredResources = requirements.filter((requirement) => requirement.type === "resource").reduce((total, requirement) => total + Math.min(requirement.quantity, clanBalances[requirement.slug] ?? 0), 0);
   const requiredResources = requirements.filter((requirement) => requirement.type === "resource").reduce((total, requirement) => total + requirement.quantity, 0);
   const requesterName = profile.displayName.trim() || "Игрок";
+  const currentActorId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
+  const currentActorIds = new Set([currentActorId, LOCAL_PLAYER_ID]);
+  const currentActor: RequestActor = { id: currentActorId, name: requesterName };
   const canSubmit = Boolean(selectedItem && selectedRecipe && requestedQuantity > 0);
   const pendingCount = requestState.craftRequests.filter((request) => request.status === "pending").length;
   const activeCount = requestState.craftRequests.filter((request) => request.status === "approved" || request.status === "in-progress").length;
@@ -185,7 +211,10 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
       recipeName: selectedRecipe.name,
       quantity: requestedQuantity,
       note: note.trim(),
-      requester: { id: LOCAL_PLAYER_ID, name: requesterName },
+      funding,
+      clanApprovalStatus: funding === "clan" ? "pending" : "not-required",
+      requester: currentActor,
+      executor: null,
       requirements,
       status: "pending",
       createdAt: now,
@@ -203,6 +232,39 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     }));
   };
 
+  const updateCraftRequest = (requestId: string, updater: (request: CraftRequest) => CraftRequest) => {
+    updateRequestState((current) => ({
+      ...current,
+      craftRequests: current.craftRequests.map((request) => request.id === requestId ? updater(request) : request),
+    }));
+  };
+
+  const acceptCraftRequest = (request: CraftRequest) => {
+    if (request.executor || ["completed", "rejected", "cancelled"].includes(request.status)) return;
+    updateCraftRequest(request.id, (current) => ({
+      ...current,
+      executor: currentActor,
+      status: "in-progress",
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const updateClanApproval = (request: CraftRequest, clanApprovalStatus: ClanCraftApprovalStatus) => {
+    if (request.funding !== "clan" || !canApproveClanCraft) return;
+    updateCraftRequest(request.id, (current) => ({
+      ...current,
+      clanApprovalStatus,
+      status: clanApprovalStatus === "rejected" ? "rejected" : current.executor ? "in-progress" : "approved",
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const completeCraftRequest = (request: CraftRequest) => {
+    if (!request.executor || !currentActorIds.has(request.executor.id)) return;
+    if (request.funding === "clan" && request.clanApprovalStatus !== "approved") return;
+    updateRequestStatus(request.id, "completed");
+  };
+
   return (
     <div className={styles.requestWorkspace}>
       <section className={styles.summaryBar}>
@@ -213,7 +275,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
 
       <section className={styles.accessNote}>
         <ShieldCheck size={17} />
-        <div><strong>{accessRoleLabel}</strong><span>{canManageCraft ? "Можно обрабатывать заявки на крафт" : "Можно создавать заявки и отслеживать статус"}</span></div>
+        <div><strong>{accessRoleLabel}</strong><span>{canApproveClanCraft ? "Можно подтверждать крафт за ресурсы клана" : "Можно создавать и принимать заявки на крафт"}</span></div>
       </section>
 
       <div className={styles.requestGrid}>
@@ -273,6 +335,14 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
             </section>
 
             <section className={styles.requestDetailsPanel}>
+              <div className={styles.modeToggle}>
+                <span>Тип заявки</span>
+                <div>
+                  <button type="button" className={funding === "personal" ? styles.modeToggleActive : ""} onClick={() => setFunding("personal")}>Обычная</button>
+                  <button type="button" className={funding === "clan" ? styles.modeToggleActive : ""} onClick={() => setFunding("clan")}>За ресурсы клана</button>
+                </div>
+              </div>
+
               {selectedItem ? (
                 <section className={styles.recipeBox}>
                   <div className={styles.selectedPreview}>
@@ -328,34 +398,47 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
 
         <section className={styles.requestList}>
           <header><span>Очередь</span><h2>Заявки на крафт</h2></header>
-          {requestState.craftRequests.length > 0 ? requestState.craftRequests.map((request) => (
-            <article className={styles.requestCard} data-status={request.status} key={request.id}>
-              <div className={styles.requestIcon}>{request.itemImage ? <LoadableImage src={request.itemImage} alt="" width={52} height={52} /> : <Hammer size={22} />}</div>
-              <div className={styles.requestBody}>
-                <div className={styles.requestTitle}>
-                  <strong>{request.itemName}</strong>
-                  <span>{statusLabels[request.status]}</span>
+          {requestState.craftRequests.length > 0 ? requestState.craftRequests.map((request) => {
+            const canAccept = !request.executor && !currentActorIds.has(request.requester.id) && !["completed", "rejected", "cancelled"].includes(request.status);
+            const canComplete = Boolean(request.executor && currentActorIds.has(request.executor.id) && request.status === "in-progress" && (request.funding !== "clan" || request.clanApprovalStatus === "approved"));
+            const canCancelOwn = request.status === "pending" && currentActorIds.has(request.requester.id) && !request.executor;
+            return (
+              <article className={styles.requestCard} data-status={request.status} data-funding={request.funding} key={request.id}>
+                <div className={styles.requestIcon}>{request.itemImage ? <LoadableImage src={request.itemImage} alt="" width={52} height={52} /> : <Hammer size={22} />}</div>
+                <div className={styles.requestBody}>
+                  <div className={styles.requestTitle}>
+                    <strong>{request.itemName}</strong>
+                    <span>{statusLabels[request.status]}</span>
+                  </div>
+                  <p>x{formatAmount(request.quantity)} · {request.recipeName}</p>
+                  <div className={styles.requestMetaGrid}>
+                    <span>Заказчик: <strong>{request.requester.name}</strong></span>
+                    <span>Исполнитель: <strong>{request.executor?.name ?? "Не назначен"}</strong></span>
+                  </div>
+                  <div className={styles.requestBadges}>
+                    <span>{craftFundingLabels[request.funding]}</span>
+                    {request.funding === "clan" && <span>{clanApprovalLabels[request.clanApprovalStatus]}</span>}
+                  </div>
+                  {request.note && <em>{request.note}</em>}
+                  <small>Создано {formatRequestDate(request.createdAt)} · материалов {request.requirements.length}</small>
+                  <div className={styles.miniRequirements}>
+                    {request.requirements.slice(0, 6).map((requirement) => <span key={requirement.slug}>{requirement.name}: x{formatAmount(requirement.quantity)}</span>)}
+                  </div>
                 </div>
-                <p>x{formatAmount(request.quantity)} · {request.recipeName} · {request.requester.name}</p>
-                {request.note && <em>{request.note}</em>}
-                <small>Создано {formatRequestDate(request.createdAt)} · материалов {request.requirements.length}</small>
-                <div className={styles.miniRequirements}>
-                  {request.requirements.slice(0, 6).map((requirement) => <span key={requirement.slug}>{requirement.name}: x{formatAmount(requirement.quantity)}</span>)}
+                <div className={styles.requestActions}>
+                  {canAccept && <button type="button" onClick={() => acceptCraftRequest(request)}><Hammer size={14} /> Взять в работу</button>}
+                  {request.funding === "clan" && request.clanApprovalStatus === "pending" && canApproveClanCraft && (
+                    <>
+                      <button type="button" onClick={() => updateClanApproval(request, "approved")}><CheckCircle2 size={14} /> Подтвердить ресурсы</button>
+                      <button type="button" className={styles.dangerButton} onClick={() => updateClanApproval(request, "rejected")}><XCircle size={14} /> Отклонить ресурсы</button>
+                    </>
+                  )}
+                  {canComplete && <button type="button" onClick={() => completeCraftRequest(request)}><PackageCheck size={14} /> Завершить</button>}
+                  {canCancelOwn && <button type="button" onClick={() => updateRequestStatus(request.id, "cancelled")}><XCircle size={14} /> Отменить</button>}
                 </div>
-              </div>
-              <div className={styles.requestActions}>
-                {canManageCraft && request.status === "pending" && (
-                  <>
-                    <button type="button" onClick={() => updateRequestStatus(request.id, "approved")}><CheckCircle2 size={14} /> Одобрить</button>
-                    <button type="button" className={styles.dangerButton} onClick={() => updateRequestStatus(request.id, "rejected")}><XCircle size={14} /> Отклонить</button>
-                  </>
-                )}
-                {canManageCraft && request.status === "approved" && <button type="button" onClick={() => updateRequestStatus(request.id, "in-progress")}><Hammer size={14} /> В работу</button>}
-                {canManageCraft && request.status === "in-progress" && <button type="button" onClick={() => updateRequestStatus(request.id, "completed")}><PackageCheck size={14} /> Завершить</button>}
-                {request.status === "pending" && request.requester.id === LOCAL_PLAYER_ID && !canManageCraft && <button type="button" onClick={() => updateRequestStatus(request.id, "cancelled")}><XCircle size={14} /> Отменить</button>}
-              </div>
-            </article>
-          )) : (
+              </article>
+            );
+          }) : (
             <div className={styles.emptyQueue}><Clock3 size={24} /><strong>Заявок пока нет</strong><p>Созданные заявки на крафт появятся здесь сразу после отправки.</p></div>
           )}
         </section>

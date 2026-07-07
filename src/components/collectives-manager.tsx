@@ -154,8 +154,9 @@ export function CollectivesManager() {
   const currentRole = currentMembership?.role;
   const currentPortalRole = getPortalRole(state, LOCAL_PLAYER_ID);
   const hasAbsoluteRights = auth.isPortalAdmin || hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
+  const canReassignLeader = hasAbsoluteRights || currentPortalRole === "clan-leader";
   const canAddMembers = Boolean(activeCollective && (hasAbsoluteRights || roleIsIn(currentRole, applicantManagerRoles)));
-  const canManageRoles = hasAbsoluteRights || roleIsIn(currentRole, memberManagerRoles);
+  const canManageRoles = canReassignLeader || roleIsIn(currentRole, memberManagerRoles);
   const canTransfer = hasAbsoluteRights;
   const canRemoveMembers = hasAbsoluteRights || roleIsIn(currentRole, memberManagerRoles);
   const canBlockMembers = canRemoveMembers;
@@ -237,7 +238,7 @@ export function CollectivesManager() {
 
   const changeRole = (playerId: string, nextRole: CollectiveRole) => {
     if (!activeCollective || !canManageRoles) return;
-    if (nextRole === "leader" && !hasAbsoluteRights) return;
+    if (nextRole === "leader" && !canReassignLeader) return;
     updateState((current) => ({
       ...current,
       collectives: current.collectives.map((collective) => collective.id === activeCollective.id
@@ -408,11 +409,11 @@ export function CollectivesManager() {
                           <select
                             value={member.role}
                             onChange={(event) => changeRole(member.playerId, event.target.value as CollectiveRole)}
-                            disabled={!canManageRoles || member.role === "leader"}
+                            disabled={!canManageRoles || (member.role === "leader" && !canReassignLeader)}
                             className={roleClass(member.role)}
                             aria-label={`Роль игрока ${player.displayName}`}
                           >
-                            {collectiveRoles.map((role) => <option value={role.value} disabled={role.value === "leader" && !hasAbsoluteRights} key={role.value}>{role.label}</option>)}
+                            {collectiveRoles.map((role) => <option value={role.value} disabled={role.value === "leader" && !canReassignLeader} key={role.value}>{role.label}</option>)}
                           </select>
                         </div>
                         <time>{formatCollectiveDate(member.joinedAt)}</time>

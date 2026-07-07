@@ -8,7 +8,7 @@ import {
   isPortalAdminDiscordId,
   type PortalSession,
 } from "@/lib/auth-session";
-import { applicantManagerRoles, memberManagerRoles } from "@/lib/portal-permissions";
+import { applicantManagerRoles, isGlobalPortalRole, memberManagerRoles, type PortalRole } from "@/lib/portal-permissions";
 
 export type PortalRegistrationPayload = {
   profileName: string;
@@ -174,7 +174,21 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
 }
 
 export async function hasPortalManagementRights(session: PortalSession) {
-  return isPortalAdminDiscordId(session.discordUser.id);
+  if (isPortalAdminDiscordId(session.discordUser.id)) return true;
+
+  const pool = getDatabasePool();
+  const result = await pool.query(
+    `
+      SELECT portal_role
+      FROM portal_players
+      WHERE discord_id = $1
+        AND application_status NOT IN ('revoked', 'blocked')
+      LIMIT 1
+    `,
+    [session.discordUser.id],
+  );
+  const role = result.rows[0]?.portal_role;
+  return typeof role === "string" && isGlobalPortalRole(role as PortalRole);
 }
 
 export async function canManageMembershipApplicants(session: PortalSession) {

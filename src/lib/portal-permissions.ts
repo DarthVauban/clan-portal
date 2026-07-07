@@ -100,7 +100,7 @@ const ownCollectivePermissions: Partial<Record<PortalPermission, readonly Collec
 };
 
 export function isGlobalPortalRole(role: PortalRole) {
-  return role === "administrator";
+  return role === "administrator" || role === "clan-leader";
 }
 
 export function roleIsIn(role: CollectiveRole | null | undefined, roles: readonly CollectiveRole[]) {

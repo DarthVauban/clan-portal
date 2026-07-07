@@ -9,12 +9,15 @@
 .accessNote strong,.accessNote span { display: block; }
 .accessNote strong { color: #d9c091; font-size: 12px; }
 .accessNote span { margin-top: 3px; font-size: 11px; }
-.requestGrid { display: grid; grid-template-columns: minmax(330px,.78fr) minmax(0,1.22fr); gap: 12px; align-items: start; }
+.requestGrid { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; align-items: start; }
 .requestForm,.requestList { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.012); }
 .requestForm > header,.requestList > header { min-height: 86px; padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.065); background: linear-gradient(110deg, rgba(176,138,96,.07), transparent 52%); }
 .requestForm > header span,.requestList > header span { color: #967147; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .requestForm h2,.requestList h2 { margin: 5px 0 0; color: #e2ded6; font: 22px var(--font-display),serif; }
 .requestForm p { margin: 5px 0 0; color: #6a7278; font-size: 11px; line-height: 1.55; }
+.inlineTabs { display: inline-flex; gap: 4px; margin-top: 12px; padding: 4px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: rgba(5,7,9,.36); }
+.inlineTabs button { min-height: 32px; padding: 0 11px; color: #7f878c; border: 0; border-radius: 7px; background: transparent; font-size: 11px; cursor: pointer; }
+.inlineTabs button:hover,.inlineTabActive { color: #ebd0a2 !important; background: rgba(176,138,96,.13) !important; box-shadow: inset 0 0 0 1px rgba(210,173,120,.22); }
 .requestComposer { display: grid; grid-template-columns: minmax(360px,1.08fr) minmax(300px,.92fr); gap: 14px; padding: 16px 18px 18px; }
 .requestPickerPanel,.requestDetailsPanel { min-width: 0; display: grid; align-content: start; gap: 13px; }
 .requestDetailsPanel { position: sticky; top: 92px; padding: 13px; border: 1px solid rgba(255,255,255,.065); border-radius: 11px; background: rgba(6,8,11,.35); }
@@ -29,6 +32,11 @@
 .filterChips small { min-width: 17px; height: 17px; display: inline-grid; place-items: center; color: #646c72; border-radius: 50%; background: rgba(255,255,255,.045); font-size: 10px; }
 .filterChipActive small { color: #d8bd93; background: rgba(210,173,120,.1); }
 .qualityChip i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; }
+.modeToggle { display: grid; gap: 8px; }
+.modeToggle > span { color: #716458; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.modeToggle > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; padding: 4px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: rgba(5,7,9,.36); }
+.modeToggle button { min-height: 34px; color: #7d858a; border: 0; border-radius: 7px; background: transparent; font-size: 11px; cursor: pointer; }
+.modeToggle button:hover,.modeToggleActive { color: #ebd0a2 !important; background: rgba(176,138,96,.13) !important; box-shadow: inset 0 0 0 1px rgba(210,173,120,.22); }
 .field,.searchField { display: grid; gap: 7px; margin: 14px 18px 0; }
 .field > span { color: #716458; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .field input,.field select,.field textarea,.searchField input { width: 100%; color: #d9d9d6; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; outline: 0; background: rgba(5,7,9,.4); font-size: 12px; }
@@ -83,6 +91,11 @@
 .requestBody p { margin: 5px 0 0; color: #858d92; font-size: 11px; }
 .requestBody em { margin-top: 6px; color: #b5a17e; font-size: 11px; font-style: normal; line-height: 1.45; }
 .requestBody small { margin-top: 6px; color: #616a70; font-size: 10px; }
+.requestMetaGrid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.requestMetaGrid span,.requestBadges span { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 0 7px; color: #828a8f; border: 1px solid rgba(255,255,255,.065); border-radius: 6px; background: rgba(255,255,255,.018); font-size: 10px; }
+.requestMetaGrid strong { color: #c5c9c9; font-size: 10px; }
+.requestBadges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.requestBadges span { color: #d0b17e; border-color: rgba(210,173,120,.15); background: rgba(176,138,96,.06); }
 .miniRequirements { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .miniRequirements span { padding: 4px 6px; color: #7d858a; border-radius: 6px; background: rgba(255,255,255,.025); font-size: 10px; }
 .requestActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 230px; }

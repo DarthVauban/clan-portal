@@ -3,6 +3,8 @@
 import { useSyncExternalStore } from "react";
 
 export type RequestStatus = "pending" | "approved" | "in-progress" | "issued" | "completed" | "rejected" | "cancelled";
+export type CraftFundingType = "personal" | "clan";
+export type ClanCraftApprovalStatus = "not-required" | "pending" | "approved" | "rejected";
 
 export type RequestActor = {
   id: string;
@@ -42,7 +44,10 @@ export type CraftRequest = {
   recipeName: string;
   quantity: number;
   note: string;
+  funding: CraftFundingType;
+  clanApprovalStatus: ClanCraftApprovalStatus;
   requester: RequestActor;
+  executor: RequestActor | null;
   requirements: CraftRequestRequirement[];
   status: RequestStatus;
   createdAt: string;
@@ -58,6 +63,8 @@ const STORAGE_KEY = "clan-portal:requests";
 const STORE_EVENT = "clan-portal:requests-change";
 const EMPTY_STATE: RequestState = { resourceRequests: [], craftRequests: [] };
 const validStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress", "issued", "completed", "rejected", "cancelled"]);
+const validCraftFundingTypes = new Set<CraftFundingType>(["personal", "clan"]);
+const validClanCraftApprovalStatuses = new Set<ClanCraftApprovalStatus>(["not-required", "pending", "approved", "rejected"]);
 let cachedRaw: string | null | undefined;
 let cachedState = EMPTY_STATE;
 
@@ -77,6 +84,17 @@ function normalizeActor(value: unknown): RequestActor {
 
 function normalizeStatus(value: unknown): RequestStatus {
   return typeof value === "string" && validStatuses.has(value as RequestStatus) ? value as RequestStatus : "pending";
+}
+
+function normalizeCraftFunding(value: unknown): CraftFundingType {
+  return typeof value === "string" && validCraftFundingTypes.has(value as CraftFundingType) ? value as CraftFundingType : "personal";
+}
+
+function normalizeClanCraftApprovalStatus(value: unknown, funding: CraftFundingType): ClanCraftApprovalStatus {
+  if (funding === "personal") return "not-required";
+  return typeof value === "string" && validClanCraftApprovalStatuses.has(value as ClanCraftApprovalStatus) && value !== "not-required"
+    ? value as ClanCraftApprovalStatus
+    : "pending";
 }
 
 function normalizeDate(value: unknown) {
@@ -112,6 +130,7 @@ function normalizeState(value: unknown): RequestState {
       if (!request || typeof request !== "object") return [];
       const item = request as Partial<CraftRequest>;
       if (typeof item.id !== "string" || typeof item.itemSlug !== "string" || typeof item.recipeId !== "string") return [];
+      const funding = normalizeCraftFunding(item.funding);
       const requirements = Array.isArray(item.requirements)
         ? item.requirements.flatMap((requirement) => {
           if (!requirement || typeof requirement !== "object") return [];
@@ -136,7 +155,10 @@ function normalizeState(value: unknown): RequestState {
         recipeName: typeof item.recipeName === "string" && item.recipeName.trim() ? item.recipeName.trim().slice(0, 80) : "Рецепт",
         quantity: normalizeAmount(item.quantity),
         note: typeof item.note === "string" ? item.note.trim().slice(0, 240) : "",
+        funding,
+        clanApprovalStatus: normalizeClanCraftApprovalStatus(item.clanApprovalStatus, funding),
         requester: normalizeActor(item.requester),
+        executor: item.executor ? normalizeActor(item.executor) : null,
         requirements,
         status: normalizeStatus(item.status),
         createdAt: normalizeDate(item.createdAt),

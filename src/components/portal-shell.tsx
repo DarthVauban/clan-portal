@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   Database,
+  Hammer,
   HandCoins,
   Home,
   LockKeyhole,
@@ -48,6 +49,7 @@ const requestNavigation = [
   { href: "/requests/membership", label: "Заявки на вступление", icon: UserPlus },
   { href: "/requests/resources", label: "На получение ресурсов", icon: HandCoins, restricted: true },
   { href: "/requests/crafting", label: "На крафт предметов", icon: ScrollText, restricted: true },
+  { href: "/requests/my-crafting", label: "Мои крафт-заявки", icon: Hammer, restricted: true },
 ];
 
 const utilityNavigation = [

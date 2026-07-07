@@ -378,6 +378,15 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
 
     const existingPlayers = await client.query("SELECT player_id FROM portal_players WHERE application_status NOT IN ('revoked', 'blocked')");
     const existingPlayerIds = new Set(existingPlayers.rows.map((row) => String(row.player_id)));
+    const currentMemberResult = await client.query(
+      `
+        SELECT DISTINCT m.player_id
+        FROM portal_collective_members m
+        JOIN portal_players p ON p.player_id = m.player_id
+        WHERE p.application_status NOT IN ('revoked', 'blocked')
+      `,
+    );
+    const previousMemberIds = new Set(currentMemberResult.rows.map((row) => String(row.player_id)));
 
     await client.query("DELETE FROM portal_collective_members");
     await client.query("DELETE FROM portal_collectives");
@@ -413,6 +422,21 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
           WHERE player_id = ANY($1::text[])
         `,
         [memberIds],
+      );
+    }
+
+    const removedMemberIds = [...previousMemberIds].filter((playerId) => !memberIds.includes(playerId));
+    if (removedMemberIds.length > 0) {
+      await client.query(
+        `
+          UPDATE portal_players
+          SET application_status = 'pending',
+              accepted_at = NULL,
+              updated_at = NOW()
+          WHERE player_id = ANY($1::text[])
+            AND application_status = 'accepted'
+        `,
+        [removedMemberIds],
       );
     }
 
