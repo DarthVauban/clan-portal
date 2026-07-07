@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import { ShieldX, Unlock, UserRoundX, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { corepunkClassesBySlug } from "@/lib/corepunk-classes";
@@ -122,7 +122,7 @@ export function BlockedUsersManager() {
               const heroClass = mainCharacter ? corepunkClassesBySlug.get(mainCharacter.classSlug) : undefined;
               return (
                 <article className={styles.blockedCard} key={user.id}>
-                  <span className={styles.playerIcon}>{heroClass ? <Image src={heroClass.image} alt="" width={48} height={48} /> : <UsersRound size={20} />}</span>
+                  <span className={styles.playerIcon}>{heroClass ? <LoadableImage src={heroClass.image} alt="" width={48} height={48} /> : <UsersRound size={20} />}</span>
                   <div className={styles.playerIdentity}>
                     <strong>{user.displayName}</strong>
                     <small>{mainCharacter ? `${mainCharacter.name} · ${heroClass?.name ?? mainCharacter.classSlug}` : "Основной персонаж не указан"}</small>

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
@@ -100,7 +100,7 @@ export function KnowledgeSearch({
               data-testid={`search-result-${item.slug}`}
             >
               <span className={styles.searchResultImage}>
-                {item.image && <Image src={item.image} alt="" width={38} height={38} />}
+                {item.image && <LoadableImage src={item.image} alt="" width={38} height={38} />}
               </span>
               <span><strong>{item.name}</strong><small>{item.meta}</small></span>
             </Link>

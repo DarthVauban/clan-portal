@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import {
   CalendarDays,
   Check,
@@ -203,7 +203,7 @@ export function UserProfile() {
                         >
                           {selectedClass ? (
                             <>
-                              <span className={styles.selectedClassIcon}><Image src={selectedClass.image} alt="" width={42} height={42} /></span>
+                              <span className={styles.selectedClassIcon}><LoadableImage src={selectedClass.image} alt="" width={42} height={42} /></span>
                               <span><strong>{selectedClass.name}</strong><small>{selectedClass.family}</small></span>
                             </>
                           ) : (
@@ -240,7 +240,7 @@ export function UserProfile() {
                                 data-testid={`class-option-${heroClass.slug}`}
                                 key={heroClass.slug}
                               >
-                                <span className={styles.classOptionIcon}><Image src={heroClass.image} alt="" width={50} height={50} /></span>
+                                <span className={styles.classOptionIcon}><LoadableImage src={heroClass.image} alt="" width={50} height={50} /></span>
                                 <span><strong>{heroClass.name}</strong><small>{heroClass.family}</small></span>
                                 {heroClass.available ? character.classSlug === heroClass.slug && <Check size={14} /> : <em><LockKeyhole size={10} /> Скоро</em>}
                               </button>
@@ -260,7 +260,7 @@ export function UserProfile() {
                     <>
                       <div className={styles.characterSummary}>
                         <span className={styles.characterSummaryIcon}>
-                          {selectedClass && <Image src={selectedClass.image} alt="" width={54} height={54} />}
+                          {selectedClass && <LoadableImage src={selectedClass.image} alt="" width={54} height={54} />}
                         </span>
                         <div>
                           <span>Персонаж {profile.mainCharacterId === character.id && <em><Star size={9} /> Основной</em>}</span>

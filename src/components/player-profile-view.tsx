@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, Crown, MessageCircle, Star, UsersRound } from "lucide-react";
 import { corepunkClassesBySlug } from "@/lib/corepunk-classes";
@@ -54,7 +54,7 @@ export function PlayerProfileView({ playerId }: { playerId: string }) {
               const isMain = character.id === player.mainCharacterId;
               return (
                 <article className={`${styles.characterCard} ${isMain ? styles.mainCharacter : ""}`} key={character.id}>
-                  <span className={styles.classIcon}>{heroClass && <Image src={heroClass.image} alt="" width={58} height={58} />}</span>
+                  <span className={styles.classIcon}>{heroClass && <LoadableImage src={heroClass.image} alt="" width={58} height={58} />}</span>
                   <div><span>{isMain ? <><Star size={9} /> Основной персонаж</> : "Персонаж"}</span><strong>{character.name}</strong><small>{heroClass?.name ?? character.classSlug} · {heroClass?.family}</small></div>
                 </article>
               );

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -75,7 +75,7 @@ function RichDescription({ text, dataset }: { text: string; dataset: CorepunkIte
             if (asset?.downloaded) {
               return (
                 <span className={styles.inlineStat} key={`${token}-${partIndex}`}>
-                  <Image src={asset.local} alt="" width={18} height={18} />
+                  <LoadableImage src={asset.local} alt="" width={18} height={18} />
                   {asset.label}
                 </span>
               );
@@ -100,7 +100,7 @@ function IngredientTile({ ingredient, dataset, showEnglishNames }: { ingredient:
   const content = (
     <>
       <div className={`${styles.ingredientImage} ${qualityClass(quality)}`}>
-        {media?.downloaded && <Image src={media.local} alt={itemName} width={72} height={72} />}
+        {media?.downloaded && <LoadableImage src={media.local} alt={itemName} width={72} height={72} />}
         <span>{ingredient.quantity}</span>
       </div>
       <div>
@@ -206,7 +206,7 @@ export function CorepunkItemDetail({
 
       <section className={styles.itemHero}>
         <div className={`${styles.heroItemImage} ${qualityClass(selectedItem.quality)}`}>
-          {mainImage?.downloaded && <Image key={selectedItem.slug} src={mainImage.local} alt={`${itemName} ${selectedItem.quality}`} width={196} height={196} priority />}
+          {mainImage?.downloaded && <LoadableImage key={selectedItem.slug} src={mainImage.local} alt={`${itemName} ${selectedItem.quality}`} width={196} height={196} priority />}
           <span className={styles.tierMark}>T{selectedItem.tier}</span>
         </div>
 
@@ -236,7 +236,7 @@ export function CorepunkItemDetail({
                       aria-label={`Выбрать качество: ${qualityLabel(variation.quality)}`}
                       data-testid={`quality-${variation.quality}`}
                     >
-                      {media?.downloaded && <Image src={media.local} alt={`${itemName} ${variation.quality}`} width={66} height={66} />}
+                      {media?.downloaded && <LoadableImage src={media.local} alt={`${itemName} ${variation.quality}`} width={66} height={66} />}
                       <small>{qualityLabel(variation.quality)}</small>
                     </button>
                   );
@@ -275,7 +275,7 @@ export function CorepunkItemDetail({
                   const asset = dataset.media.stats[stat.type];
                   return (
                     <div className={styles.statRow} key={`${stat.type}-${stat.id}`}>
-                      <span>{asset?.downloaded && <Image src={asset.local} alt="" width={25} height={25} />}</span>
+                      <span>{asset?.downloaded && <LoadableImage src={asset.local} alt="" width={25} height={25} />}</span>
                       <strong>[{stat.min} – {stat.max}] {asset?.label ?? stat.type}</strong>
                     </div>
                   );
@@ -323,7 +323,7 @@ export function CorepunkItemDetail({
         <aside className={styles.professionCard}>
           <div className={styles.sectionTitle}><span>Профессия</span></div>
           <div className={styles.professionIdentity}>
-            {professionAsset?.downloaded && <Image src={professionAsset.local} alt="" width={58} height={58} />}
+            {professionAsset?.downloaded && <LoadableImage src={professionAsset.local} alt="" width={58} height={58} />}
             <div><small>Специализация</small><strong>{professionLabel(selectedItem.profession)}</strong></div>
           </div>
           <div className={styles.proficiency}><span>Уровень мастерства</span><strong>{professionLevelLabel(selectedItem.professionLevel)}</strong></div>
@@ -371,7 +371,7 @@ export function CorepunkItemDetail({
                   data-testid={`related-link-${related.slug}`}
                 >
                   <div className={`${styles.relatedImage} ${qualityClass(related.quality)}`}>
-                    {media?.downloaded && <Image src={media.local} alt={relatedName} width={76} height={76} />}
+                    {media?.downloaded && <LoadableImage src={media.local} alt={relatedName} width={76} height={76} />}
                   </div>
                   <div><strong>{relatedName}</strong><small>{qualityLabel(related.quality)} · {typeLabels[related.type] ?? related.type}</small></div>
                 </Link>

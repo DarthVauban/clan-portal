@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -87,7 +87,7 @@ function PlayerIdentity({ player, portalRole }: { player: DirectoryPlayer; porta
   return (
     <div className={styles.playerIdentity}>
       <span className={styles.playerClassIcon}>
-        {heroClass ? <Image src={heroClass.image} alt="" width={46} height={46} /> : <UsersRound size={19} />}
+        {heroClass ? <LoadableImage src={heroClass.image} alt="" width={46} height={46} /> : <UsersRound size={19} />}
       </span>
       <div>
         <strong>{player.displayName}</strong>

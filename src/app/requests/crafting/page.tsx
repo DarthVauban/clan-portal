@@ -1,18 +1,59 @@
-import { ModulePage } from "@/components/module-page";
+import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem } from "@/components/craft-calculator";
+import { LazyCraftRequestsManager } from "@/components/lazy-client-components";
+import { getAllItems, getBaseItemSlugs, getItemImageMap } from "@/lib/corepunk-item-repository";
 
-export default function CraftRequestsPage() {
+export const dynamic = "force-dynamic";
+
+const recipeNames: Record<string, string> = {
+  Upgraded: "Улучшенный",
+  Overclocked: "Разогнанный",
+};
+
+function mapIngredients(ingredients: Array<{ name: string; quantity: number; type: string }>): CalculatorIngredient[] {
+  return ingredients.map((ingredient) => ({ slug: ingredient.name, quantity: ingredient.quantity, type: ingredient.type }));
+}
+
+export default async function CraftRequestsPage() {
+  const [allItems, baseItemSlugs, imageMap] = await Promise.all([getAllItems(), getBaseItemSlugs(), getItemImageMap()]);
+  const itemsBySlug = new Map(allItems.map((item) => [item.slug, item]));
+  const referenceItems: CalculatorReferenceItem[] = allItems.map((item) => ({
+    slug: item.slug,
+    name: item.name,
+    englishName: item.englishName ?? item.name,
+    type: item.type,
+    tier: item.tier,
+    image: imageMap[item.slug] ?? null,
+    ingredients: mapIngredients(item.ingredients ?? []),
+  }));
+  const craftItems: CalculatorCraftItem[] = baseItemSlugs.flatMap((slug) => {
+    const item = itemsBySlug.get(slug);
+    if (!item) return [];
+    const recipes = [
+      ...(item.ingredients?.length ? [{ id: `base-${item.slug}`, name: "Базовый", ingredients: mapIngredients(item.ingredients) }] : []),
+      ...(item.recipes ?? []).map((recipe) => ({ id: `recipe-${recipe.id}`, name: recipeNames[recipe.name] ?? recipe.name, ingredients: mapIngredients(recipe.ingredients) })),
+    ];
+    if (recipes.length === 0) return [];
+    return [{
+      slug: item.slug,
+      name: item.name,
+      englishName: item.englishName ?? item.name,
+      type: item.type,
+      tier: item.tier,
+      image: imageMap[item.slug] ?? null,
+      recipes,
+    }];
+  });
+
   return (
-    <ModulePage
-      eyebrow="Заявки · Крафт"
-      title="Крафт предметов"
-      description="Заявки на изготовление предметов объединяют заказчика, ресурсы клана и доступных крафтеров в одном процессе."
-      features={["Выбор предмета из базы", "Автоматический расчёт рецепта", "Учёт собственных материалов", "Назначение крафтера", "Статусы выполнения и результат"]}
-    >
-      <div className="craft-request-preview">
-        <div className="craft-request-item"><span>?</span><div><small>Предмет для крафта</small><strong>Выберите предмет из базы</strong></div></div>
-        <div className="craft-request-line"><span>Необходимые материалы</span><strong>Рассчитаются автоматически</strong></div>
-        <button disabled>Создать заявку</button>
-      </div>
-    </ModulePage>
+    <div className="page-stack">
+      <section className="page-hero">
+        <div>
+          <div className="eyebrow">Заявки · Крафт</div>
+          <h1>Крафт предметов</h1>
+          <p>Заявки связывают нужный предмет, рецепт, количество и материалы, чтобы крафтеры и лидеры видели очередь работ.</p>
+        </div>
+      </section>
+      <LazyCraftRequestsManager craftItems={craftItems} referenceItems={referenceItems} />
+    </div>
   );
 }

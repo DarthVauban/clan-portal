@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import { Check, Clock3, ExternalLink, Search, UserPlus, UsersRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -188,7 +188,7 @@ export function MembershipRequestsManager() {
               const selectedTarget = targets[player.id] || manageableCollectives[0]?.id || "";
               return (
                 <article className={styles.requestCard} data-testid={`membership-request-${player.id}`} key={player.id}>
-                  <span className={styles.playerIcon}>{heroClass ? <Image src={heroClass.image} alt="" width={48} height={48} /> : <UsersRound size={20} />}</span>
+                  <span className={styles.playerIcon}>{heroClass ? <LoadableImage src={heroClass.image} alt="" width={48} height={48} /> : <UsersRound size={20} />}</span>
                   <div className={styles.playerIdentity}>
                     <div><strong>{player.displayName}</strong><em>Новый игрок</em></div>
                     <small>{mainCharacter ? `${mainCharacter.name} · ${heroClass?.name ?? mainCharacter.classSlug}` : "Основной персонаж не указан"}</small>

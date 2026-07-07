@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import {
   AlertTriangle,
   Boxes,
@@ -202,7 +202,7 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
           <div className={styles.itemList} data-testid="craft-item-list">
             {visibleItems.map((item) => (
               <button type="button" className={selectedItemSlug === item.slug ? styles.itemActive : ""} onClick={() => chooseItem(item)} key={item.slug}>
-                <span className={styles.itemIcon}>{item.image ? <Image src={item.image} alt="" width={48} height={48} /> : <Boxes size={20} />}</span>
+                <span className={styles.itemIcon}>{item.image ? <LoadableImage src={item.image} alt="" width={48} height={48} /> : <Boxes size={20} />}</span>
                 <div><strong>{item.name}</strong><small>{typeLabels[item.type] ?? item.type} · T{item.tier} · {item.recipes.length} {item.recipes.length === 1 ? "рецепт" : "рецепта"}</small></div>
               </button>
             ))}
@@ -220,7 +220,7 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
             <>
               <section className={styles.selectedRecipe}>
                 <div className={styles.selectedItem}>
-                  <span>{selectedItem.image ? <Image src={selectedItem.image} alt="" width={76} height={76} /> : <Boxes size={28} />}</span>
+                  <span>{selectedItem.image ? <LoadableImage src={selectedItem.image} alt="" width={76} height={76} /> : <Boxes size={28} />}</span>
                   <div><small>{typeLabels[selectedItem.type] ?? selectedItem.type} · Тир {selectedItem.tier}</small><h2>{selectedItem.name}</h2><p>{selectedItem.englishName}</p></div>
                 </div>
                 <div className={styles.quantityControl}>
@@ -258,7 +258,7 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
                     });
                     return (
                       <article className={styles.finalRequirement} key={requirement.slug}>
-                        <span className={styles.itemIcon}>{requirement.image ? <Image src={requirement.image} alt="" width={50} height={50} /> : <Boxes size={19} />}</span>
+                        <span className={styles.itemIcon}>{requirement.image ? <LoadableImage src={requirement.image} alt="" width={50} height={50} /> : <Boxes size={19} />}</span>
                         <div className={styles.finalIdentity}><strong>{requirement.name}</strong><small>{typeLabels[requirement.type] ?? requirement.type}{requirement.tier > 0 ? ` · T${requirement.tier}` : ""}</small>{hasExtendedAccess && requirement.type === "resource" && distributions.length > 0 && <em>{distributions.map((entry) => `${entry.name}: ${formatAmount(entry.amount)}`).join(" · ")}</em>}</div>
                         <div className={styles.requiredAmount}><small>Нужно</small><strong>{formatAmount(requirement.quantity)}</strong></div>
                         {hasExtendedAccess && (
@@ -289,7 +289,7 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
 function RequirementCard({ requirement }: { requirement: Requirement }) {
   return (
     <article className={styles.requirementCard}>
-      <span className={styles.itemIcon}>{requirement.image ? <Image src={requirement.image} alt="" width={48} height={48} /> : <Boxes size={18} />}</span>
+      <span className={styles.itemIcon}>{requirement.image ? <LoadableImage src={requirement.image} alt="" width={48} height={48} /> : <Boxes size={18} />}</span>
       <div><strong>{requirement.name}</strong><small>{typeLabels[requirement.type] ?? requirement.type}{requirement.tier > 0 ? ` · T${requirement.tier}` : ""}</small></div>
       <b>×{formatAmount(requirement.quantity)}</b>
     </article>

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import {
   ArrowDownLeft,
@@ -198,7 +198,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
   return (
     <div className={styles.resourcesLayout}>
       <section className={styles.summaryBar}>
-        <div className={styles.coinSummary}><span><Image src={ANCIENT_COIN_IMAGE} alt="" width={40} height={40} /></span><div><small>Общий баланс валюты</small><strong>{formatAmount(aggregate.ancientCoin)}</strong><em>Древняя монета</em></div></div>
+        <div className={styles.coinSummary}><span><LoadableImage src={ANCIENT_COIN_IMAGE} alt="" width={40} height={40} /></span><div><small>Общий баланс валюты</small><strong>{formatAmount(aggregate.ancientCoin)}</strong><em>Древняя монета</em></div></div>
         <div><span><Boxes size={17} /></span><div><small>Всего единиц ресурсов</small><strong>{formatAmount(totalResourceUnits)}</strong></div></div>
         <div><span><ShieldCheck size={17} /></span><div><small>Коллективов с активами</small><strong>{collectivesWithAssets} / {collectiveState.collectives.length}</strong></div></div>
       </section>
@@ -224,7 +224,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
           </header>
 
           <section className={styles.currencyCard} data-testid="ancient-coin-balance">
-            <span className={styles.currencyIcon}><Image src={ANCIENT_COIN_IMAGE} alt="Древняя монета" width={72} height={72} /></span>
+            <span className={styles.currencyIcon}><LoadableImage src={ANCIENT_COIN_IMAGE} alt="Древняя монета" width={72} height={72} /></span>
             <div className={styles.currencyIdentity}><small>Игровая валюта</small><h3>Древняя монета</h3><p>Ancient Coin · торговая валюта рынка</p></div>
             <div className={styles.currencyAmount}>
               <span>Количество</span>
@@ -248,7 +248,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
                   const resource = resourcesBySlug.get(slug)!;
                   return (
                     <article className={styles.resourceCard} data-testid={`resource-balance-${slug}`} key={slug}>
-                      <span className={styles.resourceIcon}>{resource.image && <Image src={resource.image} alt="" width={54} height={54} />}</span>
+                      <span className={styles.resourceIcon}>{resource.image && <LoadableImage src={resource.image} alt="" width={54} height={54} />}</span>
                       <div className={styles.resourceIdentity}><strong>{resource.name}</strong><small>{resource.englishName} · T{resource.tier}</small></div>
                       <div className={styles.resourceBalanceBlock}>
                         <strong className={styles.readonlyAmount}>{formatAmount(amount)}</strong>
@@ -311,7 +311,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
             <div className={styles.pickerGrid}>
               {availableResources.slice(0, 100).map((resource) => (
                 <button type="button" onClick={() => addResource(resource.slug)} data-testid={`add-resource-${resource.slug}`} key={resource.slug}>
-                  <span>{resource.image && <Image src={resource.image} alt="" width={46} height={46} />}</span><div><strong>{resource.name}</strong><small>{resource.englishName} · T{resource.tier}</small></div><Plus size={14} />
+                  <span>{resource.image && <LoadableImage src={resource.image} alt="" width={46} height={46} />}</span><div><strong>{resource.name}</strong><small>{resource.englishName} · T{resource.tier}</small></div><Plus size={14} />
                 </button>
               ))}
               {availableResources.length === 0 && <div className={styles.noPickerResults}>Все подходящие ресурсы уже добавлены.</div>}
@@ -330,7 +330,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
             </header>
             <div className={styles.transactionBody}>
               <div className={styles.transactionResource}>
-                <span>{transaction.image && <Image src={transaction.image} alt="" width={64} height={64} />}</span>
+                <span>{transaction.image && <LoadableImage src={transaction.image} alt="" width={64} height={64} />}</span>
                 <div><strong>{transaction.name}</strong><small>Текущий баланс: {formatAmount(transaction.currentAmount)}</small></div>
               </div>
               <label className={styles.transactionInput}>

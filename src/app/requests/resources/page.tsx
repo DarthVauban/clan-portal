@@ -1,18 +1,34 @@
-import { ModulePage } from "@/components/module-page";
+import type { ResourceCatalogItem } from "@/components/resources-manager";
+import { LazyResourceRequestsManager } from "@/components/lazy-client-components";
+import { getCatalogDataset } from "@/lib/corepunk-item-repository";
 
-export default function ResourceRequestsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ResourceRequestsPage() {
+  const catalogDataset = await getCatalogDataset();
+  const resources: ResourceCatalogItem[] = catalogDataset.items
+    .filter((item) => item.type === "resource")
+    .map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      englishName: item.englishName,
+      tier: item.tier,
+      quality: item.quality,
+      qualities: [...new Set(item.variations.map((variation) => variation.quality))],
+      profession: item.profession,
+      image: item.variations[0]?.image ?? null,
+    }));
+
   return (
-    <ModulePage
-      eyebrow="Заявки · Ресурсы"
-      title="Получение ресурсов"
-      description="Прозрачный процесс запроса материалов из банка клана: от создания заявки до фактической выдачи."
-      features={["Заявка с предметом и количеством", "Цель использования и комментарий", "Проверка доступного остатка", "Одобрение ответственной ролью", "Статусы, история и уведомления"]}
-    >
-      <div className="request-pipeline">
-        {[["01", "Создано"], ["02", "На рассмотрении"], ["03", "Одобрено"], ["04", "Выдано"]].map(([n, label], i) => (
-          <div className={i === 0 ? "pipeline-step pipeline-step--active" : "pipeline-step"} key={n}><span>{n}</span><strong>{label}</strong></div>
-        ))}
-      </div>
-    </ModulePage>
+    <div className="page-stack">
+      <section className="page-hero">
+        <div>
+          <div className="eyebrow">Заявки · Ресурсы</div>
+          <h1>Получение ресурсов</h1>
+          <p>Игроки подают заявки на материалы из банка коллектива, а ответственные роли подтверждают и фиксируют выдачу.</p>
+        </div>
+      </section>
+      <LazyResourceRequestsManager resources={resources} />
+    </div>
   );
 }

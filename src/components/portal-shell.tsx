@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { LoadableImage } from "@/components/loadable-image";
 import { findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, refreshCollectiveStore, useCollectiveStore } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
@@ -102,6 +102,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [editingPortalName, setEditingPortalName] = useState(false);
   const [portalNameDraft, setPortalNameDraft] = useState(DEFAULT_PORTAL_NAME);
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { profile, updateProfile } = useLocalProfile();
@@ -144,6 +145,40 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       setAuthError(new URLSearchParams(window.location.search).get("auth_error"));
     });
   }, [pathname]);
+
+  useEffect(() => {
+    const handleNavigationClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!(event.target instanceof Element)) return;
+      const anchor = event.target.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (anchor.target && anchor.target !== "_self") return;
+      if (anchor.hasAttribute("download")) return;
+      const nextUrl = new URL(anchor.href);
+      if (nextUrl.origin !== window.location.origin) return;
+      const nextRoute = `${nextUrl.pathname}${nextUrl.search}`;
+      const currentRoute = `${window.location.pathname}${window.location.search}`;
+      if (nextRoute === currentRoute) return;
+      setPendingRoute(nextRoute);
+    };
+
+    document.addEventListener("click", handleNavigationClick, true);
+    return () => document.removeEventListener("click", handleNavigationClick, true);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingRoute) return;
+    const currentRoute = `${window.location.pathname}${window.location.search}`;
+    if (pendingRoute !== currentRoute) return;
+    const timeout = window.setTimeout(() => setPendingRoute(null), 220);
+    return () => window.clearTimeout(timeout);
+  }, [pathname, pendingRoute]);
+
+  useEffect(() => {
+    if (!pendingRoute) return;
+    const timeout = window.setTimeout(() => setPendingRoute(null), 10000);
+    return () => window.clearTimeout(timeout);
+  }, [pendingRoute]);
 
   useEffect(() => {
     if (hasCompletedRegistration(profile) || !auth.registeredProfile) return;
@@ -256,7 +291,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       <aside className={`sidebar${menuOpen ? " sidebar--open" : ""}`}>
         <div className="brand">
           <div className="brand-emblem">
-            <Image src="/clan-logo.png" alt="Эмблема клана" width={58} height={58} priority />
+            <LoadableImage src="/clan-logo.png" alt="Эмблема клана" width={58} height={58} priority />
           </div>
           <div className="brand-copy">
             {editingPortalName && canRenamePortal ? (
@@ -367,7 +402,10 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="main-content">{revoked ? <AccessDenied revoked /> : blockedUsersRestrictedRoute ? <AccessDenied /> : pendingRestrictedRoute ? <AccessDenied pendingApproval /> : children}</main>
+        <main className="main-content">
+          {pendingRoute && <div className="route-loader" role="status">Открываем раздел</div>}
+          {revoked ? <AccessDenied revoked /> : blockedUsersRestrictedRoute ? <AccessDenied /> : pendingRestrictedRoute ? <AccessDenied pendingApproval /> : children}
+        </main>
       </div>
     </div>
   );

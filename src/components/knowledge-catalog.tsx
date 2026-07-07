@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -346,7 +346,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                   return (
                     <Link className={styles.catalogCard} href={`/items/${item.slug}`} data-testid={`catalog-item-${item.slug}`} key={item.slug}>
                       <div className={styles.catalogImage}>
-                        {selectedVariation?.image && <Image src={selectedVariation.image} alt={`${showEnglishNames ? item.englishName : item.name} ${selectedVariation.quality}`} width={128} height={128} />}
+                        {selectedVariation?.image && <LoadableImage src={selectedVariation.image} alt={`${showEnglishNames ? item.englishName : item.name} ${selectedVariation.quality}`} width={128} height={128} />}
                         <span className={`${styles.qualityDot} ${styles[selectedVariation?.quality ?? item.quality]}`} />
                       </div>
                       <div className={styles.catalogBody}>
@@ -359,7 +359,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                           <div className={styles.compactStats}>
                             {item.stats.slice(0, 3).map((stat) => {
                               const asset = dataset.stats[stat.type];
-                              return <span key={stat.type}>{asset?.downloaded && <Image src={asset.local} alt="" width={18} height={18} />}[{stat.min}–{stat.max}] {asset?.label ?? stat.type}</span>;
+                              return <span key={stat.type}>{asset?.downloaded && <LoadableImage src={asset.local} alt="" width={18} height={18} />}[{stat.min}–{stat.max}] {asset?.label ?? stat.type}</span>;
                             })}
                           </div>
                         )}

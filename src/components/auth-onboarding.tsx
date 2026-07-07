@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { LoadableImage } from "@/components/loadable-image";
 import { useRouter } from "next/navigation";
 import { Check, LockKeyhole, MessageCircle, ShieldCheck, ShieldX, Sparkles, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -85,7 +85,7 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "b
       <main className="auth-gate" data-testid="auth-blocked">
         <section className="auth-card auth-card--welcome auth-card--blocked">
           <div className="auth-brand">
-            <span><Image src="/clan-logo.png" alt="" width={118} height={118} priority /></span>
+            <span><LoadableImage src="/clan-logo.png" alt="" width={118} height={118} priority /></span>
             <div>
               <div className="eyebrow">{portalName}</div>
               <h1>Доступ к порталу заблокирован</h1>
@@ -107,7 +107,7 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "b
       <main className="auth-gate" data-testid="auth-welcome">
         <section className="auth-card auth-card--welcome">
           <div className="auth-brand">
-            <span><Image src="/clan-logo.png" alt="" width={118} height={118} priority /></span>
+            <span><LoadableImage src="/clan-logo.png" alt="" width={118} height={118} priority /></span>
             <div>
               <div className="eyebrow">{portalName}</div>
               <h1>Добро пожаловать в портал клана</h1>
@@ -185,7 +185,7 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "b
                 data-testid={`registration-class-${heroClass.slug}`}
                 key={heroClass.slug}
               >
-                <span><Image src={heroClass.image} alt="" width={46} height={46} /></span>
+                <span><LoadableImage src={heroClass.image} alt="" width={46} height={46} /></span>
                 <div><strong>{heroClass.name}</strong><small>{heroClass.family}</small></div>
                 {heroClass.available ? classSlug === heroClass.slug && <Check size={14} /> : <em>Скоро</em>}
               </button>
