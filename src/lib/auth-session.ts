@@ -132,11 +132,15 @@ export function sessionToPublicAuth(session: PortalSession | null): PublicPortal
   };
 }
 
+function isHttpsAppUrl() {
+  return process.env.APP_URL?.trim().toLowerCase().startsWith("https://") ?? false;
+}
+
 export function authCookieOptions(maxAge = SESSION_MAX_AGE_SECONDS) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttpsAppUrl(),
     path: "/",
     maxAge,
   };
@@ -146,7 +150,7 @@ export function oauthStateCookieOptions(maxAge = OAUTH_STATE_MAX_AGE_SECONDS) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttpsAppUrl(),
     path: "/",
     maxAge,
   };
