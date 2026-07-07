@@ -14,7 +14,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { corepunkClassesBySlug } from "@/lib/corepunk-classes";
 import {
   COLLECTIVE_LIMIT,
@@ -35,10 +35,39 @@ import {
   type PortalRole,
   useCollectiveStore,
 } from "@/lib/collective-store";
+import { usePortalAuth } from "@/lib/auth-store";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/collectives/collectives.module.css";
 
 const managerRoles = new Set<CollectiveRole>(["leader", "officer", "recruiter"]);
+
+function normalizeServerApplicants(value: unknown): DirectoryPlayer[] {
+  if (!value || typeof value !== "object") return [];
+  const applicants = (value as { applicants?: unknown }).applicants;
+  if (!Array.isArray(applicants)) return [];
+  return applicants.flatMap((applicant) => {
+    if (!applicant || typeof applicant !== "object") return [];
+    const item = applicant as Partial<DirectoryPlayer>;
+    if (typeof item.id !== "string" || typeof item.displayName !== "string") return [];
+    const characters = Array.isArray(item.characters)
+      ? item.characters.flatMap((character) => {
+        if (!character || typeof character !== "object") return [];
+        const entry = character as { id?: unknown; name?: unknown; classSlug?: unknown };
+        return typeof entry.id === "string" && typeof entry.name === "string" && typeof entry.classSlug === "string"
+          ? [{ id: entry.id, name: entry.name, classSlug: entry.classSlug }]
+          : [];
+      })
+      : [];
+    return [{
+      id: item.id,
+      displayName: item.displayName,
+      discordNickname: typeof item.discordNickname === "string" ? item.discordNickname : null,
+      characters,
+      mainCharacterId: typeof item.mainCharacterId === "string" ? item.mainCharacterId : characters[0]?.id ?? null,
+      local: false,
+    }];
+  });
+}
 
 function makeCollectiveId() {
   return `collective-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -67,8 +96,14 @@ function PlayerIdentity({ player, portalRole }: { player: DirectoryPlayer; porta
 
 export function CollectivesManager() {
   const { profile } = useLocalProfile();
+  const { auth } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
-  const players = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
+  const [serverApplicants, setServerApplicants] = useState<DirectoryPlayer[]>([]);
+  const localPlayers = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
+  const players = useMemo(() => {
+    const combined = [...localPlayers, ...serverApplicants];
+    return combined.filter((player, index, allPlayers) => allPlayers.findIndex((candidate) => candidate.id === player.id) === index);
+  }, [localPlayers, serverApplicants]);
   const playersById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const [selectedCollectiveId, setSelectedCollectiveId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -79,6 +114,28 @@ export function CollectivesManager() {
   const [playerQuery, setPlayerQuery] = useState("");
   const [targetCollectiveId, setTargetCollectiveId] = useState("");
   const [confirmation, setConfirmation] = useState<null | { kind: "remove-member" | "delete-collective" | "revoke-player"; id: string }>(null);
+
+  useEffect(() => {
+    if (auth.stage === "anonymous") return;
+    let cancelled = false;
+    async function loadApplicants() {
+      try {
+        const response = await fetch("/api/membership/applicants", {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const applicants = normalizeServerApplicants(await response.json());
+        if (!cancelled) setServerApplicants(applicants);
+      } catch {
+        if (!cancelled) setServerApplicants([]);
+      }
+    }
+    void loadApplicants();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.stage, auth.discordId]);
 
   const activeCollective = state.collectives.find((collective) => collective.id === selectedCollectiveId)
     ?? state.collectives[0]
@@ -119,7 +176,7 @@ export function CollectivesManager() {
     setCreateOpen(false);
   };
 
-  const addPlayer = (playerId: string) => {
+  const addPlayer = async (playerId: string) => {
     if (!activeCollective || activeCollective.members.length >= COLLECTIVE_LIMIT || assignedPlayerIds.has(playerId)) return;
     updateState((current) => ({
       ...current,
@@ -134,6 +191,17 @@ export function CollectivesManager() {
         }
         : collective),
     }));
+    if (playerId !== LOCAL_PLAYER_ID && auth.isPortalAdmin) {
+      await fetch("/api/membership/applicants", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ playerId }),
+      }).catch(() => undefined);
+      setServerApplicants((current) => current.filter((player) => player.id !== playerId));
+    }
   };
 
   const changeRole = (playerId: string, nextRole: CollectiveRole) => {

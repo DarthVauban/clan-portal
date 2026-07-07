@@ -38,6 +38,27 @@ function getPortalPlayerId(discordId: string) {
   return `player-${discordId}`;
 }
 
+function toIsoString(value: unknown) {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === "string" ? new Date(value).toISOString() : null;
+}
+
+export async function getExistingPortalRegistration(discordId: string) {
+  const pool = getDatabasePool();
+  const result = await pool.query(
+    `
+      SELECT registered_at
+      FROM portal_players
+      WHERE discord_id = $1
+        AND application_status <> 'revoked'
+      LIMIT 1
+    `,
+    [discordId],
+  );
+  const registeredAt = toIsoString(result.rows[0]?.registered_at);
+  return registeredAt ? { registeredAt } : null;
+}
+
 function normalizeRegistrationPayload(payload: unknown): PortalRegistrationPayload | null {
   if (!payload || typeof payload !== "object") return null;
   const candidate = payload as Partial<PortalRegistrationPayload>;

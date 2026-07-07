@@ -11,6 +11,7 @@ import {
   getSessionSecret,
   oauthStateCookieOptions,
 } from "@/lib/auth-session";
+import { getExistingPortalRegistration } from "@/lib/portal-player-repository";
 
 type DiscordTokenResponse = {
   access_token?: string;
@@ -102,11 +103,12 @@ export async function GET(request: NextRequest) {
 
     const discordUser = await fetchDiscordUser(accessToken);
     if (!discordUser) return redirectWithError(request, "discord_user");
+    const existingRegistration = await getExistingPortalRegistration(discordUser.id);
 
     const session: PortalSession = {
       discordUser,
       authorizedAt: new Date().toISOString(),
-      registeredAt: null,
+      registeredAt: existingRegistration?.registeredAt ?? null,
     };
     const response = NextResponse.redirect(new URL("/", getPublicAppUrl(request)));
     response.cookies.set(AUTH_SESSION_COOKIE, createSessionCookieValue(session), authCookieOptions());
