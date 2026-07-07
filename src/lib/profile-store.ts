@@ -93,3 +93,8 @@ export function useLocalProfile() {
   const updateProfile = (updater: (current: LocalProfile) => LocalProfile) => saveProfile(updater(profile));
   return { profile, updateProfile };
 }
+
+export function hasCompletedRegistration(profile: LocalProfile) {
+  return Boolean(profile.displayName.trim()
+    && profile.characters.some((character) => character.confirmed && character.name.trim() && character.classSlug));
+}

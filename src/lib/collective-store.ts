@@ -72,7 +72,7 @@ const legacyDemoPlayerIds = new Set([
 const STORAGE_KEY = "clan-portal:collectives";
 const STORE_EVENT = "clan-portal:collectives-change";
 const DEFAULT_PORTAL_ROLES: Record<string, PortalRole> = {
-  [LOCAL_PLAYER_ID]: "administrator",
+  [LOCAL_PLAYER_ID]: "member",
 };
 const EMPTY_STATE: CollectiveState = { collectives: [], portalRoles: DEFAULT_PORTAL_ROLES, revokedPlayerIds: [] };
 const validRoles = new Set<CollectiveRole>(collectiveRoles.map((role) => role.value));

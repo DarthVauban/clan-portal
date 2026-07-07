@@ -30,8 +30,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - .env.local
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-clan_portal}:${POSTGRES_PASSWORD:-clan_portal_dev}@db:5432/${POSTGRES_DB:-clan_portal}
+      APP_URL: ${APP_URL:-http://localhost:4000}
+      CLAN_PORT: ${CLAN_PORT:-4000}
     ports:
       - "${CLAN_PORT:-4000}:3000"
     healthcheck:

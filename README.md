@@ -10,12 +10,14 @@
 docker compose -f "C:\Users\Dante\OneDrive\Рабочий стол\Clan-portal\compose.yaml" up -d --build
 ```
 
-Docker Compose запускает веб-приложение и PostgreSQL. Перед стартом веб-сервера автоматически применяются SQL-миграции и импортируется актуальная база предметов. После запуска откройте `http://localhost:3000`.
+Docker Compose запускает веб-приложение и PostgreSQL. Перед стартом веб-сервера автоматически применяются SQL-миграции и импортируется актуальная база предметов. После запуска откройте `http://localhost:4000`.
 
-Если порт `3000` занят, можно выбрать другой, например `3010`:
+Если порт `4000` занят, можно выбрать другой, например `4010`:
 
 ```powershell
-$env:CLAN_PORT=3010
+$env:CLAN_PORT=4010
+$env:APP_URL="http://localhost:4010"
+$env:DISCORD_REDIRECT_URI="http://localhost:4010/api/auth/discord/callback"
 docker compose -f "C:\Users\Dante\OneDrive\Рабочий стол\Clan-portal\compose.yaml" up -d --build
 ```
 
