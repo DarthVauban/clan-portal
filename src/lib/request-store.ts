@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 export type RequestStatus = "pending" | "approved" | "in-progress" | "issued" | "completed" | "rejected" | "cancelled";
 export type CraftFundingType = "personal" | "clan";
@@ -201,9 +201,72 @@ function saveState(state: RequestState) {
   window.dispatchEvent(new Event(STORE_EVENT));
 }
 
+async function requestServerState(method: "GET" | "PUT", state?: RequestState) {
+  const response = await fetch("/api/requests", {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(method === "PUT" ? { "Content-Type": "application/json" } : {}),
+    },
+    body: method === "PUT" ? JSON.stringify({ state }) : undefined,
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const payload = await response.json().catch(() => null) as { state?: unknown } | null;
+  return payload?.state ? normalizeState(payload.state) : null;
+}
+
+export async function refreshRequestStore() {
+  const localState = getSnapshot();
+  const serverState = await requestServerState("GET");
+  if (!serverState) return localState;
+  if (serverState.resourceRequests.length === 0 && serverState.craftRequests.length === 0
+    && (localState.resourceRequests.length > 0 || localState.craftRequests.length > 0)) {
+    const migratedState = await requestServerState("PUT", localState).catch(() => null);
+    if (migratedState) {
+      saveState(migratedState);
+      return migratedState;
+    }
+  }
+  saveState(serverState);
+  return serverState;
+}
+
+async function saveStateToServer(state: RequestState) {
+  const serverState = await requestServerState("PUT", state).catch(() => null);
+  if (serverState) {
+    saveState(serverState);
+    return serverState;
+  }
+  const restoredState = await requestServerState("GET").catch(() => null);
+  if (restoredState) {
+    saveState(restoredState);
+    return restoredState;
+  }
+  return state;
+}
+
 export function useRequestStore() {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_STATE);
-  const updateState = (updater: (current: RequestState) => RequestState) => saveState(updater(state));
+  useEffect(() => {
+    let disposed = false;
+    const sync = () => {
+      if (!disposed) void refreshRequestStore().catch(() => undefined);
+    };
+    sync();
+    const interval = window.setInterval(sync, 2500);
+    window.addEventListener("focus", sync);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", sync);
+    };
+  }, []);
+  const updateState = (updater: (current: RequestState) => RequestState) => {
+    const nextState = normalizeState(updater(state));
+    saveState(nextState);
+    return saveStateToServer(nextState);
+  };
   return { state, updateState };
 }
 
