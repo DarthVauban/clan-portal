@@ -2,22 +2,24 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Check, LockKeyhole, MessageCircle, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { Check, LockKeyhole, MessageCircle, ShieldCheck, ShieldX, Sparkles, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { corepunkClasses } from "@/lib/corepunk-classes";
 import { findMembership, useCollectiveStore } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
+import { normalizePortalName } from "@/lib/portal-branding";
 import { LOCAL_PLAYER_ID, type PlayerCharacter, useLocalProfile } from "@/lib/profile-store";
 
 function makeCharacterId() {
   return `character-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" }) {
+export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "blocked" }) {
   const router = useRouter();
   const { auth, completeRegistration, loginWithDiscord } = usePortalAuth();
   const { profile, updateProfile } = useLocalProfile();
-  const { updateState } = useCollectiveStore();
+  const { state, updateState } = useCollectiveStore();
+  const portalName = normalizePortalName(state.portalName);
   const currentMainCharacter = useMemo(
     () => profile.characters.find((character) => character.id === profile.mainCharacterId) ?? profile.characters[0],
     [profile.characters, profile.mainCharacterId],
@@ -78,14 +80,36 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" }) {
     }
   };
 
+  if (mode === "blocked") {
+    return (
+      <main className="auth-gate" data-testid="auth-blocked">
+        <section className="auth-card auth-card--welcome auth-card--blocked">
+          <div className="auth-brand">
+            <span><Image src="/clan-logo.png" alt="" width={118} height={118} priority /></span>
+            <div>
+              <div className="eyebrow">{portalName}</div>
+              <h1>Доступ к порталу заблокирован</h1>
+              <p>Ваш Discord-профиль заблокирован администрацией клана. Повторная авторизация и регистрация недоступны, пока блокировка не будет снята.</p>
+            </div>
+          </div>
+
+          <div className="auth-blocked-note">
+            <ShieldX size={18} />
+            <span>Если блокировка была выдана по ошибке, обратитесь к администрации клана вне портала.</span>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   if (mode === "welcome") {
     return (
       <main className="auth-gate" data-testid="auth-welcome">
         <section className="auth-card auth-card--welcome">
           <div className="auth-brand">
-            <span><Image src="/clan-logo.png" alt="" width={74} height={84} priority /></span>
+            <span><Image src="/clan-logo.png" alt="" width={118} height={118} priority /></span>
             <div>
-              <div className="eyebrow">Clan Portal</div>
+              <div className="eyebrow">{portalName}</div>
               <h1>Добро пожаловать в портал клана</h1>
               <p>Войдите через Discord, чтобы создать профиль участника и отправить заявку на вступление в коллектив.</p>
             </div>

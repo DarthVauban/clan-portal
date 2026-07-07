@@ -2,7 +2,8 @@ import "server-only";
 
 import { getDatabasePool } from "@/lib/database";
 import { isPortalAdminDiscordId, type PortalSession } from "@/lib/auth-session";
-import { canManageMembershipApplicants } from "@/lib/portal-player-repository";
+import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
+import { canManageMembershipApplicants, hasPortalManagementRights } from "@/lib/portal-player-repository";
 
 const LOCAL_PLAYER_ID = "local-user";
 const COLLECTIVE_LIMIT = 24;
@@ -33,6 +34,7 @@ type ServerDirectoryPlayer = {
 };
 
 type ServerCollectiveState = {
+  portalName: string;
   collectives: ServerCollective[];
   portalRoles: Record<string, string>;
   revokedPlayerIds: string[];
@@ -103,6 +105,7 @@ function normalizeState(rawState: unknown, session: PortalSession) {
   return {
     collectives,
     portalRoles: Object.fromEntries(portalRoleEntries),
+    portalName: normalizePortalName(source.portalName),
   };
 }
 
@@ -134,7 +137,7 @@ function mapPlayers(rows: Array<Record<string, unknown>>, session: PortalSession
 
 export async function listPortalCollectiveState(session: PortalSession): Promise<ServerCollectiveState> {
   const pool = getDatabasePool();
-  const [collectiveResult, playerResult, revokedResult] = await Promise.all([
+  const [collectiveResult, playerResult, revokedResult, settingsResult] = await Promise.all([
     pool.query(`
       SELECT
         c.collective_id,
@@ -169,6 +172,7 @@ export async function listPortalCollectiveState(session: PortalSession): Promise
       ORDER BY p.registered_at ASC, c.is_main DESC, c.created_at ASC
     `),
     pool.query("SELECT player_id FROM portal_players WHERE application_status = 'revoked'"),
+    pool.query("SELECT setting_value FROM portal_settings WHERE setting_key = 'portal_name' LIMIT 1"),
   ]);
 
   const collectives = new Map<string, ServerCollective>();
@@ -198,6 +202,7 @@ export async function listPortalCollectiveState(session: PortalSession): Promise
   if (isPortalAdminDiscordId(session.discordUser.id)) roleEntries.push([LOCAL_PLAYER_ID, "administrator"]);
 
   return {
+    portalName: normalizePortalName(settingsResult.rows[0]?.setting_value ?? DEFAULT_PORTAL_NAME),
     collectives: [...collectives.values()],
     portalRoles: Object.fromEntries(roleEntries),
     revokedPlayerIds: revokedResult.rows.flatMap((row) => typeof row.player_id === "string" ? [toClientPlayerId(row.player_id, session)] : []),
@@ -210,6 +215,7 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
 
   const pool = getDatabasePool();
   const normalized = normalizeState(rawState, session);
+  const canManagePortalSettings = await hasPortalManagementRights(session);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -256,6 +262,19 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
     for (const [playerId, role] of Object.entries(normalized.portalRoles)) {
       if (!existingPlayerIds.has(playerId) || !portalRoles.has(role)) continue;
       await client.query("UPDATE portal_players SET portal_role = $2, updated_at = NOW() WHERE player_id = $1", [playerId, role]);
+    }
+
+    if (canManagePortalSettings) {
+      await client.query(
+        `
+          INSERT INTO portal_settings (setting_key, setting_value, updated_at)
+          VALUES ('portal_name', $1, NOW())
+          ON CONFLICT (setting_key) DO UPDATE SET
+            setting_value = EXCLUDED.setting_value,
+            updated_at = NOW()
+        `,
+        [normalized.portalName],
+      );
     }
 
     await client.query("COMMIT");

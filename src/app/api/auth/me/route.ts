@@ -10,8 +10,11 @@ import { getExistingPortalRegistration } from "@/lib/portal-player-repository";
 export async function GET(request: NextRequest) {
   const session = readSessionCookieValue(request.cookies.get(AUTH_SESSION_COOKIE)?.value);
   const auth = sessionToPublicAuth(session);
-  const anonymousResponse = () => {
-    const response = NextResponse.json(sessionToPublicAuth(null), {
+  const anonymousResponse = (applicationStatus?: "blocked") => {
+    const response = NextResponse.json({
+      ...sessionToPublicAuth(null),
+      applicationStatus: applicationStatus ?? null,
+    }, {
       headers: { "Cache-Control": "no-store" },
     });
     response.cookies.set(AUTH_SESSION_COOKIE, "", authCookieOptions(0));
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
       });
     }
     if (registration) {
-      if (registration.applicationStatus === "blocked") return anonymousResponse();
+      if (registration.applicationStatus === "blocked") return anonymousResponse("blocked");
       if (registration.applicationStatus === "revoked" && session.registeredAt) return anonymousResponse();
       if (registration.applicationStatus === "revoked") {
         auth.stage = "discord-authorized";

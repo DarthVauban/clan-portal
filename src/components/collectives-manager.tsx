@@ -101,7 +101,7 @@ function PlayerIdentity({ player, portalRole }: { player: DirectoryPlayer; porta
 export function CollectivesManager() {
   const router = useRouter();
   const { profile } = useLocalProfile();
-  const { auth, refreshAuth } = usePortalAuth();
+  const { auth, logout } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
   const [serverApplicants, setServerApplicants] = useState<DirectoryPlayer[]>([]);
   const localPlayers = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
@@ -226,11 +226,9 @@ export function CollectivesManager() {
       headers: { Accept: "application/json" },
     }).catch(() => null);
     if (response?.ok) {
-      await Promise.all([
-        refreshCollectiveStore().catch(() => undefined),
-        refreshAuth().catch(() => undefined),
-      ]);
-      router.replace("/requests/membership");
+      await refreshCollectiveStore().catch(() => undefined);
+      await logout().catch(() => undefined);
+      router.replace("/");
     }
     setLeavingCollective(false);
   };

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
   Calculator,
+  Check,
   ChevronDown,
   Database,
   HandCoins,
@@ -14,6 +15,7 @@ import {
   LockKeyhole,
   LogOut,
   Menu,
+  PencilLine,
   ScrollText,
   ShieldCheck,
   ShieldX,
@@ -25,6 +27,7 @@ import {
 import { useEffect, useState } from "react";
 import { findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, refreshCollectiveStore, useCollectiveStore } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
+import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
 import { hasCompletedRegistration, LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 
 const AuthOnboarding = dynamic(
@@ -96,6 +99,9 @@ function AccessDenied({ revoked = false, pendingApproval = false }: { revoked?: 
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [editingPortalName, setEditingPortalName] = useState(false);
+  const [portalNameDraft, setPortalNameDraft] = useState(DEFAULT_PORTAL_NAME);
   const pathname = usePathname();
   const router = useRouter();
   const { profile, updateProfile } = useLocalProfile();
@@ -103,6 +109,24 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const { state, updateState } = useCollectiveStore();
   const registrationComplete = auth.stage === "registered" && (hasCompletedRegistration(profile) || Boolean(auth.registeredProfile));
   const localPortalRole = state.portalRoles[LOCAL_PLAYER_ID];
+  const portalName = normalizePortalName(state.portalName);
+  const membership = findMembership(state, LOCAL_PLAYER_ID);
+  const portalRole = auth.isPortalAdmin ? "administrator" : getPortalRole(state, LOCAL_PLAYER_ID);
+  const absoluteRights = auth.isPortalAdmin || hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
+  const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
+  const collectiveAccess = absoluteRights || Boolean(membership);
+  const canRenamePortal = absoluteRights && auth.stage === "registered";
+  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership");
+  const pendingRestrictedRoute = !collectiveAccess && !pendingAllowedRoute;
+  const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
+  const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
+  const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => item.href !== "/profile" && (!("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights)) : [];
+  const blockedUsersRestrictedRoute = pathname.startsWith("/blocked-users") && !absoluteRights;
+  const initials = profile.displayName.trim().slice(0, 2).toLocaleUpperCase("ru") || "CP";
+  const profileName = profile.displayName.trim() || auth.discordNickname || "Профиль";
+  const waitingLabel = auth.applicationStatus === "accepted" ? "Без коллектива" : "Ожидает принятия";
+  const waitingCaption = auth.applicationStatus === "accepted" ? "Ожидает распределения" : "Заявка на вступление";
+  const blockedAuth = auth.applicationStatus === "blocked" || authError === "blocked";
 
   useEffect(() => {
     if (!auth.isPortalAdmin || localPortalRole === "administrator") return;
@@ -114,6 +138,12 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       },
     }));
   }, [auth.isPortalAdmin, localPortalRole, updateState]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setAuthError(new URLSearchParams(window.location.search).get("auth_error"));
+    });
+  }, [pathname]);
 
   useEffect(() => {
     if (hasCompletedRegistration(profile) || !auth.registeredProfile) return;
@@ -177,11 +207,34 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     };
   }, [auth.stage, refreshAuth]);
 
+  const closeMenu = () => setMenuOpen(false);
+  const savePortalName = () => {
+    if (!canRenamePortal) return;
+    const nextName = normalizePortalName(portalNameDraft);
+    updateState((current) => ({ ...current, portalName: nextName }));
+    setPortalNameDraft(nextName);
+    setEditingPortalName(false);
+  };
+  const handlePortalNameSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    savePortalName();
+  };
+  const handlePortalNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Escape") return;
+    setPortalNameDraft(portalName);
+    setEditingPortalName(false);
+  };
+  const handleLogout = async () => {
+    await logout().catch(() => undefined);
+    closeMenu();
+    router.replace("/");
+  };
+
   if (loading) {
     return (
       <main className="auth-gate" data-testid="auth-loading">
         <section className="auth-card auth-card--welcome">
-          <div className="eyebrow">Clan Portal</div>
+          <div className="eyebrow">{portalName}</div>
           <h1>Проверяем авторизацию</h1>
           <p>Секунду, сверяем Discord-сессию и готовим портал.</p>
         </section>
@@ -189,31 +242,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (auth.stage === "anonymous") return <AuthOnboarding mode="welcome" />;
+  if (auth.stage === "anonymous") return <AuthOnboarding mode={blockedAuth ? "blocked" : "welcome"} />;
   if (!registrationComplete) return <AuthOnboarding mode="registration" />;
-
-  const membership = findMembership(state, LOCAL_PLAYER_ID);
-  const portalRole = auth.isPortalAdmin ? "administrator" : getPortalRole(state, LOCAL_PLAYER_ID);
-  const absoluteRights = auth.isPortalAdmin || hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
-  const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
-  const collectiveAccess = absoluteRights || Boolean(membership);
-  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership");
-  const pendingRestrictedRoute = !collectiveAccess && !pendingAllowedRoute;
-  const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
-  const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
-  const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => item.href !== "/profile" && (!("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights)) : [];
-  const blockedUsersRestrictedRoute = pathname.startsWith("/blocked-users") && !absoluteRights;
-  const initials = profile.displayName.trim().slice(0, 2).toLocaleUpperCase("ru") || "CP";
-  const profileName = profile.displayName.trim() || auth.discordNickname || "Профиль";
-  const waitingLabel = auth.applicationStatus === "accepted" ? "Без коллектива" : "Ожидает принятия";
-  const waitingCaption = auth.applicationStatus === "accepted" ? "Ожидает распределения" : "Заявка на вступление";
-
-  const closeMenu = () => setMenuOpen(false);
-  const handleLogout = async () => {
-    await logout().catch(() => undefined);
-    closeMenu();
-    router.replace("/");
-  };
 
   return (
     <div className="portal-shell">
@@ -226,10 +256,39 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       <aside className={`sidebar${menuOpen ? " sidebar--open" : ""}`}>
         <div className="brand">
           <div className="brand-emblem">
-            <Image src="/clan-logo.png" alt="Эмблема клана" width={56} height={64} priority />
+            <Image src="/clan-logo.png" alt="Эмблема клана" width={58} height={58} priority />
           </div>
-          <div>
-            <div className="brand-name">Clan Portal</div>
+          <div className="brand-copy">
+            {editingPortalName && canRenamePortal ? (
+              <form className="brand-name-form" onSubmit={handlePortalNameSubmit}>
+                <input
+                  type="text"
+                  value={portalNameDraft}
+                  onChange={(event) => setPortalNameDraft(event.target.value)}
+                  onKeyDown={handlePortalNameKeyDown}
+                  onBlur={savePortalName}
+                  maxLength={48}
+                  aria-label="Название портала"
+                  autoFocus
+                />
+                <button type="submit" aria-label="Сохранить название портала"><Check size={14} /></button>
+              </form>
+            ) : canRenamePortal ? (
+              <button
+                className="brand-name brand-name--editable"
+                type="button"
+                onClick={() => {
+                  setPortalNameDraft(portalName);
+                  setEditingPortalName(true);
+                }}
+                aria-label="Изменить название портала"
+              >
+                <span>{portalName}</span>
+                <PencilLine size={12} />
+              </button>
+            ) : (
+              <div className="brand-name">{portalName}</div>
+            )}
             <div className="brand-caption">Сообщество Corepunk</div>
           </div>
           <button className="sidebar-close" onClick={closeMenu} aria-label="Закрыть меню">

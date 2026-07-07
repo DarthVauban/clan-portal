@@ -3,30 +3,30 @@
 .summaryBar > div { min-height: 78px; display: grid; grid-template-columns: 38px minmax(0,1fr); align-items: center; gap: 11px; padding: 13px 17px; border-right: 1px solid rgba(255,255,255,.06); }
 .summaryBar > div:last-child { border-right: 0; }
 .summaryBar > div > span { width: 38px; height: 38px; display: grid; place-items: center; grid-row: 1 / 3; color: #b8766d; border-radius: 8px; background: rgba(143,53,46,.08); }
-.summaryBar small { align-self: end; color: #626a6f; font-size: 7px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.summaryBar small { align-self: end; color: #626a6f; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .summaryBar strong { align-self: start; margin-top: 3px; color: #ddd9d1; font: 18px var(--font-display),serif; }
 .blockedPanel { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.012); }
 .blockedPanel > header { min-height: 95px; display: flex; align-items: center; gap: 20px; padding: 17px 20px; border-bottom: 1px solid rgba(255,255,255,.06); background: linear-gradient(110deg, rgba(143,53,46,.08), transparent 45%); }
 .blockedPanel > header > div { flex: 1; }
-.blockedPanel > header span { color: #ba786e; font-size: 7px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+.blockedPanel > header span { color: #ba786e; font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
 .blockedPanel h2 { margin: 5px 0 0; color: #e2ded7; font: 22px var(--font-display),serif; }
-.blockedPanel > header p { margin: 5px 0 0; color: #636b70; font-size: 8px; }
+.blockedPanel > header p { margin: 5px 0 0; color: #636b70; font-size: 11px; }
 .blockedList { display: grid; gap: 7px; padding: 13px; }
 .blockedCard { min-height: 82px; display: grid; grid-template-columns: 52px minmax(210px,1fr) 130px auto; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid rgba(255,255,255,.055); border-radius: 9px; background: rgba(5,8,10,.34); }
 .playerIcon { width: 52px; height: 52px; display: grid; place-items: center; color: #8b7458; border: 1px solid rgba(210,173,120,.13); border-radius: 9px; background: radial-gradient(circle,rgba(176,138,96,.11),rgba(255,255,255,.014) 70%); }
 .playerIcon img { width: 42px; height: 42px; object-fit: contain; }
 .playerIdentity { min-width: 0; }
 .playerIdentity strong,.playerIdentity small,.playerIdentity p { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.playerIdentity strong { color: #d4d4d1; font-size: 9px; }
-.playerIdentity small { margin-top: 5px; color: #6c7478; font-size: 7px; }
-.playerIdentity p { margin: 4px 0 0; color: #565e63; font-size: 7px; }
-.blockedMeta { display: inline-flex; align-items: center; gap: 5px; color: #bd7770; font-size: 7px; }
-.blockedCard button { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; color: #dfc18b; border: 1px solid rgba(210,173,120,.2); border-radius: 6px; background: rgba(176,138,96,.08); font-size: 7px; cursor: pointer; }
+.playerIdentity strong { color: #d4d4d1; font-size: 11px; }
+.playerIdentity small { margin-top: 5px; color: #6c7478; font-size: 10px; }
+.playerIdentity p { margin: 4px 0 0; color: #565e63; font-size: 10px; }
+.blockedMeta { display: inline-flex; align-items: center; gap: 5px; color: #bd7770; font-size: 10px; }
+.blockedCard button { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; color: #dfc18b; border: 1px solid rgba(210,173,120,.2); border-radius: 6px; background: rgba(176,138,96,.08); font-size: 10px; cursor: pointer; }
 .blockedCard button:hover { border-color: rgba(210,173,120,.35); background: rgba(176,138,96,.13); }
-.notice { margin: 13px 13px 0; padding: 10px 12px; color: #d99a92; border: 1px solid rgba(200,92,82,.16); border-radius: 7px; background: rgba(133,51,44,.07); font-size: 8px; }
+.notice { margin: 13px 13px 0; padding: 10px 12px; color: #d99a92; border: 1px solid rgba(200,92,82,.16); border-radius: 7px; background: rgba(133,51,44,.07); font-size: 11px; }
 .emptyState { min-height: 310px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #626a6f; text-align: center; }
 .emptyState > svg { width: 56px; height: 56px; padding: 15px; color: #b8766d; border: 1px solid rgba(200,92,82,.16); border-radius: 50%; background: rgba(133,51,44,.07); }
 .emptyState h3 { margin: 13px 0 0; color: #d1cfc9; font: 18px var(--font-display),serif; }
-.emptyState p { margin: 6px 0 0; font-size: 8px; }
+.emptyState p { margin: 6px 0 0; font-size: 11px; }
 @media (max-width: 900px) { .blockedCard { grid-template-columns: 52px minmax(0,1fr) 130px; }.blockedCard button { grid-column: 2 / -1; justify-self: start; } }
 @media (max-width: 620px) { .summaryBar { grid-template-columns: 1fr; }.summaryBar > div { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.06); }.blockedCard { grid-template-columns: 48px minmax(0,1fr); }.blockedMeta,.blockedCard button { grid-column: 1 / -1; justify-self: stretch; }.blockedCard button { width: 100%; } }

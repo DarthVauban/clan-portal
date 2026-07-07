@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
 import { LOCAL_PLAYER_ID, type LocalProfile } from "@/lib/profile-store";
 
 export const COLLECTIVE_LIMIT = 24;
@@ -23,6 +24,7 @@ export type Collective = {
 };
 
 export type CollectiveState = {
+  portalName: string;
   collectives: Collective[];
   portalRoles: Record<string, PortalRole>;
   revokedPlayerIds: string[];
@@ -75,7 +77,7 @@ const STORE_EVENT = "clan-portal:collectives-change";
 const DEFAULT_PORTAL_ROLES: Record<string, PortalRole> = {
   [LOCAL_PLAYER_ID]: "member",
 };
-const EMPTY_STATE: CollectiveState = { collectives: [], portalRoles: DEFAULT_PORTAL_ROLES, revokedPlayerIds: [], directoryPlayers: [] };
+const EMPTY_STATE: CollectiveState = { portalName: DEFAULT_PORTAL_NAME, collectives: [], portalRoles: DEFAULT_PORTAL_ROLES, revokedPlayerIds: [], directoryPlayers: [] };
 const validRoles = new Set<CollectiveRole>(collectiveRoles.map((role) => role.value));
 const validPortalRoles = new Set<PortalRole>(portalRoles.map((role) => role.value));
 let cachedRaw: string | null | undefined;
@@ -137,7 +139,7 @@ function normalizeState(value: unknown): CollectiveState {
       }];
     })
     : [];
-  return { collectives, portalRoles: { ...DEFAULT_PORTAL_ROLES, ...portalRoleMap }, revokedPlayerIds, directoryPlayers };
+  return { portalName: normalizePortalName(candidate.portalName), collectives, portalRoles: { ...DEFAULT_PORTAL_ROLES, ...portalRoleMap }, revokedPlayerIds, directoryPlayers };
 }
 
 function getSnapshot() {
