@@ -29,7 +29,6 @@ import {
   getPlayerDirectory,
   hasAbsolutePortalRights,
   portalRoleLabels,
-  portalRoles,
   refreshCollectiveStore,
   todayIso,
   type Collective,
@@ -39,10 +38,10 @@ import {
   useCollectiveStore,
 } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
+import { applicantManagerRoles, memberManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/collectives/collectives.module.css";
 
-const managerRoles = new Set<CollectiveRole>(["leader", "officer", "recruiter"]);
 const APPLICANT_REFRESH_INTERVAL_MS = 2500;
 
 function normalizeServerApplicants(value: unknown): DirectoryPlayer[] {
@@ -154,10 +153,12 @@ export function CollectivesManager() {
   const currentMembership = activeCollective?.members.find((member) => member.playerId === LOCAL_PLAYER_ID);
   const currentRole = currentMembership?.role;
   const currentPortalRole = getPortalRole(state, LOCAL_PLAYER_ID);
-  const hasAbsoluteRights = hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
-  const canAddMembers = Boolean(activeCollective && (hasAbsoluteRights || activeCollective.members.length === 0 || (currentRole && managerRoles.has(currentRole))));
-  const canManageRoles = hasAbsoluteRights || currentRole === "leader";
-  const canTransfer = hasAbsoluteRights || currentRole === "leader";
+  const hasAbsoluteRights = auth.isPortalAdmin || hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
+  const canAddMembers = Boolean(activeCollective && (hasAbsoluteRights || roleIsIn(currentRole, applicantManagerRoles)));
+  const canManageRoles = hasAbsoluteRights || roleIsIn(currentRole, memberManagerRoles);
+  const canTransfer = hasAbsoluteRights;
+  const canRemoveMembers = hasAbsoluteRights || roleIsIn(currentRole, memberManagerRoles);
+  const canBlockMembers = canRemoveMembers;
   const canLeaveOwnCollective = Boolean(ownMembership
     && activeCollective?.id === ownMembership.collective.id
     && (ownMembership.member.role !== "leader" || ownMembership.collective.members.length <= 1));
@@ -172,6 +173,7 @@ export function CollectivesManager() {
   const totalMembers = state.collectives.reduce((total, collective) => total + collective.members.length, 0);
 
   const createCollective = () => {
+    if (!hasAbsoluteRights) return;
     const name = newName.trim();
     if (!name) return;
     const id = makeCollectiveId();
@@ -191,7 +193,7 @@ export function CollectivesManager() {
   };
 
   const addPlayer = async (playerId: string) => {
-    if (!activeCollective || activeCollective.members.length >= COLLECTIVE_LIMIT || assignedPlayerIds.has(playerId)) return;
+    if (!activeCollective || !canAddMembers || activeCollective.members.length >= COLLECTIVE_LIMIT || assignedPlayerIds.has(playerId)) return;
     await updateState((current) => ({
       ...current,
       collectives: current.collectives.map((collective) => collective.id === activeCollective.id
@@ -212,7 +214,7 @@ export function CollectivesManager() {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerId, collectiveId: activeCollective.id }),
       }).catch(() => undefined);
       setServerApplicants((current) => current.filter((player) => player.id !== playerId));
     }
@@ -250,14 +252,6 @@ export function CollectivesManager() {
     }));
   };
 
-  const changePortalRole = (playerId: string, nextRole: PortalRole) => {
-    if (!hasAbsoluteRights || playerId === LOCAL_PLAYER_ID) return;
-    updateState((current) => ({
-      ...current,
-      portalRoles: { ...current.portalRoles, [playerId]: nextRole },
-    }));
-  };
-
   const openTransfer = (playerId: string) => {
     setTransferPlayerId(playerId);
     const firstTarget = state.collectives.find((collective) => collective.id !== activeCollective?.id && collective.members.length < COLLECTIVE_LIMIT);
@@ -292,7 +286,7 @@ export function CollectivesManager() {
     if (!confirmation) return;
     if (confirmation.kind !== "remove-member" && confirmation.kind !== "revoke-player") return;
     if (confirmation.id === LOCAL_PLAYER_ID) return;
-    if (action === "block" && !hasAbsoluteRights) return;
+    if (action === "block" && (confirmation.kind === "remove-member" ? !canBlockMembers : !hasAbsoluteRights)) return;
 
     const response = await fetch("/api/collectives/members", {
       method: "POST",
@@ -420,15 +414,6 @@ export function CollectivesManager() {
                           >
                             {collectiveRoles.map((role) => <option value={role.value} disabled={role.value === "leader" && !hasAbsoluteRights} key={role.value}>{role.label}</option>)}
                           </select>
-                          <select
-                            value={getPortalRole(state, player.id)}
-                            onChange={(event) => changePortalRole(player.id, event.target.value as PortalRole)}
-                            disabled={!hasAbsoluteRights || player.id === LOCAL_PLAYER_ID}
-                            aria-label={`Роль портала игрока ${player.displayName}`}
-                            data-testid={`portal-role-${player.id}`}
-                          >
-                            {portalRoles.map((role) => <option value={role.value} key={role.value}>{role.label}</option>)}
-                          </select>
                         </div>
                         <time>{formatCollectiveDate(member.joinedAt)}</time>
                         <div className={styles.memberActions}>
@@ -436,7 +421,7 @@ export function CollectivesManager() {
                           {canTransfer && member.role !== "leader" && transferTargets.length > 0 && (
                             <button type="button" onClick={() => openTransfer(member.playerId)} data-testid={`transfer-${player.id}`}><ArrowRightLeft size={14} /> Перевести</button>
                           )}
-                          {(hasAbsoluteRights || currentRole === "leader") && member.role !== "leader" && (
+                          {canRemoveMembers && member.role !== "leader" && (
                             <button type="button" className={styles.dangerAction} onClick={() => setConfirmation({ kind: "remove-member", id: member.playerId })} data-testid={`remove-member-${player.id}`}><Trash2 size={14} /> Исключить</button>
                           )}
                         </div>
@@ -471,13 +456,8 @@ export function CollectivesManager() {
               {filteredUnassignedPlayers.length > 0 ? filteredUnassignedPlayers.map((player) => (
                 <div className={styles.availablePlayer} data-testid={`available-player-${player.id}`} key={player.id}>
                   <PlayerIdentity player={player} portalRole={getPortalRole(state, player.id)} />
-                  {hasAbsoluteRights && (
-                    <select value={getPortalRole(state, player.id)} onChange={(event) => changePortalRole(player.id, event.target.value as PortalRole)} disabled={player.id === LOCAL_PLAYER_ID} aria-label={`Роль портала игрока ${player.displayName}`}>
-                      {portalRoles.map((role) => <option value={role.value} key={role.value}>{role.label}</option>)}
-                    </select>
-                  )}
                   <div className={styles.availablePlayerActions}>
-                    <button type="button" onClick={() => addPlayer(player.id)} disabled={activeCollective.members.length >= COLLECTIVE_LIMIT}><UserPlus size={14} /> Добавить</button>
+                    <button type="button" onClick={() => addPlayer(player.id)} disabled={!canAddMembers || activeCollective.members.length >= COLLECTIVE_LIMIT}><UserPlus size={14} /> Добавить</button>
                     {hasAbsoluteRights && getPortalRole(state, player.id) === "member" && player.id !== LOCAL_PLAYER_ID && (
                       <button type="button" className={styles.dangerAction} onClick={() => setConfirmation({ kind: "revoke-player", id: player.id })} data-testid={`revoke-player-${player.id}`}><Trash2 size={14} /> Удалить</button>
                     )}
@@ -512,7 +492,7 @@ export function CollectivesManager() {
               {confirmation.kind === "remove-member" || confirmation.kind === "revoke-player" ? (
                 <>
                   <button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={() => removePlayerFromPortal("delete")} data-testid="confirm-full-delete">Полное удаление</button>
-                  {hasAbsoluteRights && <button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={() => removePlayerFromPortal("block")} data-testid="confirm-block-player">Удалить и заблокировать</button>}
+                  {(confirmation.kind === "remove-member" ? canBlockMembers : hasAbsoluteRights) && <button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={() => removePlayerFromPortal("block")} data-testid="confirm-block-player">Удалить и заблокировать</button>}
                 </>
               ) : (
                 <button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={confirmDestructiveAction} data-testid="confirm-destructive-action">Подтвердить удаление</button>

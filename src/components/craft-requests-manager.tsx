@@ -5,13 +5,13 @@ import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem, CalculatorRecipe } from "@/components/craft-calculator";
 import { collectiveRoleLabels, findMembership, getPortalRole, hasAbsolutePortalRights, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { craftManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
 import { makeRequestId, touchRequest, useRequestStore, type CraftRequest, type CraftRequestRequirement, type RequestStatus } from "@/lib/request-store";
 import styles from "@/app/requests/requests.module.css";
 
 const numberFormatter = new Intl.NumberFormat("ru-RU");
-const craftManagerRoles = new Set(["leader", "officer", "treasurer", "raid-leader"]);
 const typeLabels: Record<string, string> = {
   weapon: "Оружие",
   implant: "Артефакт",
@@ -98,7 +98,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const membership = findMembership(collectiveState, LOCAL_PLAYER_ID);
   const portalRole = getPortalRole(collectiveState, LOCAL_PLAYER_ID);
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
-  const canManageCraft = absoluteRights || Boolean(membership && craftManagerRoles.has(membership.member.role));
+  const canManageCraft = absoluteRights || Boolean(membership && roleIsIn(membership.member.role, craftManagerRoles));
   const accessRoleLabel = portalRole !== "member"
     ? portalRoleLabels[portalRole]
     : membership ? collectiveRoleLabels[membership.member.role] : "Участник";

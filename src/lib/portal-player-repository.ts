@@ -8,6 +8,7 @@ import {
   isPortalAdminDiscordId,
   type PortalSession,
 } from "@/lib/auth-session";
+import { applicantManagerRoles, memberManagerRoles } from "@/lib/portal-permissions";
 
 export type PortalRegistrationPayload = {
   profileName: string;
@@ -36,8 +37,6 @@ export type BlockedPortalUser = PortalDirectoryPlayer & {
   discordId: string;
   blockedAt: string | null;
 };
-
-const collectiveApplicantManagerRoles = ["leader", "officer", "recruiter"];
 
 function trimText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -175,21 +174,7 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
 }
 
 export async function hasPortalManagementRights(session: PortalSession) {
-  if (isPortalAdminDiscordId(session.discordUser.id)) return true;
-
-  const pool = getDatabasePool();
-  const result = await pool.query(
-    `
-      SELECT portal_role
-      FROM portal_players
-      WHERE discord_id = $1
-        AND application_status NOT IN ('revoked', 'blocked')
-      LIMIT 1
-    `,
-    [session.discordUser.id],
-  );
-  const role = result.rows[0]?.portal_role;
-  return role === "administrator" || role === "clan-leader";
+  return isPortalAdminDiscordId(session.discordUser.id);
 }
 
 export async function canManageMembershipApplicants(session: PortalSession) {
@@ -206,7 +191,27 @@ export async function canManageMembershipApplicants(session: PortalSession) {
         AND m.role = ANY($2::text[])
       LIMIT 1
     `,
-    [session.discordUser.id, collectiveApplicantManagerRoles],
+    [session.discordUser.id, [...applicantManagerRoles]],
+  );
+  return Boolean(result.rowCount);
+}
+
+async function canManageMembershipApplicantsInCollective(session: PortalSession, collectiveId: string) {
+  if (await hasPortalManagementRights(session)) return true;
+
+  const pool = getDatabasePool();
+  const result = await pool.query(
+    `
+      SELECT 1
+      FROM portal_players p
+      JOIN portal_collective_members m ON m.player_id = p.player_id
+      WHERE p.discord_id = $1
+        AND p.application_status NOT IN ('revoked', 'blocked')
+        AND m.collective_id = $2
+        AND m.role = ANY($3::text[])
+      LIMIT 1
+    `,
+    [session.discordUser.id, collectiveId, [...applicantManagerRoles]],
   );
   return Boolean(result.rowCount);
 }
@@ -223,11 +228,11 @@ async function canRemovePortalPlayer(session: PortalSession, playerId: string) {
       JOIN portal_collective_members target_member ON target_member.collective_id = actor_member.collective_id
       WHERE actor.discord_id = $1
         AND actor.application_status NOT IN ('revoked', 'blocked')
-        AND actor_member.role = 'leader'
+        AND actor_member.role = ANY($3::text[])
         AND target_member.player_id = $2
       LIMIT 1
     `,
-    [session.discordUser.id, playerId],
+    [session.discordUser.id, playerId, [...memberManagerRoles]],
   );
   return Boolean(result.rowCount);
 }
@@ -284,8 +289,9 @@ export async function listPendingMembershipApplicants(session: PortalSession) {
   return mapApplicantRows(result.rows);
 }
 
-export async function acceptPendingMembershipApplicant(session: PortalSession, playerId: unknown) {
-  if (typeof playerId !== "string" || !(await canManageMembershipApplicants(session))) return false;
+export async function acceptPendingMembershipApplicant(session: PortalSession, playerId: unknown, collectiveId: unknown) {
+  if (typeof playerId !== "string") return false;
+  if (typeof collectiveId !== "string" || !(await canManageMembershipApplicantsInCollective(session, collectiveId))) return false;
   const pool = getDatabasePool();
   const result = await pool.query(
     `
@@ -294,10 +300,16 @@ export async function acceptPendingMembershipApplicant(session: PortalSession, p
           accepted_at = COALESCE(accepted_at, NOW()),
           updated_at = NOW()
       WHERE player_id = $1
-        AND application_status = 'pending'
+        AND application_status IN ('pending', 'accepted')
+        AND EXISTS (
+          SELECT 1
+          FROM portal_collective_members
+          WHERE portal_collective_members.player_id = portal_players.player_id
+            AND portal_collective_members.collective_id = $2
+        )
       RETURNING player_id
     `,
-    [playerId],
+    [playerId, collectiveId],
   );
   return Boolean(result.rowCount);
 }
@@ -389,7 +401,7 @@ export async function deletePortalPlayer(session: PortalSession, playerId: unkno
 
 export async function blockPortalPlayer(session: PortalSession, playerId: unknown) {
   if (typeof playerId !== "string" || playerId === getPortalPlayerId(session.discordUser.id)) return false;
-  if (!(await hasPortalManagementRights(session))) return false;
+  if (!(await canRemovePortalPlayer(session, playerId))) return false;
 
   const pool = getDatabasePool();
   const client = await pool.connect();

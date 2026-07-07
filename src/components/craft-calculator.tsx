@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { collectiveRoleLabels, findMembership, getPortalRole, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { hasPortalPermission } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
 import styles from "@/app/craft-calculator/craft-calculator.module.css";
@@ -89,11 +90,11 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
   const membership = findMembership(collectiveState, LOCAL_PLAYER_ID);
   const portalRole = getPortalRole(collectiveState, LOCAL_PLAYER_ID);
   const collectiveRole = membership?.member.role;
-  const hasExtendedAccess = portalRole === "administrator"
-    || portalRole === "clan-leader"
-    || collectiveRole === "leader"
-    || collectiveRole === "treasurer"
-    || collectiveRole === "raid-leader";
+  const hasExtendedAccess = hasPortalPermission({
+    portalRole,
+    collectiveRole,
+    accepted: Boolean(membership),
+  }, "USE_CRAFT_CALCULATOR_EXTENDED");
   const accessRoleLabel = portalRole !== "member"
     ? portalRoleLabels[portalRole]
     : collectiveRole ? collectiveRoleLabels[collectiveRole] : "Участник";

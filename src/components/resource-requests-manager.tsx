@@ -5,13 +5,13 @@ import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { ResourceCatalogItem } from "@/components/resources-manager";
 import { findMembership, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
+import { resourceManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
 import { makeRequestId, touchRequest, useRequestStore, type RequestStatus, type ResourceRequest } from "@/lib/request-store";
 import styles from "@/app/requests/requests.module.css";
 
 const numberFormatter = new Intl.NumberFormat("ru-RU");
-const resourceManagerRoles = new Set(["leader", "officer", "treasurer"]);
 const statusLabels: Record<RequestStatus, string> = {
   pending: "На рассмотрении",
   approved: "Одобрено",
@@ -63,7 +63,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const canManageRequest = (request: ResourceRequest) => {
     if (absoluteRights) return true;
     const ownMembership = findMembership(collectiveState, LOCAL_PLAYER_ID);
-    return ownMembership?.collective.id === request.collectiveId && resourceManagerRoles.has(ownMembership.member.role);
+    return ownMembership?.collective.id === request.collectiveId && roleIsIn(ownMembership.member.role, resourceManagerRoles);
   };
 
   const createRequest = (event: React.FormEvent) => {

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { findMembership, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
+import { resourceManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID } from "@/lib/profile-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
 import styles from "@/app/resources/resources.module.css";
@@ -82,7 +83,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
   const activeBalance = activeCollective ? state.balances[activeCollective.id] ?? emptyCollectiveBalance() : null;
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
   const activeMembership = activeCollective ? findMembership(collectiveState, LOCAL_PLAYER_ID) : null;
-  const canEdit = Boolean(activeCollective && (absoluteRights || activeMembership?.member.role === "leader" || activeMembership?.member.role === "treasurer"));
+  const canEdit = Boolean(activeCollective && (absoluteRights || roleIsIn(activeMembership?.member.role, resourceManagerRoles)));
   const resourcesBySlug = useMemo(() => new Map(resources.map((resource) => [resource.slug, resource])), [resources]);
   const aggregate = useMemo(() => {
     const result = { ancientCoin: 0, resources: {} as Record<string, number> };

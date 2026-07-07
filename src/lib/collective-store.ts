@@ -2,12 +2,23 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
+import {
+  collectiveRoleLabels,
+  collectiveRoles,
+  collectiveRoleValues,
+  isGlobalPortalRole,
+  portalRoleLabels,
+  portalRoles,
+  portalRoleValues,
+  type CollectiveRole,
+  type PortalRole,
+} from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, type LocalProfile } from "@/lib/profile-store";
 
 export const COLLECTIVE_LIMIT = 24;
 
-export type CollectiveRole = "leader" | "officer" | "recruiter" | "treasurer" | "raid-leader" | "member";
-export type PortalRole = "administrator" | "clan-leader" | "member";
+export type { CollectiveRole, PortalRole };
+export { collectiveRoleLabels, collectiveRoles, portalRoleLabels, portalRoles };
 
 export type CollectiveMember = {
   playerId: string;
@@ -46,27 +57,6 @@ export type DirectoryPlayer = {
   local: boolean;
 };
 
-export const collectiveRoles: Array<{ value: CollectiveRole; label: string }> = [
-  { value: "leader", label: "Лидер коллектива" },
-  { value: "officer", label: "Офицер" },
-  { value: "recruiter", label: "Рекрутер" },
-  { value: "treasurer", label: "Казначей" },
-  { value: "raid-leader", label: "Рейд-лидер" },
-  { value: "member", label: "Участник" },
-];
-
-export const collectiveRoleLabels = Object.fromEntries(collectiveRoles.map((role) => [role.value, role.label])) as Record<CollectiveRole, string>;
-export const portalRoleLabels: Record<PortalRole, string> = {
-  administrator: "Администратор",
-  "clan-leader": "Лидер клана",
-  member: "Игрок",
-};
-export const portalRoles: Array<{ value: PortalRole; label: string }> = [
-  { value: "administrator", label: portalRoleLabels.administrator },
-  { value: "clan-leader", label: portalRoleLabels["clan-leader"] },
-  { value: "member", label: portalRoleLabels.member },
-];
-
 const legacyDemoPlayerIds = new Set([
   "player-aelita", "player-brann", "player-vesper", "player-kael", "player-mira", "player-ragnar",
   "player-sable", "player-torin", "player-yuna", "player-zed", "player-nyx", "player-orion",
@@ -78,8 +68,8 @@ const DEFAULT_PORTAL_ROLES: Record<string, PortalRole> = {
   [LOCAL_PLAYER_ID]: "member",
 };
 const EMPTY_STATE: CollectiveState = { portalName: DEFAULT_PORTAL_NAME, collectives: [], portalRoles: DEFAULT_PORTAL_ROLES, revokedPlayerIds: [], directoryPlayers: [] };
-const validRoles = new Set<CollectiveRole>(collectiveRoles.map((role) => role.value));
-const validPortalRoles = new Set<PortalRole>(portalRoles.map((role) => role.value));
+const validRoles = new Set<CollectiveRole>(collectiveRoleValues);
+const validPortalRoles = new Set<PortalRole>(portalRoleValues);
 let cachedRaw: string | null | undefined;
 let cachedState = EMPTY_STATE;
 
@@ -210,6 +200,11 @@ async function saveStateToServer(state: CollectiveState) {
     saveState(serverState);
     return serverState;
   }
+  const restoredState = await requestServerState("GET").catch(() => null);
+  if (restoredState) {
+    saveState(restoredState);
+    return restoredState;
+  }
   return state;
 }
 
@@ -260,7 +255,7 @@ export function getPortalRole(state: CollectiveState, playerId: string): PortalR
 
 export function hasAbsolutePortalRights(state: CollectiveState, playerId: string) {
   const role = getPortalRole(state, playerId);
-  return role === "administrator" || role === "clan-leader";
+  return isGlobalPortalRole(role);
 }
 
 export function isPlayerRevoked(state: CollectiveState, playerId: string) {

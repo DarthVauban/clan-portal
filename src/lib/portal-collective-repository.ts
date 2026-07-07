@@ -1,14 +1,23 @@
 import "server-only";
 
+import type { PoolClient } from "pg";
 import { getDatabasePool } from "@/lib/database";
 import { isPortalAdminDiscordId, type PortalSession } from "@/lib/auth-session";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
 import { canManageMembershipApplicants, hasPortalManagementRights } from "@/lib/portal-player-repository";
+import {
+  applicantManagerRoles,
+  collectiveRoleValues,
+  memberManagerRoles,
+  portalRoleValues,
+  roleIsIn,
+  type CollectiveRole,
+} from "@/lib/portal-permissions";
 
 const LOCAL_PLAYER_ID = "local-user";
 const COLLECTIVE_LIMIT = 24;
-const collectiveRoles = new Set(["leader", "officer", "recruiter", "treasurer", "raid-leader", "member"]);
-const portalRoles = new Set(["administrator", "clan-leader", "member"]);
+const collectiveRoles = new Set<string>(collectiveRoleValues);
+const portalRoles = new Set<string>(portalRoleValues);
 
 type ServerCollectiveMember = {
   playerId: string;
@@ -107,6 +116,149 @@ function normalizeState(rawState: unknown, session: PortalSession) {
     portalRoles: Object.fromEntries(portalRoleEntries),
     portalName: normalizePortalName(source.portalName),
   };
+}
+
+type CurrentCollective = {
+  id: string;
+  name: string;
+  tag: string;
+  createdAt: string;
+  members: Map<string, ServerCollectiveMember>;
+};
+
+async function getActorMembership(client: PoolClient, session: PortalSession) {
+  const result = await client.query(
+    `
+      SELECT
+        p.player_id,
+        m.collective_id,
+        m.role
+      FROM portal_players p
+      JOIN portal_collective_members m ON m.player_id = p.player_id
+      WHERE p.discord_id = $1
+        AND p.application_status NOT IN ('revoked', 'blocked')
+      LIMIT 1
+    `,
+    [session.discordUser.id],
+  );
+  const row = result.rows[0];
+  if (typeof row?.player_id !== "string" || typeof row.collective_id !== "string" || typeof row.role !== "string") return null;
+  return {
+    playerId: row.player_id as string,
+    collectiveId: row.collective_id as string,
+    role: row.role as CollectiveRole,
+  };
+}
+
+async function getCurrentCollectives(client: PoolClient) {
+  const result = await client.query(
+    `
+      SELECT
+        c.collective_id,
+        c.name,
+        c.tag,
+        c.created_at,
+        m.player_id,
+        m.role,
+        m.joined_at
+      FROM portal_collectives c
+      LEFT JOIN portal_collective_members m ON m.collective_id = c.collective_id
+      ORDER BY c.created_at ASC, c.name ASC, m.joined_at ASC
+    `,
+  );
+  const collectives = new Map<string, CurrentCollective>();
+  for (const row of result.rows) {
+    const id = String(row.collective_id);
+    const current = collectives.get(id) ?? {
+      id,
+      name: String(row.name),
+      tag: String(row.tag ?? ""),
+      createdAt: toDateString(row.created_at),
+      members: new Map<string, ServerCollectiveMember>(),
+    };
+    if (typeof row.player_id === "string") {
+      current.members.set(row.player_id, {
+        playerId: row.player_id,
+        role: typeof row.role === "string" && collectiveRoles.has(row.role) ? row.role : "member",
+        joinedAt: toDateString(row.joined_at),
+      });
+    }
+    collectives.set(id, current);
+  }
+  return collectives;
+}
+
+function sameCollectiveShell(next: ServerCollective, current: CurrentCollective) {
+  return next.name === current.name
+    && next.tag === current.tag
+    && next.createdAt === current.createdAt;
+}
+
+function sameMembers(nextMembers: ServerCollectiveMember[], currentMembers: Map<string, ServerCollectiveMember>) {
+  if (nextMembers.length !== currentMembers.size) return false;
+  return nextMembers.every((member) => {
+    const current = currentMembers.get(member.playerId);
+    return current && current.role === member.role && current.joinedAt === member.joinedAt;
+  });
+}
+
+async function addedPlayersArePendingApplicants(client: PoolClient, playerIds: string[]) {
+  if (playerIds.length === 0) return true;
+  const result = await client.query(
+    `
+      SELECT player_id, application_status
+      FROM portal_players
+      WHERE player_id = ANY($1::text[])
+    `,
+    [playerIds],
+  );
+  if (result.rowCount !== playerIds.length) return false;
+  return result.rows.every((row) => row.application_status === "pending");
+}
+
+async function validateScopedStateChange(client: PoolClient, session: PortalSession, normalized: ReturnType<typeof normalizeState>) {
+  const actor = await getActorMembership(client, session);
+  if (!actor) return false;
+
+  const currentCollectives = await getCurrentCollectives(client);
+  if (normalized.collectives.length !== currentCollectives.size) return false;
+  for (const collective of normalized.collectives) {
+    const current = currentCollectives.get(collective.id);
+    if (!current || !sameCollectiveShell(collective, current)) return false;
+  }
+
+  const canAcceptApplicants = roleIsIn(actor.role, applicantManagerRoles);
+  const canManageMembers = roleIsIn(actor.role, memberManagerRoles);
+  const currentOwnCollective = currentCollectives.get(actor.collectiveId);
+  const nextOwnCollective = normalized.collectives.find((collective) => collective.id === actor.collectiveId);
+  if (!currentOwnCollective || !nextOwnCollective || nextOwnCollective.members.length > COLLECTIVE_LIMIT) return false;
+
+  for (const collective of normalized.collectives) {
+    if (collective.id === actor.collectiveId) continue;
+    const current = currentCollectives.get(collective.id);
+    if (!current || !sameMembers(collective.members, current.members)) return false;
+  }
+
+  const nextOwnMembers = new Map(nextOwnCollective.members.map((member) => [member.playerId, member]));
+  const addedPlayerIds: string[] = [];
+  for (const [playerId, currentMember] of currentOwnCollective.members) {
+    const nextMember = nextOwnMembers.get(playerId);
+    if (!nextMember) {
+      return false;
+    }
+    if (nextMember.joinedAt !== currentMember.joinedAt) return false;
+    if (nextMember.role !== currentMember.role) {
+      if (!canManageMembers || currentMember.role === "leader" || nextMember.role === "leader" || playerId === actor.playerId) return false;
+    }
+  }
+
+  for (const nextMember of nextOwnCollective.members) {
+    if (currentOwnCollective.members.has(nextMember.playerId)) continue;
+    if (!canAcceptApplicants || nextMember.role !== "member" || nextMember.playerId === actor.playerId) return false;
+    addedPlayerIds.push(nextMember.playerId);
+  }
+
+  return addedPlayersArePendingApplicants(client, addedPlayerIds);
 }
 
 function mapPlayers(rows: Array<Record<string, unknown>>, session: PortalSession): ServerDirectoryPlayer[] {
@@ -219,6 +371,11 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    if (!canManagePortalSettings && !(await validateScopedStateChange(client, session, normalized))) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
     const existingPlayers = await client.query("SELECT player_id FROM portal_players WHERE application_status NOT IN ('revoked', 'blocked')");
     const existingPlayerIds = new Set(existingPlayers.rows.map((row) => String(row.player_id)));
 
@@ -257,11 +414,6 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
         `,
         [memberIds],
       );
-    }
-
-    for (const [playerId, role] of Object.entries(normalized.portalRoles)) {
-      if (!existingPlayerIds.has(playerId) || !portalRoles.has(role)) continue;
-      await client.query("UPDATE portal_players SET portal_role = $2, updated_at = NOW() WHERE player_id = $1", [playerId, role]);
     }
 
     if (canManagePortalSettings) {

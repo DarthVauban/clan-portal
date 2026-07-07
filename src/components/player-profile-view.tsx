@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, CalendarDays, Crown, MessageCircle, Star, UsersRound } from "lucide-react";
 import { corepunkClassesBySlug } from "@/lib/corepunk-classes";
 import { collectiveRoleLabels, findMembership, formatCollectiveDate, getMainCharacter, getPlayerDirectory, getPortalRole, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { isGlobalPortalRole } from "@/lib/portal-permissions";
 import { useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/profile/player-profile.module.css";
 
@@ -26,6 +27,7 @@ export function PlayerProfileView({ playerId }: { playerId: string }) {
 
   const membership = findMembership(state, player.id);
   const portalRole = getPortalRole(state, player.id);
+  const hasGlobalRights = isGlobalPortalRole(portalRole);
   const mainCharacter = getMainCharacter(player);
   const initials = player.displayName.slice(0, 2).toLocaleUpperCase("ru");
 
@@ -39,7 +41,7 @@ export function PlayerProfileView({ playerId }: { playerId: string }) {
       </section>
 
       <section className={styles.infoGrid}>
-        <div><span><Crown size={14} /> Роль портала</span><strong>{portalRoleLabels[portalRole]}</strong><small>{portalRole === "member" ? "Стандартные права игрока" : "Абсолютные права доступа"}</small></div>
+        <div><span><Crown size={14} /> Роль портала</span><strong>{portalRoleLabels[portalRole]}</strong><small>{hasGlobalRights ? "Абсолютные права доступа" : "Стандартные права игрока"}</small></div>
         <div><span><MessageCircle size={14} /> Discord</span><strong>{player.discordNickname ?? "Не подключён"}</strong><small>Имя пользователя Discord</small></div>
         <div><span><UsersRound size={14} /> Коллектив</span><strong>{membership?.collective.name ?? "Не назначен"}</strong><small>{membership ? collectiveRoleLabels[membership.member.role] : "Игрок свободен"}</small></div>
         <div><span><CalendarDays size={14} /> Дата вступления</span><strong>{membership ? formatCollectiveDate(membership.member.joinedAt) : "—"}</strong><small>Назначается автоматически</small></div>

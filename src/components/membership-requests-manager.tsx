@@ -16,10 +16,10 @@ import {
   useCollectiveStore,
 } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
+import { applicantManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/requests/membership/membership.module.css";
 
-const assigningRoles = new Set(["leader", "officer", "recruiter"]);
 const APPLICANT_REFRESH_INTERVAL_MS = 2500;
 
 function getServerPlayerId(discordId: string | null) {
@@ -73,8 +73,8 @@ export function MembershipRequestsManager() {
   }, [auth.applicationStatus, auth.isPortalAdmin, currentServerPlayerId, localPlayers, membership, serverApplicants]);
   const assignedIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
   const applicants = players.filter((player) => !assignedIds.has(player.id));
-  const absoluteRights = hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
-  const canAssignToOwnCollective = Boolean(membership && assigningRoles.has(membership.member.role));
+  const absoluteRights = auth.isPortalAdmin || hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
+  const canAssignToOwnCollective = Boolean(membership && roleIsIn(membership.member.role, applicantManagerRoles));
   const canManageApplicants = absoluteRights || canAssignToOwnCollective;
   const manageableCollectives = state.collectives.filter((collective) => collective.members.length < COLLECTIVE_LIMIT
     && (absoluteRights || (canAssignToOwnCollective && collective.id === membership?.collective.id)));
@@ -116,7 +116,7 @@ export function MembershipRequestsManager() {
 
   const assignPlayer = async (playerId: string) => {
     const targetId = targets[playerId] || manageableCollectives[0]?.id;
-    if (!targetId || assignedIds.has(playerId)) return;
+    if (!canManageApplicants || !targetId || assignedIds.has(playerId) || !manageableCollectives.some((collective) => collective.id === targetId)) return;
     await updateState((current) => ({
       ...current,
       collectives: current.collectives.map((collective) => collective.id === targetId && collective.members.length < COLLECTIVE_LIMIT
@@ -137,7 +137,7 @@ export function MembershipRequestsManager() {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerId, collectiveId: targetId }),
       }).catch(() => undefined);
       setServerApplicants((current) => current.filter((player) => player.id !== playerId));
       void refreshAuth().catch(() => undefined);
