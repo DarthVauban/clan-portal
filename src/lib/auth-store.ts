@@ -10,6 +10,11 @@ export type PortalAuthState = {
   discordNickname: string | null;
   avatarUrl: string | null;
   isPortalAdmin: boolean;
+  registeredProfile: {
+    displayName: string;
+    characterName: string;
+    classSlug: string;
+  } | null;
   authorizedAt: string | null;
   registeredAt: string | null;
 };
@@ -26,6 +31,7 @@ const EMPTY_AUTH: PortalAuthState = {
   discordNickname: null,
   avatarUrl: null,
   isPortalAdmin: false,
+  registeredProfile: null,
   authorizedAt: null,
   registeredAt: null,
 };
@@ -48,6 +54,17 @@ function normalizeAuth(value: unknown): PortalAuthState {
     discordNickname: typeof candidate.discordNickname === "string" ? candidate.discordNickname.slice(0, 80) : null,
     avatarUrl: typeof candidate.avatarUrl === "string" ? candidate.avatarUrl : null,
     isPortalAdmin: candidate.isPortalAdmin === true,
+    registeredProfile: candidate.registeredProfile
+      && typeof candidate.registeredProfile === "object"
+      && typeof candidate.registeredProfile.displayName === "string"
+      && typeof candidate.registeredProfile.characterName === "string"
+      && typeof candidate.registeredProfile.classSlug === "string"
+      ? {
+        displayName: candidate.registeredProfile.displayName.slice(0, 40),
+        characterName: candidate.registeredProfile.characterName.slice(0, 40),
+        classSlug: candidate.registeredProfile.classSlug,
+      }
+      : null,
     authorizedAt: typeof candidate.authorizedAt === "string" ? candidate.authorizedAt : null,
     registeredAt: typeof candidate.registeredAt === "string" ? candidate.registeredAt : null,
   };

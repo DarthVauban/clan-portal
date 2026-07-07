@@ -178,7 +178,7 @@ export function CollectivesManager() {
 
   const addPlayer = async (playerId: string) => {
     if (!activeCollective || activeCollective.members.length >= COLLECTIVE_LIMIT || assignedPlayerIds.has(playerId)) return;
-    updateState((current) => ({
+    await updateState((current) => ({
       ...current,
       collectives: current.collectives.map((collective) => collective.id === activeCollective.id
         ? {

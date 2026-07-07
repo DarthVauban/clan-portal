@@ -29,6 +29,11 @@ export type PublicPortalAuthState = {
   discordNickname: string | null;
   avatarUrl: string | null;
   isPortalAdmin: boolean;
+  registeredProfile: {
+    displayName: string;
+    characterName: string;
+    classSlug: string;
+  } | null;
   authorizedAt: string | null;
   registeredAt: string | null;
 };
@@ -39,6 +44,7 @@ export const PUBLIC_ANONYMOUS_AUTH: PublicPortalAuthState = {
   discordNickname: null,
   avatarUrl: null,
   isPortalAdmin: false,
+  registeredProfile: null,
   authorizedAt: null,
   registeredAt: null,
 };
@@ -127,6 +133,7 @@ export function sessionToPublicAuth(session: PortalSession | null): PublicPortal
     discordNickname: getDiscordDisplayName(session.discordUser),
     avatarUrl: getDiscordAvatarUrl(session.discordUser),
     isPortalAdmin: isPortalAdminDiscordId(session.discordUser.id),
+    registeredProfile: null,
     authorizedAt: session.authorizedAt,
     registeredAt: session.registeredAt,
   };

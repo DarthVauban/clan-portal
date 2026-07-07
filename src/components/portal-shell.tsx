@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
   Calculator,
@@ -12,6 +12,7 @@ import {
   HandCoins,
   Home,
   LockKeyhole,
+  LogOut,
   Menu,
   ScrollText,
   ShieldCheck,
@@ -90,10 +91,11 @@ function AccessDenied({ revoked = false, pendingApproval = false }: { revoked?: 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { profile } = useLocalProfile();
-  const { auth, loading } = usePortalAuth();
+  const router = useRouter();
+  const { profile, updateProfile } = useLocalProfile();
+  const { auth, loading, logout } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
-  const registrationComplete = auth.stage === "registered" && hasCompletedRegistration(profile);
+  const registrationComplete = auth.stage === "registered" && (hasCompletedRegistration(profile) || Boolean(auth.registeredProfile));
   const localPortalRole = state.portalRoles[LOCAL_PLAYER_ID];
 
   useEffect(() => {
@@ -106,6 +108,26 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       },
     }));
   }, [auth.isPortalAdmin, localPortalRole, updateState]);
+
+  useEffect(() => {
+    if (hasCompletedRegistration(profile) || !auth.registeredProfile) return;
+    const characterId = profile.mainCharacterId ?? profile.characters[0]?.id ?? "server-main-character";
+    updateProfile((current) => ({
+      ...current,
+      displayName: auth.registeredProfile?.displayName ?? current.displayName,
+      mainCharacterId: characterId,
+      joinedAt: current.joinedAt || new Date().toISOString().slice(0, 10),
+      characters: [
+        {
+          id: characterId,
+          name: auth.registeredProfile?.characterName ?? "",
+          classSlug: auth.registeredProfile?.classSlug ?? null,
+          confirmed: true,
+        },
+        ...current.characters.filter((character) => character.id !== characterId),
+      ],
+    }));
+  }, [auth.registeredProfile, profile, updateProfile]);
 
   useEffect(() => {
     if (!registrationComplete) return;
@@ -155,6 +177,11 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const initials = profile.displayName.trim().slice(0, 2).toLocaleUpperCase("ru") || "CP";
 
   const closeMenu = () => setMenuOpen(false);
+  const handleLogout = async () => {
+    await logout().catch(() => undefined);
+    closeMenu();
+    router.replace("/");
+  };
 
   return (
     <div className="portal-shell">
@@ -217,6 +244,10 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             Единое пространство клана
           </div>
           <div className="topbar-actions">
+            <button className="logout-button" type="button" onClick={handleLogout} aria-label="Выйти из портала">
+              <LogOut size={16} />
+              <span>Выйти</span>
+            </button>
             <button className="collective-switcher" type="button" aria-label="Выбранный коллектив">
               <span className="collective-symbol">{membership?.collective.tag?.slice(0, 1) || "—"}</span>
               <span className="collective-name">{membership?.collective.name ?? "Ожидает принятия"}</span>

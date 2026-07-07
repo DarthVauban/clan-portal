@@ -47,16 +47,32 @@ export async function getExistingPortalRegistration(discordId: string) {
   const pool = getDatabasePool();
   const result = await pool.query(
     `
-      SELECT registered_at
-      FROM portal_players
-      WHERE discord_id = $1
-        AND application_status <> 'revoked'
+      SELECT
+        p.registered_at,
+        p.display_name,
+        c.name AS character_name,
+        c.class_slug
+      FROM portal_players p
+      LEFT JOIN portal_player_characters c ON c.player_id = p.player_id AND c.is_main = TRUE
+      WHERE p.discord_id = $1
+        AND p.application_status <> 'revoked'
       LIMIT 1
     `,
     [discordId],
   );
-  const registeredAt = toIsoString(result.rows[0]?.registered_at);
-  return registeredAt ? { registeredAt } : null;
+  const row = result.rows[0];
+  const registeredAt = toIsoString(row?.registered_at);
+  if (!registeredAt) return null;
+  return {
+    registeredAt,
+    registeredProfile: typeof row.display_name === "string" && typeof row.character_name === "string" && typeof row.class_slug === "string"
+      ? {
+        displayName: row.display_name,
+        characterName: row.character_name,
+        classSlug: row.class_slug,
+      }
+      : null,
+  };
 }
 
 function normalizeRegistrationPayload(payload: unknown): PortalRegistrationPayload | null {

@@ -111,7 +111,7 @@ export function MembershipRequestsManager() {
   const assignPlayer = async (playerId: string) => {
     const targetId = targets[playerId] || manageableCollectives[0]?.id;
     if (!targetId || assignedIds.has(playerId)) return;
-    updateState((current) => ({
+    await updateState((current) => ({
       ...current,
       collectives: current.collectives.map((collective) => collective.id === targetId && collective.members.length < COLLECTIVE_LIMIT
         ? {
