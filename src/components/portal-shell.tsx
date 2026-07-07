@@ -8,9 +8,7 @@ import {
   Boxes,
   Calculator,
   ChevronDown,
-  CircleUserRound,
   Database,
-  DoorOpen,
   HandCoins,
   Home,
   LockKeyhole,
@@ -34,6 +32,8 @@ const AuthOnboarding = dynamic(
   { loading: () => null },
 );
 
+const PORTAL_SYNC_INTERVAL_MS = 2500;
+
 const primaryNavigation = [
   { href: "/", label: "Обзор", icon: Home },
   { href: "/collectives", label: "Коллективы", icon: UsersRound },
@@ -50,7 +50,6 @@ const requestNavigation = [
 const utilityNavigation = [
   { href: "/craft-calculator", label: "Калькулятор крафта", icon: Calculator, restricted: true },
   { href: "/blocked-users", label: "Заблокированные", icon: ShieldX, absoluteOnly: true },
-  { href: "/profile", label: "Мой профиль", icon: CircleUserRound },
 ];
 
 function NavLink({ href, label, icon: Icon, onNavigate, locked = false }: {
@@ -97,11 +96,10 @@ function AccessDenied({ revoked = false, pendingApproval = false }: { revoked?: 
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [leavingCollective, setLeavingCollective] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { profile, updateProfile } = useLocalProfile();
-  const { auth, loading, logout } = usePortalAuth();
+  const { auth, loading, logout, refreshAuth } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
   const registrationComplete = auth.stage === "registered" && (hasCompletedRegistration(profile) || Boolean(auth.registeredProfile));
   const localPortalRole = state.portalRoles[LOCAL_PLAYER_ID];
@@ -157,6 +155,28 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     }).catch(() => undefined);
   }, [profile.characters, profile.displayName, profile.mainCharacterId, registrationComplete]);
 
+  useEffect(() => {
+    if (auth.stage === "anonymous") return;
+    let disposed = false;
+    const syncPortalState = () => {
+      if (disposed) return;
+      void refreshAuth().catch(() => undefined);
+      void refreshCollectiveStore().catch(() => undefined);
+    };
+    const interval = window.setInterval(syncPortalState, PORTAL_SYNC_INTERVAL_MS);
+    const handleVisibility = () => {
+      if (!document.hidden) syncPortalState();
+    };
+    window.addEventListener("focus", syncPortalState);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", syncPortalState);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [auth.stage, refreshAuth]);
+
   if (loading) {
     return (
       <main className="auth-gate" data-testid="auth-loading">
@@ -177,32 +197,18 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const absoluteRights = auth.isPortalAdmin || hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
   const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
   const collectiveAccess = absoluteRights || Boolean(membership);
-  const canLeaveCollective = Boolean(membership && (membership.member.role !== "leader" || membership.collective.members.length <= 1));
   const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership");
   const pendingRestrictedRoute = !collectiveAccess && !pendingAllowedRoute;
   const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
   const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
-  const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => !("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights) : [];
+  const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => item.href !== "/profile" && (!("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights)) : [];
   const blockedUsersRestrictedRoute = pathname.startsWith("/blocked-users") && !absoluteRights;
   const initials = profile.displayName.trim().slice(0, 2).toLocaleUpperCase("ru") || "CP";
+  const profileName = profile.displayName.trim() || auth.discordNickname || "Профиль";
   const waitingLabel = auth.applicationStatus === "accepted" ? "Без коллектива" : "Ожидает принятия";
   const waitingCaption = auth.applicationStatus === "accepted" ? "Ожидает распределения" : "Заявка на вступление";
 
   const closeMenu = () => setMenuOpen(false);
-  const handleLeaveCollective = async () => {
-    if (!canLeaveCollective || leavingCollective) return;
-    setLeavingCollective(true);
-    const response = await fetch("/api/collectives/leave", {
-      method: "POST",
-      headers: { Accept: "application/json" },
-    }).catch(() => null);
-    if (response?.ok) {
-      await refreshCollectiveStore().catch(() => undefined);
-      closeMenu();
-      router.replace("/requests/membership");
-    }
-    setLeavingCollective(false);
-  };
   const handleLogout = async () => {
     await logout().catch(() => undefined);
     closeMenu();
@@ -250,14 +256,25 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="sidebar-status">
-          <div className="status-icon"><ShieldCheck size={18} /></div>
-          <div>
-            <strong>{collectiveAccess ? portalRoleLabels[portalRole] : waitingLabel}</strong>
-            <span>{collectiveAccess ? "Версия 0.1" : waitingCaption}</span>
+        {collectiveAccess ? (
+          <Link className="sidebar-status sidebar-status--profile" href="/profile" onClick={closeMenu} aria-label="Открыть профиль">
+            <div className="status-icon"><ShieldCheck size={18} /></div>
+            <div>
+              <strong>{profileName}</strong>
+              <span>{portalRoleLabels[portalRole]}</span>
+            </div>
+            <Sparkles size={15} className="status-spark" />
+          </Link>
+        ) : (
+          <div className="sidebar-status">
+            <div className="status-icon"><ShieldCheck size={18} /></div>
+            <div>
+              <strong>{waitingLabel}</strong>
+              <span>{waitingCaption}</span>
+            </div>
+            <Sparkles size={15} className="status-spark" />
           </div>
-          <Sparkles size={15} className="status-spark" />
-        </div>
+        )}
       </aside>
 
       <div className="content-column">
@@ -270,12 +287,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             Единое пространство клана
           </div>
           <div className="topbar-actions">
-            {canLeaveCollective && (
-              <button className="leave-collective-button" type="button" onClick={handleLeaveCollective} disabled={leavingCollective} aria-label="Покинуть коллектив">
-                <DoorOpen size={16} />
-                <span>Покинуть</span>
-              </button>
-            )}
             <button className="logout-button" type="button" onClick={handleLogout} aria-label="Выйти из портала">
               <LogOut size={16} />
               <span>Выйти</span>

@@ -3,6 +3,7 @@ import { AUTH_SESSION_COOKIE, readSessionCookieValue } from "@/lib/auth-session"
 import {
   acceptPendingMembershipApplicant,
   listPendingMembershipApplicants,
+  rejectPendingMembershipApplicant,
 } from "@/lib/portal-player-repository";
 
 function readSession(request: NextRequest) {
@@ -34,9 +35,11 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = await request.json().catch(() => null);
-  const accepted = await acceptPendingMembershipApplicant(session, payload?.playerId);
-  return NextResponse.json({ ok: accepted }, {
-    status: accepted ? 200 : 403,
+  const ok = payload?.action === "reject"
+    ? await rejectPendingMembershipApplicant(session, payload?.playerId)
+    : await acceptPendingMembershipApplicant(session, payload?.playerId);
+  return NextResponse.json({ ok }, {
+    status: ok ? 200 : 403,
     headers: { "Cache-Control": "no-store" },
   });
 }

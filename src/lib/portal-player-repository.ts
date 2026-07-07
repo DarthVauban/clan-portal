@@ -302,6 +302,23 @@ export async function acceptPendingMembershipApplicant(session: PortalSession, p
   return Boolean(result.rowCount);
 }
 
+export async function rejectPendingMembershipApplicant(session: PortalSession, playerId: unknown) {
+  if (typeof playerId !== "string" || playerId === getPortalPlayerId(session.discordUser.id)) return false;
+  if (!(await canManageMembershipApplicants(session))) return false;
+
+  const pool = getDatabasePool();
+  const result = await pool.query(
+    `
+      DELETE FROM portal_players
+      WHERE player_id = $1
+        AND application_status = 'pending'
+      RETURNING player_id
+    `,
+    [playerId],
+  );
+  return Boolean(result.rowCount);
+}
+
 function mapBlockedRows(rows: Array<Record<string, unknown>>): BlockedPortalUser[] {
   const players = new Map<string, BlockedPortalUser>();
   for (const row of rows) {

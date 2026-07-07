@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRightLeft,
   Crown,
+  DoorOpen,
   ExternalLink,
   Plus,
   Search,
@@ -41,6 +43,7 @@ import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/collectives/collectives.module.css";
 
 const managerRoles = new Set<CollectiveRole>(["leader", "officer", "recruiter"]);
+const APPLICANT_REFRESH_INTERVAL_MS = 2500;
 
 function normalizeServerApplicants(value: unknown): DirectoryPlayer[] {
   if (!value || typeof value !== "object") return [];
@@ -96,8 +99,9 @@ function PlayerIdentity({ player, portalRole }: { player: DirectoryPlayer; porta
 }
 
 export function CollectivesManager() {
+  const router = useRouter();
   const { profile } = useLocalProfile();
-  const { auth } = usePortalAuth();
+  const { auth, refreshAuth } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
   const [serverApplicants, setServerApplicants] = useState<DirectoryPlayer[]>([]);
   const localPlayers = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
@@ -114,6 +118,7 @@ export function CollectivesManager() {
   const [newTag, setNewTag] = useState("");
   const [playerQuery, setPlayerQuery] = useState("");
   const [targetCollectiveId, setTargetCollectiveId] = useState("");
+  const [leavingCollective, setLeavingCollective] = useState(false);
   const [confirmation, setConfirmation] = useState<null | { kind: "remove-member" | "delete-collective" | "revoke-player"; id: string }>(null);
 
   useEffect(() => {
@@ -133,14 +138,19 @@ export function CollectivesManager() {
       }
     }
     void loadApplicants();
+    const interval = window.setInterval(loadApplicants, APPLICANT_REFRESH_INTERVAL_MS);
+    window.addEventListener("focus", loadApplicants);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", loadApplicants);
     };
   }, [auth.stage, auth.discordId]);
 
   const activeCollective = state.collectives.find((collective) => collective.id === selectedCollectiveId)
     ?? state.collectives[0]
     ?? null;
+  const ownMembership = findMembership(state, LOCAL_PLAYER_ID);
   const currentMembership = activeCollective?.members.find((member) => member.playerId === LOCAL_PLAYER_ID);
   const currentRole = currentMembership?.role;
   const currentPortalRole = getPortalRole(state, LOCAL_PLAYER_ID);
@@ -148,6 +158,9 @@ export function CollectivesManager() {
   const canAddMembers = Boolean(activeCollective && (hasAbsoluteRights || activeCollective.members.length === 0 || (currentRole && managerRoles.has(currentRole))));
   const canManageRoles = hasAbsoluteRights || currentRole === "leader";
   const canTransfer = hasAbsoluteRights || currentRole === "leader";
+  const canLeaveOwnCollective = Boolean(ownMembership
+    && activeCollective?.id === ownMembership.collective.id
+    && (ownMembership.member.role !== "leader" || ownMembership.collective.members.length <= 1));
   const assignedPlayerIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
   const unassignedPlayers = players.filter((player) => !assignedPlayerIds.has(player.id));
   const normalizedPlayerQuery = playerQuery.trim().toLocaleLowerCase("ru");
@@ -203,6 +216,23 @@ export function CollectivesManager() {
       }).catch(() => undefined);
       setServerApplicants((current) => current.filter((player) => player.id !== playerId));
     }
+  };
+
+  const leaveCollective = async () => {
+    if (!canLeaveOwnCollective || leavingCollective) return;
+    setLeavingCollective(true);
+    const response = await fetch("/api/collectives/leave", {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }).catch(() => null);
+    if (response?.ok) {
+      await Promise.all([
+        refreshCollectiveStore().catch(() => undefined),
+        refreshAuth().catch(() => undefined),
+      ]);
+      router.replace("/requests/membership");
+    }
+    setLeavingCollective(false);
   };
 
   const changeRole = (playerId: string, nextRole: CollectiveRole) => {
@@ -358,6 +388,7 @@ export function CollectivesManager() {
                 <div><span>Коллектив · создан {formatCollectiveDate(activeCollective.createdAt)}</span><h2>{activeCollective.name}</h2><p>{activeCollective.tag ? `[${activeCollective.tag}] · ` : ""}{activeCollective.members.length} из {COLLECTIVE_LIMIT} участников</p></div>
                 <div className={styles.headerActions}>
                   <div className={styles.capacityRing}><strong>{activeCollective.members.length}</strong><span>/ 24</span></div>
+                  {canLeaveOwnCollective && <button type="button" className={styles.leaveCollective} onClick={leaveCollective} disabled={leavingCollective} data-testid="leave-collective"><DoorOpen size={15} /> Покинуть</button>}
                   <button type="button" onClick={() => setAddMembersOpen(true)} disabled={!canAddMembers || activeCollective.members.length >= COLLECTIVE_LIMIT} data-testid="open-add-members"><UserPlus size={15} /> Добавить</button>
                   {hasAbsoluteRights && <button type="button" className={styles.deleteCollective} onClick={() => setConfirmation({ kind: "delete-collective", id: activeCollective.id })} data-testid="delete-collective"><Trash2 size={15} /> Удалить</button>}
                 </div>

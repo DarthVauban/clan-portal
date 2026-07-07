@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Clock3, ExternalLink, Search, UserPlus, UsersRound } from "lucide-react";
+import { Check, Clock3, ExternalLink, Search, UserPlus, UsersRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { corepunkClassesBySlug } from "@/lib/corepunk-classes";
 import {
@@ -20,6 +20,7 @@ import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/requests/membership/membership.module.css";
 
 const assigningRoles = new Set(["leader", "officer", "recruiter"]);
+const APPLICANT_REFRESH_INTERVAL_MS = 2500;
 
 function getServerPlayerId(discordId: string | null) {
   return discordId ? `player-${discordId}` : null;
@@ -55,7 +56,7 @@ function normalizeServerApplicants(value: unknown): DirectoryPlayer[] {
 
 export function MembershipRequestsManager() {
   const { profile } = useLocalProfile();
-  const { auth } = usePortalAuth();
+  const { auth, refreshAuth } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
   const [query, setQuery] = useState("");
   const [targets, setTargets] = useState<Record<string, string>>({});
@@ -63,15 +64,15 @@ export function MembershipRequestsManager() {
   const [serverError, setServerError] = useState<string | null>(null);
   const localPlayers = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
   const currentServerPlayerId = getServerPlayerId(auth.discordId);
+  const membership = useMemo(() => findMembership(state, LOCAL_PLAYER_ID), [state]);
   const players = useMemo(() => {
-    const canUseLocalApplicantFallback = auth.applicationStatus === "pending" || auth.applicationStatus === null;
+    const canUseLocalApplicantFallback = !membership && (auth.applicationStatus === "pending" || auth.applicationStatus === null);
     const includeLocalProfile = !auth.isPortalAdmin && canUseLocalApplicantFallback && (!currentServerPlayerId || !serverApplicants.some((player) => player.id === currentServerPlayerId));
     const combined = includeLocalProfile ? [...localPlayers, ...serverApplicants] : serverApplicants;
     return combined.filter((player, index, allPlayers) => allPlayers.findIndex((candidate) => candidate.id === player.id) === index);
-  }, [auth.applicationStatus, auth.isPortalAdmin, currentServerPlayerId, localPlayers, serverApplicants]);
+  }, [auth.applicationStatus, auth.isPortalAdmin, currentServerPlayerId, localPlayers, membership, serverApplicants]);
   const assignedIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
   const applicants = players.filter((player) => !assignedIds.has(player.id));
-  const membership = findMembership(state, LOCAL_PLAYER_ID);
   const absoluteRights = hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
   const canAssignToOwnCollective = Boolean(membership && assigningRoles.has(membership.member.role));
   const canManageApplicants = absoluteRights || canAssignToOwnCollective;
@@ -104,8 +105,12 @@ export function MembershipRequestsManager() {
       }
     }
     void loadApplicants();
+    const interval = window.setInterval(loadApplicants, APPLICANT_REFRESH_INTERVAL_MS);
+    window.addEventListener("focus", loadApplicants);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", loadApplicants);
     };
   }, [auth.stage, auth.discordId]);
 
@@ -135,7 +140,28 @@ export function MembershipRequestsManager() {
         body: JSON.stringify({ playerId }),
       }).catch(() => undefined);
       setServerApplicants((current) => current.filter((player) => player.id !== playerId));
+      void refreshAuth().catch(() => undefined);
     }
+  };
+
+  const rejectPlayer = async (playerId: string) => {
+    if (!canManageApplicants) return;
+    const response = await fetch("/api/membership/applicants", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "reject", playerId }),
+    }).catch(() => null);
+    if (!response?.ok) return;
+    setServerApplicants((current) => current.filter((player) => player.id !== playerId));
+    setTargets((current) => {
+      const nextTargets = { ...current };
+      delete nextTargets[playerId];
+      return nextTargets;
+    });
+    void refreshAuth().catch(() => undefined);
   };
 
   return (
@@ -177,6 +203,7 @@ export function MembershipRequestsManager() {
                           {manageableCollectives.map((collective) => <option value={collective.id} key={collective.id}>{collective.name} · {collective.members.length}/{COLLECTIVE_LIMIT}</option>)}
                         </select>
                         <button type="button" onClick={() => assignPlayer(player.id)} data-testid={`approve-membership-${player.id}`}><Check size={14} /> Принять</button>
+                        <button type="button" className={styles.rejectButton} onClick={() => rejectPlayer(player.id)} data-testid={`reject-membership-${player.id}`}><X size={14} /> Отклонить</button>
                       </>
                     )}
                   </div>
