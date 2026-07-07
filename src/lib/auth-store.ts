@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 export type PortalAuthStage = "anonymous" | "discord-authorized" | "registered";
+export type PortalApplicationStatus = "pending" | "accepted" | "revoked" | "blocked";
 
 export type PortalAuthState = {
   stage: PortalAuthStage;
@@ -15,6 +16,7 @@ export type PortalAuthState = {
     characterName: string;
     classSlug: string;
   } | null;
+  applicationStatus: PortalApplicationStatus | null;
   authorizedAt: string | null;
   registeredAt: string | null;
 };
@@ -32,6 +34,7 @@ const EMPTY_AUTH: PortalAuthState = {
   avatarUrl: null,
   isPortalAdmin: false,
   registeredProfile: null,
+  applicationStatus: null,
   authorizedAt: null,
   registeredAt: null,
 };
@@ -54,6 +57,9 @@ function normalizeAuth(value: unknown): PortalAuthState {
     discordNickname: typeof candidate.discordNickname === "string" ? candidate.discordNickname.slice(0, 80) : null,
     avatarUrl: typeof candidate.avatarUrl === "string" ? candidate.avatarUrl : null,
     isPortalAdmin: candidate.isPortalAdmin === true,
+    applicationStatus: candidate.applicationStatus === "pending" || candidate.applicationStatus === "accepted" || candidate.applicationStatus === "revoked" || candidate.applicationStatus === "blocked"
+      ? candidate.applicationStatus
+      : null,
     registeredProfile: candidate.registeredProfile
       && typeof candidate.registeredProfile === "object"
       && typeof candidate.registeredProfile.displayName === "string"

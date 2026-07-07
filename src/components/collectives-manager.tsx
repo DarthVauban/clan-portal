@@ -28,6 +28,7 @@ import {
   hasAbsolutePortalRights,
   portalRoleLabels,
   portalRoles,
+  refreshCollectiveStore,
   todayIso,
   type Collective,
   type CollectiveRole,
@@ -191,7 +192,7 @@ export function CollectivesManager() {
         }
         : collective),
     }));
-    if (playerId !== LOCAL_PLAYER_ID && auth.isPortalAdmin) {
+    if (playerId !== LOCAL_PLAYER_ID) {
       await fetch("/api/membership/applicants", {
         method: "POST",
         headers: {
@@ -235,12 +236,12 @@ export function CollectivesManager() {
     setTargetCollectiveId(firstTarget?.id ?? "");
   };
 
-  const transferPlayer = () => {
+  const transferPlayer = async () => {
     if (!activeCollective || !transferPlayerId || !targetCollectiveId || !canTransfer) return;
     const target = state.collectives.find((collective) => collective.id === targetCollectiveId);
     const member = activeCollective.members.find((entry) => entry.playerId === transferPlayerId);
     if (!target || !member || member.role === "leader" || target.members.length >= COLLECTIVE_LIMIT) return;
-    updateState((current) => ({
+    await updateState((current) => ({
       ...current,
       collectives: current.collectives.map((collective) => {
         if (collective.id === activeCollective.id) return { ...collective, members: collective.members.filter((entry) => entry.playerId !== transferPlayerId) };
@@ -259,32 +260,41 @@ export function CollectivesManager() {
     setTargetCollectiveId("");
   };
 
-  const confirmDestructiveAction = () => {
+  const removePlayerFromPortal = async (action: "delete" | "block") => {
+    if (!confirmation) return;
+    if (confirmation.kind !== "remove-member" && confirmation.kind !== "revoke-player") return;
+    if (confirmation.id === LOCAL_PLAYER_ID) return;
+    if (action === "block" && !hasAbsoluteRights) return;
+
+    const response = await fetch("/api/collectives/members", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action, playerId: confirmation.id }),
+    }).catch(() => null);
+    if (!response?.ok) return;
+
+    await refreshCollectiveStore().catch(() => undefined);
+    setServerApplicants((current) => current.filter((player) => player.id !== confirmation.id));
+    setConfirmation(null);
+  };
+
+  const confirmDestructiveAction = async () => {
     if (!confirmation) return;
     if (confirmation.kind === "delete-collective") {
       if (!hasAbsoluteRights) return;
-      updateState((current) => ({ ...current, collectives: current.collectives.filter((collective) => collective.id !== confirmation.id) }));
+      await updateState((current) => ({ ...current, collectives: current.collectives.filter((collective) => collective.id !== confirmation.id) }));
       setSelectedCollectiveId(null);
     }
     if (confirmation.kind === "remove-member") {
-      if (!activeCollective || (!hasAbsoluteRights && currentRole !== "leader")) return;
-      const member = activeCollective.members.find((entry) => entry.playerId === confirmation.id);
-      if (!member || member.role === "leader") return;
-      updateState((current) => ({
-        ...current,
-        collectives: current.collectives.map((collective) => collective.id === activeCollective.id
-          ? { ...collective, members: collective.members.filter((entry) => entry.playerId !== confirmation.id) }
-          : collective),
-      }));
+      await removePlayerFromPortal("delete");
+      return;
     }
     if (confirmation.kind === "revoke-player") {
-      const membership = findMembership(state, confirmation.id);
-      const portalRole = getPortalRole(state, confirmation.id);
-      if (!hasAbsoluteRights || membership || portalRole !== "member" || confirmation.id === LOCAL_PLAYER_ID) return;
-      updateState((current) => ({
-        ...current,
-        revokedPlayerIds: [...new Set([...current.revokedPlayerIds, confirmation.id])],
-      }));
+      await removePlayerFromPortal("delete");
+      return;
     }
     setConfirmation(null);
   };
@@ -296,13 +306,13 @@ export function CollectivesManager() {
   const confirmationTitle = confirmation?.kind === "delete-collective"
     ? "Удалить коллектив?"
     : confirmation?.kind === "remove-member"
-      ? "Исключить игрока?"
+      ? "Удалить участника?"
       : "Удалить игрока с портала?";
   const confirmationText = confirmation?.kind === "delete-collective"
-    ? `Коллектив «${confirmationCollective?.name ?? ""}» будет удалён. Все его участники перейдут в список свободных игроков.`
+    ? `Коллектив «${confirmationCollective?.name ?? ""}» будет удалён. Участники останутся в портале без коллектива.`
     : confirmation?.kind === "remove-member"
-      ? `${confirmationPlayer?.displayName ?? "Игрок"} будет исключён из коллектива и останется свободным игроком с доступом к порталу.`
-      : `${confirmationPlayer?.displayName ?? "Игрок"} будет удалён из списка свободных игроков и потеряет доступ к порталу.`;
+      ? `${confirmationPlayer?.displayName ?? "Игрок"} будет удалён из коллектива. Полное удаление уберёт профиль с портала без возврата в заявки; блокировка дополнительно запретит вход по Discord ID.`
+      : `${confirmationPlayer?.displayName ?? "Игрок"} будет удалён из портала без возврата в список заявок.`;
 
   return (
     <div className={styles.collectivesLayout}>
@@ -468,7 +478,17 @@ export function CollectivesManager() {
           <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="destructive-action-title" data-testid="destructive-confirmation-modal">
             <header><div><span>Подтверждение действия</span><h2 id="destructive-action-title">{confirmationTitle}</h2></div><button type="button" onClick={() => setConfirmation(null)} aria-label="Закрыть"><X size={17} /></button></header>
             <div className={`${styles.modalHint} ${styles.dangerHint}`}><Trash2 size={15} /><span>{confirmationText}</span></div>
-            <footer><button type="button" className={styles.secondaryButton} onClick={() => setConfirmation(null)}>Отмена</button><button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={confirmDestructiveAction} data-testid="confirm-destructive-action">Подтвердить удаление</button></footer>
+            <footer>
+              <button type="button" className={styles.secondaryButton} onClick={() => setConfirmation(null)}>Отмена</button>
+              {confirmation.kind === "remove-member" || confirmation.kind === "revoke-player" ? (
+                <>
+                  <button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={() => removePlayerFromPortal("delete")} data-testid="confirm-full-delete">Полное удаление</button>
+                  {hasAbsoluteRights && <button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={() => removePlayerFromPortal("block")} data-testid="confirm-block-player">Удалить и заблокировать</button>}
+                </>
+              ) : (
+                <button type="button" className={`${styles.primaryButton} ${styles.dangerButton}`} onClick={confirmDestructiveAction} data-testid="confirm-destructive-action">Подтвердить удаление</button>
+              )}
+            </footer>
           </section>
         </div>
       )}

@@ -2,6 +2,7 @@ import "server-only";
 
 import { getDatabasePool } from "@/lib/database";
 import { isPortalAdminDiscordId, type PortalSession } from "@/lib/auth-session";
+import { canManageMembershipApplicants } from "@/lib/portal-player-repository";
 
 const LOCAL_PLAYER_ID = "local-user";
 const COLLECTIVE_LIMIT = 24;
@@ -144,7 +145,12 @@ export async function listPortalCollectiveState(session: PortalSession): Promise
         m.role,
         m.joined_at
       FROM portal_collectives c
-      LEFT JOIN portal_collective_members m ON m.collective_id = c.collective_id
+      LEFT JOIN (
+        SELECT m.*
+        FROM portal_collective_members m
+        JOIN portal_players p ON p.player_id = m.player_id
+        WHERE p.application_status NOT IN ('revoked', 'blocked')
+      ) m ON m.collective_id = c.collective_id
       ORDER BY c.created_at ASC, c.name ASC, m.joined_at ASC
     `),
     pool.query(`
@@ -159,7 +165,7 @@ export async function listPortalCollectiveState(session: PortalSession): Promise
         c.is_main
       FROM portal_players p
       LEFT JOIN portal_player_characters c ON c.player_id = p.player_id
-      WHERE p.application_status <> 'revoked'
+      WHERE p.application_status NOT IN ('revoked', 'blocked')
       ORDER BY p.registered_at ASC, c.is_main DESC, c.created_at ASC
     `),
     pool.query("SELECT player_id FROM portal_players WHERE application_status = 'revoked'"),
@@ -200,14 +206,14 @@ export async function listPortalCollectiveState(session: PortalSession): Promise
 }
 
 export async function savePortalCollectiveState(session: PortalSession, rawState: unknown) {
-  if (!isPortalAdminDiscordId(session.discordUser.id)) return null;
+  if (!(await canManageMembershipApplicants(session))) return null;
 
   const pool = getDatabasePool();
   const normalized = normalizeState(rawState, session);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const existingPlayers = await client.query("SELECT player_id FROM portal_players WHERE application_status <> 'revoked'");
+    const existingPlayers = await client.query("SELECT player_id FROM portal_players WHERE application_status NOT IN ('revoked', 'blocked')");
     const existingPlayerIds = new Set(existingPlayers.rows.map((row) => String(row.player_id)));
 
     await client.query("DELETE FROM portal_collective_members");
@@ -260,4 +266,29 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
   } finally {
     client.release();
   }
+}
+
+export async function leaveOwnCollective(session: PortalSession) {
+  const playerId = currentPlayerId(session);
+  const pool = getDatabasePool();
+  const membership = await pool.query(
+    `
+      SELECT
+        m.collective_id,
+        m.role,
+        COUNT(all_members.player_id)::int AS member_count
+      FROM portal_collective_members m
+      JOIN portal_collective_members all_members ON all_members.collective_id = m.collective_id
+      WHERE m.player_id = $1
+      GROUP BY m.collective_id, m.role
+      LIMIT 1
+    `,
+    [playerId],
+  );
+  const row = membership.rows[0];
+  if (!row) return listPortalCollectiveState(session);
+  if (row.role === "leader" && Number(row.member_count) > 1) return null;
+
+  await pool.query("DELETE FROM portal_collective_members WHERE player_id = $1", [playerId]);
+  return listPortalCollectiveState(session);
 }

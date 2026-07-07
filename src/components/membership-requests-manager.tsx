@@ -64,10 +64,11 @@ export function MembershipRequestsManager() {
   const localPlayers = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
   const currentServerPlayerId = getServerPlayerId(auth.discordId);
   const players = useMemo(() => {
-    const includeLocalProfile = !auth.isPortalAdmin && (!currentServerPlayerId || !serverApplicants.some((player) => player.id === currentServerPlayerId));
+    const canUseLocalApplicantFallback = auth.applicationStatus === "pending" || auth.applicationStatus === null;
+    const includeLocalProfile = !auth.isPortalAdmin && canUseLocalApplicantFallback && (!currentServerPlayerId || !serverApplicants.some((player) => player.id === currentServerPlayerId));
     const combined = includeLocalProfile ? [...localPlayers, ...serverApplicants] : serverApplicants;
     return combined.filter((player, index, allPlayers) => allPlayers.findIndex((candidate) => candidate.id === player.id) === index);
-  }, [auth.isPortalAdmin, currentServerPlayerId, localPlayers, serverApplicants]);
+  }, [auth.applicationStatus, auth.isPortalAdmin, currentServerPlayerId, localPlayers, serverApplicants]);
   const assignedIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
   const applicants = players.filter((player) => !assignedIds.has(player.id));
   const membership = findMembership(state, LOCAL_PLAYER_ID);
@@ -124,7 +125,7 @@ export function MembershipRequestsManager() {
         }
         : collective),
     }));
-    if (playerId !== LOCAL_PLAYER_ID && auth.isPortalAdmin) {
+    if (playerId !== LOCAL_PLAYER_ID) {
       await fetch("/api/membership/applicants", {
         method: "POST",
         headers: {

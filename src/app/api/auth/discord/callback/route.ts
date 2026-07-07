@@ -104,6 +104,12 @@ export async function GET(request: NextRequest) {
     const discordUser = await fetchDiscordUser(accessToken);
     if (!discordUser) return redirectWithError(request, "discord_user");
     const existingRegistration = await getExistingPortalRegistration(discordUser.id);
+    if (existingRegistration?.applicationStatus === "blocked") {
+      const response = redirectWithError(request, "blocked");
+      response.cookies.set(AUTH_SESSION_COOKIE, "", authCookieOptions(0));
+      response.cookies.set(AUTH_STATE_COOKIE, "", oauthStateCookieOptions(0));
+      return response;
+    }
 
     const session: PortalSession = {
       discordUser,

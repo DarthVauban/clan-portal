@@ -8,6 +8,7 @@ export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
 export const OAUTH_STATE_MAX_AGE_SECONDS = 60 * 10;
 
 export type PortalAuthStage = "anonymous" | "discord-authorized" | "registered";
+export type PortalApplicationStatus = "pending" | "accepted" | "revoked" | "blocked";
 
 export type DiscordSessionUser = {
   id: string;
@@ -34,6 +35,7 @@ export type PublicPortalAuthState = {
     characterName: string;
     classSlug: string;
   } | null;
+  applicationStatus: PortalApplicationStatus | null;
   authorizedAt: string | null;
   registeredAt: string | null;
 };
@@ -45,6 +47,7 @@ export const PUBLIC_ANONYMOUS_AUTH: PublicPortalAuthState = {
   avatarUrl: null,
   isPortalAdmin: false,
   registeredProfile: null,
+  applicationStatus: null,
   authorizedAt: null,
   registeredAt: null,
 };
@@ -134,6 +137,7 @@ export function sessionToPublicAuth(session: PortalSession | null): PublicPortal
     avatarUrl: getDiscordAvatarUrl(session.discordUser),
     isPortalAdmin: isPortalAdminDiscordId(session.discordUser.id),
     registeredProfile: null,
+    applicationStatus: null,
     authorizedAt: session.authorizedAt,
     registeredAt: session.registeredAt,
   };

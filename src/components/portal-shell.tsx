@@ -9,6 +9,7 @@ import {
   ChevronDown,
   CircleUserRound,
   Database,
+  DoorOpen,
   HandCoins,
   Home,
   LockKeyhole,
@@ -24,7 +25,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AuthOnboarding } from "@/components/auth-onboarding";
-import { findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, refreshCollectiveStore, useCollectiveStore } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
 import { hasCompletedRegistration, LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 
@@ -43,6 +44,7 @@ const requestNavigation = [
 
 const utilityNavigation = [
   { href: "/craft-calculator", label: "Калькулятор крафта", icon: Calculator, restricted: true },
+  { href: "/blocked-users", label: "Заблокированные", icon: ShieldX, absoluteOnly: true },
   { href: "/profile", label: "Мой профиль", icon: CircleUserRound },
 ];
 
@@ -90,6 +92,7 @@ function AccessDenied({ revoked = false, pendingApproval = false }: { revoked?: 
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [leavingCollective, setLeavingCollective] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { profile, updateProfile } = useLocalProfile();
@@ -169,14 +172,32 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const absoluteRights = auth.isPortalAdmin || hasAbsolutePortalRights(state, LOCAL_PLAYER_ID);
   const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
   const collectiveAccess = absoluteRights || Boolean(membership);
+  const canLeaveCollective = Boolean(membership && (membership.member.role !== "leader" || membership.collective.members.length <= 1));
   const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership");
   const pendingRestrictedRoute = !collectiveAccess && !pendingAllowedRoute;
   const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
   const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
-  const visibleUtilityNavigation = collectiveAccess ? utilityNavigation : [];
+  const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => !("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights) : [];
+  const blockedUsersRestrictedRoute = pathname.startsWith("/blocked-users") && !absoluteRights;
   const initials = profile.displayName.trim().slice(0, 2).toLocaleUpperCase("ru") || "CP";
+  const waitingLabel = auth.applicationStatus === "accepted" ? "Без коллектива" : "Ожидает принятия";
+  const waitingCaption = auth.applicationStatus === "accepted" ? "Ожидает распределения" : "Заявка на вступление";
 
   const closeMenu = () => setMenuOpen(false);
+  const handleLeaveCollective = async () => {
+    if (!canLeaveCollective || leavingCollective) return;
+    setLeavingCollective(true);
+    const response = await fetch("/api/collectives/leave", {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }).catch(() => null);
+    if (response?.ok) {
+      await refreshCollectiveStore().catch(() => undefined);
+      closeMenu();
+      router.replace("/requests/membership");
+    }
+    setLeavingCollective(false);
+  };
   const handleLogout = async () => {
     await logout().catch(() => undefined);
     closeMenu();
@@ -227,8 +248,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         <div className="sidebar-status">
           <div className="status-icon"><ShieldCheck size={18} /></div>
           <div>
-            <strong>{collectiveAccess ? portalRoleLabels[portalRole] : "Ожидает принятия"}</strong>
-            <span>{collectiveAccess ? "Версия 0.1" : "Заявка на вступление"}</span>
+            <strong>{collectiveAccess ? portalRoleLabels[portalRole] : waitingLabel}</strong>
+            <span>{collectiveAccess ? "Версия 0.1" : waitingCaption}</span>
           </div>
           <Sparkles size={15} className="status-spark" />
         </div>
@@ -244,13 +265,19 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             Единое пространство клана
           </div>
           <div className="topbar-actions">
+            {canLeaveCollective && (
+              <button className="leave-collective-button" type="button" onClick={handleLeaveCollective} disabled={leavingCollective} aria-label="Покинуть коллектив">
+                <DoorOpen size={16} />
+                <span>Покинуть</span>
+              </button>
+            )}
             <button className="logout-button" type="button" onClick={handleLogout} aria-label="Выйти из портала">
               <LogOut size={16} />
               <span>Выйти</span>
             </button>
             <button className="collective-switcher" type="button" aria-label="Выбранный коллектив">
               <span className="collective-symbol">{membership?.collective.tag?.slice(0, 1) || "—"}</span>
-              <span className="collective-name">{membership?.collective.name ?? "Ожидает принятия"}</span>
+              <span className="collective-name">{membership?.collective.name ?? waitingLabel}</span>
               <ChevronDown size={16} />
             </button>
             {collectiveAccess ? (
@@ -265,7 +292,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="main-content">{revoked ? <AccessDenied revoked /> : pendingRestrictedRoute ? <AccessDenied pendingApproval /> : children}</main>
+        <main className="main-content">{revoked ? <AccessDenied revoked /> : blockedUsersRestrictedRoute ? <AccessDenied /> : pendingRestrictedRoute ? <AccessDenied pendingApproval /> : children}</main>
       </div>
     </div>
   );
