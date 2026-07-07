@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
     const session: PortalSession = {
       discordUser,
       authorizedAt: new Date().toISOString(),
-      registeredAt: existingRegistration?.registeredAt ?? null,
+      registeredAt: existingRegistration?.applicationStatus === "revoked" ? null : existingRegistration?.registeredAt ?? null,
     };
     const response = NextResponse.redirect(new URL("/", getPublicAppUrl(request)));
     response.cookies.set(AUTH_SESSION_COOKIE, createSessionCookieValue(session), authCookieOptions());

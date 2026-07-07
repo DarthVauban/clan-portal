@@ -38,6 +38,7 @@ const EMPTY_AUTH: PortalAuthState = {
   authorizedAt: null,
   registeredAt: null,
 };
+const AUTH_STORAGE_KEY = "clan-portal:auth-state";
 
 let currentAuth = EMPTY_AUTH;
 let loaded = false;
@@ -76,6 +77,28 @@ function normalizeAuth(value: unknown): PortalAuthState {
   };
 }
 
+function persistAuth(auth: PortalAuthState) {
+  if (typeof window === "undefined") return;
+  if (auth.stage === "anonymous") {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    return;
+  }
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+}
+
+function readCachedAuth() {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const auth = normalizeAuth(JSON.parse(raw));
+    return auth.stage === "anonymous" ? null : auth;
+  } catch {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+}
+
 function notify() {
   listeners.forEach((listener) => listener());
 }
@@ -83,6 +106,7 @@ function notify() {
 function setAuth(auth: PortalAuthState, markLoaded = true) {
   currentAuth = auth;
   loaded = markLoaded;
+  if (markLoaded) persistAuth(auth);
   notify();
 }
 
@@ -115,6 +139,13 @@ export function refreshPortalAuth() {
 }
 
 function getSnapshot() {
+  if (!loaded) {
+    const cachedAuth = readCachedAuth();
+    if (cachedAuth) {
+      currentAuth = cachedAuth;
+      loaded = true;
+    }
+  }
   return currentAuth;
 }
 

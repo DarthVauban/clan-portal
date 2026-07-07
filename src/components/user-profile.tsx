@@ -18,6 +18,7 @@ import {
 import { useState } from "react";
 import { corepunkClasses, corepunkClassesBySlug } from "@/lib/corepunk-classes";
 import { collectiveRoleLabels, findMembership, formatCollectiveDate, getPortalRole, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { usePortalAuth } from "@/lib/auth-store";
 import { LOCAL_PLAYER_ID, type PlayerCharacter, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/profile/profile.module.css";
 
@@ -38,6 +39,7 @@ function formatJoinedAt(value: string) {
 
 export function UserProfile() {
   const { profile, updateProfile } = useLocalProfile();
+  const { auth } = usePortalAuth();
   const { state: collectiveState } = useCollectiveStore();
   const [openClassSelector, setOpenClassSelector] = useState<string | null>(null);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
@@ -124,9 +126,9 @@ export function UserProfile() {
 
       <section className={styles.accountGrid}>
         <label className={`${styles.infoField} ${styles.disabledField}`}>
-          <span><MessageCircle size={15} /> Ник в Discord <em>Скоро</em></span>
-          <input type="text" placeholder="Будет получен из Discord" disabled data-testid="discord-nickname" />
-          <small>Поле заполнится автоматически после подключения авторизации.</small>
+          <span><MessageCircle size={15} /> Ник в Discord</span>
+          <input type="text" value={auth.discordNickname ?? "Не подключён"} disabled data-testid="discord-nickname" />
+          <small>Имя берётся из Discord-авторизации и обновляется автоматически при входе.</small>
         </label>
 
         <div className={`${styles.infoField} ${styles.collectivePlaceholder}`} data-testid="collective-placeholder">
