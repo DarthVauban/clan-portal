@@ -107,6 +107,26 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     }));
   }, [auth.isPortalAdmin, localPortalRole, updateState]);
 
+  useEffect(() => {
+    if (!registrationComplete) return;
+    const mainCharacter = profile.characters.find((character) => character.id === profile.mainCharacterId)
+      ?? profile.characters.find((character) => character.confirmed);
+    if (!mainCharacter?.classSlug || !mainCharacter.name.trim() || !profile.displayName.trim()) return;
+
+    void fetch("/api/auth/register", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        profileName: profile.displayName.trim(),
+        characterName: mainCharacter.name.trim(),
+        classSlug: mainCharacter.classSlug,
+      }),
+    }).catch(() => undefined);
+  }, [profile.characters, profile.displayName, profile.mainCharacterId, registrationComplete]);
+
   if (loading) {
     return (
       <main className="auth-gate" data-testid="auth-loading">

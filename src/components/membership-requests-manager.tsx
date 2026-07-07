@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Check, Clock3, ExternalLink, Search, UserPlus, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { corepunkClassesBySlug } from "@/lib/corepunk-classes";
 import {
   COLLECTIVE_LIMIT,
+  type DirectoryPlayer,
   findMembership,
   getMainCharacter,
   getPlayerDirectory,
@@ -14,17 +15,59 @@ import {
   todayIso,
   useCollectiveStore,
 } from "@/lib/collective-store";
+import { usePortalAuth } from "@/lib/auth-store";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/requests/membership/membership.module.css";
 
 const assigningRoles = new Set(["leader", "officer", "recruiter"]);
 
+function getServerPlayerId(discordId: string | null) {
+  return discordId ? `player-${discordId}` : null;
+}
+
+function normalizeServerApplicants(value: unknown): DirectoryPlayer[] {
+  if (!value || typeof value !== "object") return [];
+  const applicants = (value as { applicants?: unknown }).applicants;
+  if (!Array.isArray(applicants)) return [];
+  return applicants.flatMap((applicant) => {
+    if (!applicant || typeof applicant !== "object") return [];
+    const item = applicant as Partial<DirectoryPlayer>;
+    if (typeof item.id !== "string" || typeof item.displayName !== "string") return [];
+    const characters = Array.isArray(item.characters)
+      ? item.characters.flatMap((character) => {
+        if (!character || typeof character !== "object") return [];
+        const entry = character as { id?: unknown; name?: unknown; classSlug?: unknown };
+        return typeof entry.id === "string" && typeof entry.name === "string" && typeof entry.classSlug === "string"
+          ? [{ id: entry.id, name: entry.name, classSlug: entry.classSlug }]
+          : [];
+      })
+      : [];
+    return [{
+      id: item.id,
+      displayName: item.displayName,
+      discordNickname: typeof item.discordNickname === "string" ? item.discordNickname : null,
+      characters,
+      mainCharacterId: typeof item.mainCharacterId === "string" ? item.mainCharacterId : characters[0]?.id ?? null,
+      local: false,
+    }];
+  });
+}
+
 export function MembershipRequestsManager() {
   const { profile } = useLocalProfile();
+  const { auth } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
   const [query, setQuery] = useState("");
   const [targets, setTargets] = useState<Record<string, string>>({});
-  const players = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
+  const [serverApplicants, setServerApplicants] = useState<DirectoryPlayer[]>([]);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const localPlayers = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
+  const currentServerPlayerId = getServerPlayerId(auth.discordId);
+  const players = useMemo(() => {
+    const includeLocalProfile = !auth.isPortalAdmin && (!currentServerPlayerId || !serverApplicants.some((player) => player.id === currentServerPlayerId));
+    const combined = includeLocalProfile ? [...localPlayers, ...serverApplicants] : serverApplicants;
+    return combined.filter((player, index, allPlayers) => allPlayers.findIndex((candidate) => candidate.id === player.id) === index);
+  }, [auth.isPortalAdmin, currentServerPlayerId, localPlayers, serverApplicants]);
   const assignedIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
   const applicants = players.filter((player) => !assignedIds.has(player.id));
   const membership = findMembership(state, LOCAL_PLAYER_ID);
@@ -40,7 +83,32 @@ export function MembershipRequestsManager() {
       .some((value) => value.toLocaleLowerCase("ru").includes(normalizedQuery));
   });
 
-  const assignPlayer = (playerId: string) => {
+  useEffect(() => {
+    if (auth.stage === "anonymous") return;
+    let cancelled = false;
+    async function loadApplicants() {
+      try {
+        const response = await fetch("/api/membership/applicants", {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Failed to load applicants.");
+        const applicants = normalizeServerApplicants(await response.json());
+        if (!cancelled) {
+          setServerApplicants(applicants);
+          setServerError(null);
+        }
+      } catch {
+        if (!cancelled) setServerError("Не удалось загрузить заявки с сервера.");
+      }
+    }
+    void loadApplicants();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.stage, auth.discordId]);
+
+  const assignPlayer = async (playerId: string) => {
     const targetId = targets[playerId] || manageableCollectives[0]?.id;
     if (!targetId || assignedIds.has(playerId)) return;
     updateState((current) => ({
@@ -56,6 +124,17 @@ export function MembershipRequestsManager() {
         }
         : collective),
     }));
+    if (playerId !== LOCAL_PLAYER_ID && auth.isPortalAdmin) {
+      await fetch("/api/membership/applicants", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ playerId }),
+      }).catch(() => undefined);
+      setServerApplicants((current) => current.filter((player) => player.id !== playerId));
+    }
   };
 
   return (
@@ -71,6 +150,8 @@ export function MembershipRequestsManager() {
           <div><span>Новые участники</span><h2>Заявки на вступление</h2><p>Игроки без назначенного коллектива автоматически появляются в этом списке.</p></div>
           <label><Search size={15} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти игрока или персонажа..." /></label>
         </header>
+
+        {serverError && <div className={styles.readonlyNote}>{serverError}</div>}
 
         {filteredApplicants.length > 0 ? (
           <div className={styles.requestList}>

@@ -14,6 +14,12 @@ export type PortalAuthState = {
   registeredAt: string | null;
 };
 
+export type PortalRegistrationPayload = {
+  profileName: string;
+  characterName: string;
+  classSlug: string;
+};
+
 const EMPTY_AUTH: PortalAuthState = {
   stage: "anonymous",
   discordId: null,
@@ -107,7 +113,11 @@ export function usePortalAuth() {
   const loginWithDiscord = () => {
     window.location.href = "/api/auth/discord/login";
   };
-  const completeRegistration = () => requestAuth("/api/auth/register", { method: "POST" });
+  const completeRegistration = (payload: PortalRegistrationPayload) => requestAuth("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
   const logout = () => requestAuth("/api/auth/logout", { method: "POST" });
 
   return {

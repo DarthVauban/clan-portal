@@ -66,7 +66,11 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" }) {
       };
     });
     try {
-      await completeRegistration();
+      await completeRegistration({
+        profileName: profileName.trim(),
+        characterName: characterName.trim(),
+        classSlug,
+      });
       router.replace("/requests/membership");
     } catch {
       setFormError("Сессия Discord не найдена. Авторизуйтесь через Discord еще раз.");
