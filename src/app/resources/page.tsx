@@ -1,4 +1,5 @@
-import { ResourcesManager, type ResourceCatalogItem } from "@/components/resources-manager";
+import type { ResourceCatalogItem } from "@/components/resources-manager";
+import { LazyResourcesManager } from "@/components/lazy-client-components";
 import { getCatalogDataset } from "@/lib/corepunk-item-repository";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function ResourcesPage() {
           <p>Баланс валюты и материалов каждого коллектива с автоматической сводкой по всему клану.</p>
         </div>
       </section>
-      <ResourcesManager resources={resources} />
+      <LazyResourcesManager resources={resources} />
     </div>
   );
 }

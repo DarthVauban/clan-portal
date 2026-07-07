@@ -1,4 +1,4 @@
-import { UserProfile } from "@/components/user-profile";
+import { LazyUserProfile } from "@/components/lazy-client-components";
 
 export default function ProfilePage() {
   return (
@@ -10,7 +10,7 @@ export default function ProfilePage() {
           <p>Ваши персонажи, игровые классы и принадлежность к коллективу в одном месте.</p>
         </div>
       </section>
-      <UserProfile />
+      <LazyUserProfile />
     </div>
   );
 }

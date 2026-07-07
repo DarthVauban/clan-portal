@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:22-alpine AS base
 
 ENV PNPM_HOME="/pnpm"
@@ -9,7 +11,7 @@ WORKDIR /app
 FROM base AS dependencies
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
 
 FROM base AS builder
 
@@ -35,7 +37,6 @@ COPY --from=builder /app/public ./public
 RUN mkdir .next && chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/database ./database
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate-and-seed.mjs ./scripts/migrate-and-seed.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/src/data/corepunk-items.json ./src/data/corepunk-items.json

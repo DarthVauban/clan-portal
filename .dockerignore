@@ -6,3 +6,8 @@ node_modules
 .env*
 README.md
 docs
+.codex
+.agents
+coverage
+scripts/.cache
+*.tsbuildinfo

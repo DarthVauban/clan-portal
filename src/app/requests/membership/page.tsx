@@ -1,4 +1,4 @@
-import { MembershipRequestsManager } from "@/components/membership-requests-manager";
+import { LazyMembershipRequestsManager } from "@/components/lazy-client-components";
 
 export default function MembershipRequestsPage() {
   return (
@@ -10,7 +10,7 @@ export default function MembershipRequestsPage() {
           <p>Единая очередь новых игроков и участников, которые ещё не распределены по коллективам.</p>
         </div>
       </section>
-      <MembershipRequestsManager />
+      <LazyMembershipRequestsManager />
     </div>
   );
 }
