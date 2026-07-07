@@ -22,10 +22,8 @@ services:
 
   web:
     container_name: clan-portal-web
-    image: clan-portal:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/darthvauban/clan-portal:latest
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       db:
