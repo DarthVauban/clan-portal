@@ -103,6 +103,15 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     const matchesQuality = activeQuality === "all" || resource.qualities.includes(activeQuality) || resource.quality === activeQuality;
     return matchesQuery && matchesProfession && matchesQuality;
   }).slice(0, 80);
+  const clanResourceTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const collective of collectiveState.collectives) {
+      const balance = resourceState.balances[collective.id];
+      if (!balance) continue;
+      for (const [slug, value] of Object.entries(balance.resources)) totals[slug] = (totals[slug] ?? 0) + value;
+    }
+    return totals;
+  }, [collectiveState.collectives, resourceState.balances]);
   const requestedAmount = Math.max(1, Math.floor(Number(amount) || 1));
   const requesterName = profile.displayName.trim() || "Игрок";
   const requesterId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
@@ -114,6 +123,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const issuedCount = requestState.resourceRequests.filter((request) => request.status === "issued").length;
 
   const availableAmount = (collectiveId: string, resourceSlug: string) => resourceState.balances[collectiveId]?.resources[resourceSlug] ?? 0;
+  const clanAvailableAmount = (resourceSlug: string) => clanResourceTotals[resourceSlug] ?? 0;
   const canManageRequest = (request: ResourceRequest) => {
     if (clanLeadershipRights) return true;
     const ownMembership = findMembership(collectiveState, LOCAL_PLAYER_ID);
@@ -236,7 +246,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   >
                     <span>{resource.image && <LoadableImage src={resource.image} alt="" width={42} height={42} />}</span>
                     <div><strong>{resource.name}</strong><small>{resource.englishName} · T{resource.tier}</small></div>
-                    {activeCollective && <em>{formatAmount(availableAmount(activeCollective.id, resource.slug))}</em>}
+                    <em>{formatAmount(clanAvailableAmount(resource.slug))}</em>
                   </button>
                 ))}
               </div>
@@ -247,7 +257,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                 {selectedResource ? (
                   <>
                     <span>{selectedResource.image && <LoadableImage src={selectedResource.image} alt="" width={44} height={44} />}</span>
-                    <div><strong>{selectedResource.name}</strong><small>Доступно: {activeCollective ? formatAmount(availableAmount(activeCollective.id, selectedResource.slug)) : "0"}</small></div>
+                    <div><strong>{selectedResource.name}</strong><small>В банке клана: {formatAmount(clanAvailableAmount(selectedResource.slug))}</small></div>
                   </>
                 ) : <p>Ресурс не выбран</p>}
               </div>
@@ -274,8 +284,9 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
           <header><span>Очередь</span><h2>Заявки на ресурсы</h2></header>
           {activeResourceRequests.length > 0 ? activeResourceRequests.map((request) => {
             const canManage = canManageRequest(request);
-            const available = availableAmount(request.collectiveId, request.resourceSlug);
-            const canIssue = canManage && request.status === "approved" && available >= request.amount;
+            const collectiveAvailable = availableAmount(request.collectiveId, request.resourceSlug);
+            const clanAvailable = clanAvailableAmount(request.resourceSlug);
+            const canIssue = canManage && request.status === "approved" && collectiveAvailable >= request.amount;
             return (
               <article className={styles.requestCard} data-status={request.status} key={request.id}>
                 <div className={styles.requestIcon}>{request.resourceImage && <LoadableImage src={request.resourceImage} alt="" width={52} height={52} />}</div>
@@ -286,7 +297,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   </div>
                   <p>{formatAmount(request.amount)} ед. · {request.collectiveName} · {request.requester.name}</p>
                   {request.purpose && <em>{request.purpose}</em>}
-                  <small>Создано {formatRequestDate(request.createdAt)} · доступно {formatAmount(available)}</small>
+                  <small>Создано {formatRequestDate(request.createdAt)} · в банке клана {formatAmount(clanAvailable)}</small>
                 </div>
                 <div className={styles.requestActions}>
                   {canManage && request.status === "pending" && (

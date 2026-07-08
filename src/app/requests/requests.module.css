@@ -24,6 +24,7 @@
 .requestPickerPanel .searchField,.requestPickerPanel .pickList,.requestDetailsPanel .field,.requestDetailsPanel .recipeBox,.requestDetailsPanel .requirementPreview { margin: 0; }
 .requestPickerPanel .pickList { max-height: 520px; padding-right: 6px; }
 .compactFieldGrid { display: grid; grid-template-columns: 130px minmax(0,1fr); gap: 10px; align-items: stretch; }
+.compactFieldGridSingle { grid-template-columns: 130px; }
 .filterChips { display: grid; gap: 9px; }
 .filterChips > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .filterChips span { width: 100%; color: #716458; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
@@ -70,7 +71,9 @@
 .requirementPreview div { min-width: 0; min-height: 40px; display: grid; grid-template-columns: 32px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 6px; border: 1px solid rgba(255,255,255,.055); border-radius: 8px; background: rgba(255,255,255,.012); }
 .requirementPreview span { width: 30px; height: 30px; display: grid; place-items: center; }
 .requirementPreview strong { overflow: hidden; color: #c7cac8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.requirementPreview em { color: #d1b986; font-size: 11px; font-style: normal; }
+.requirementPreview em { display: grid; gap: 2px; color: #d1b986; font-size: 11px; font-style: normal; text-align: right; }
+.requirementPreview em b { color: #d1b986; font-size: 11px; font-weight: 700; }
+.requirementPreview em small { color: #687178; font-size: 10px; font-style: normal; white-space: nowrap; }
 .requestForm > footer,.requestDetailsPanel > footer { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; padding: 13px 0 0; border-top: 1px solid rgba(255,255,255,.06); }
 .requestForm > footer { margin-top: 18px; padding: 13px 18px; }
 .requestForm > footer span,.requestDetailsPanel > footer span { color: #6f777d; font-size: 11px; }

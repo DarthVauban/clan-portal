@@ -143,7 +143,8 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const selectedItem = craftItems.find((item) => item.slug === selectedItemSlug) ?? null;
   const selectedRecipe = selectedItem?.recipes.find((recipe) => recipe.id === selectedRecipeId) ?? selectedItem?.recipes[0] ?? null;
   const requestedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
-  const requirements = buildRequirements(referenceBySlug, selectedRecipe, requestedQuantity, selectedItemSlug);
+  const requirementsPerCraft = buildRequirements(referenceBySlug, selectedRecipe, 1, selectedItemSlug);
+  const requirements = requirementsPerCraft.map((requirement) => ({ ...requirement, quantity: requirement.quantity * requestedQuantity }));
   const tierOptions = useMemo(() => [...new Set(craftItems.map((item) => item.tier))]
     .filter((tier) => Number.isFinite(tier) && tier > 0)
     .sort((first, second) => first - second), [craftItems]);
@@ -184,8 +185,12 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     }
     return total;
   }, [collectiveState.collectives, resourceState.balances]);
-  const coveredResources = requirements.filter((requirement) => requirement.type === "resource").reduce((total, requirement) => total + Math.min(requirement.quantity, clanBalances[requirement.slug] ?? 0), 0);
-  const requiredResources = requirements.filter((requirement) => requirement.type === "resource").reduce((total, requirement) => total + requirement.quantity, 0);
+  const trackedClanResources = requirementsPerCraft.filter((requirement) => requirement.type === "resource");
+  const clanCoveredCraftCapacity = trackedClanResources.length > 0
+    ? Math.min(...trackedClanResources.map((requirement) => Math.floor((clanBalances[requirement.slug] ?? 0) / requirement.quantity)))
+    : 0;
+  const coveredCrafts = Math.min(requestedQuantity, clanCoveredCraftCapacity);
+  const showClanBankCoverage = funding === "clan";
   const requesterName = profile.displayName.trim() || "Игрок";
   const currentActorId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
   const currentActorIds = new Set([currentActorId, LOCAL_PLAYER_ID]);
@@ -363,26 +368,35 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                 <div className={styles.selectedPreview}><p>Предмет не выбран</p></div>
               )}
 
-              <div className={styles.compactFieldGrid}>
+              <div className={`${styles.compactFieldGrid} ${!showClanBankCoverage ? styles.compactFieldGridSingle : ""}`}>
                 <label className={styles.field}>
                   <span>Количество</span>
                   <input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
                 </label>
-                <div className={styles.coveragePreview}>
-                  <strong>{formatAmount(coveredResources)} / {formatAmount(requiredResources)}</strong>
-                  <small>ресурсов покрыто банком</small>
-                </div>
+                {showClanBankCoverage && (
+                  <div className={styles.coveragePreview}>
+                    <strong>{formatAmount(coveredCrafts)} / {formatAmount(requestedQuantity)}</strong>
+                    <small>крафтов покрывает банк</small>
+                  </div>
+                )}
               </div>
 
               {requirements.length > 0 && (
                 <div className={styles.requirementPreview}>
-                  {requirements.slice(0, 8).map((requirement) => (
-                    <div key={requirement.slug}>
-                      <span>{requirement.image && <LoadableImage src={requirement.image} alt="" width={30} height={30} />}</span>
-                      <strong>{requirement.name}</strong>
-                      <em>x{formatAmount(requirement.quantity)}</em>
-                    </div>
-                  ))}
+                  {requirements.slice(0, 8).map((requirement) => {
+                    const available = clanBalances[requirement.slug] ?? 0;
+                    const showBankAmount = showClanBankCoverage && requirement.type === "resource";
+                    return (
+                      <div key={requirement.slug}>
+                        <span>{requirement.image && <LoadableImage src={requirement.image} alt="" width={30} height={30} />}</span>
+                        <strong>{requirement.name}</strong>
+                        <em>
+                          <b>{showBankAmount ? `Нужно ${formatAmount(requirement.quantity)}` : `x${formatAmount(requirement.quantity)}`}</b>
+                          {showBankAmount && <small>В клане {formatAmount(available)}</small>}
+                        </em>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
