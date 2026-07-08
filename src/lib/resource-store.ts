@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 export type CollectiveBalance = {
   ancientCoin: number;
@@ -23,6 +23,7 @@ export type ResourceState = {
 };
 
 const STORAGE_KEY = "clan-portal:resource-balances";
+const SERVER_MIGRATION_KEY = "clan-portal:resource-balances-server-migrated";
 const STORE_EVENT = "clan-portal:resource-balances-change";
 const EMPTY_STATE: ResourceState = { balances: {}, operations: [] };
 let cachedRaw: string | null | undefined;
@@ -98,9 +99,100 @@ function saveState(state: ResourceState) {
   window.dispatchEvent(new Event(STORE_EVENT));
 }
 
+function hasResourceContent(state: ResourceState) {
+  return state.operations.length > 0 || Object.values(state.balances).some((balance) => (
+    balance.ancientCoin > 0
+    || Object.keys(balance.resources).length > 0
+    || Object.values(balance.resources).some((amount) => amount > 0)
+  ));
+}
+
+async function requestServerStateResult(method: "GET" | "PUT", state?: ResourceState) {
+  const response = await fetch("/api/resources/state", {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(method === "PUT" ? { "Content-Type": "application/json" } : {}),
+    },
+    body: method === "PUT" ? JSON.stringify({ state }) : undefined,
+    cache: "no-store",
+  });
+  if (!response.ok) return { state: null, status: response.status };
+  const payload = await response.json().catch(() => null) as { state?: unknown } | null;
+  return { state: payload?.state ? normalizeState(payload.state) : null, status: response.status };
+}
+
+async function requestServerState(method: "GET" | "PUT", state?: ResourceState) {
+  return (await requestServerStateResult(method, state)).state;
+}
+
+export async function refreshResourceStore() {
+  const localState = getSnapshot();
+  const serverState = await requestServerState("GET");
+  if (!serverState) return localState;
+
+  const shouldMigrateLocalState = typeof window !== "undefined"
+    && window.localStorage.getItem(SERVER_MIGRATION_KEY) !== "1"
+    && hasResourceContent(localState);
+  if (shouldMigrateLocalState) {
+    const migrationResult = await requestServerStateResult("PUT", localState).catch(() => ({ state: null, status: 0 }));
+    if (migrationResult.state) {
+      window.localStorage.setItem(SERVER_MIGRATION_KEY, "1");
+      saveState(migrationResult.state);
+      return migrationResult.state;
+    }
+    if (migrationResult.status === 401 || migrationResult.status === 403 || migrationResult.status === 400) {
+      window.localStorage.setItem(SERVER_MIGRATION_KEY, "1");
+    } else {
+      return localState;
+    }
+  }
+
+  saveState(serverState);
+  return serverState;
+}
+
+async function saveStateToServer(state: ResourceState) {
+  const serverState = await requestServerState("PUT", state).catch(() => null);
+  if (serverState) {
+    if (typeof window !== "undefined") window.localStorage.setItem(SERVER_MIGRATION_KEY, "1");
+    saveState(serverState);
+    return serverState;
+  }
+  const restoredState = await requestServerState("GET").catch(() => null);
+  if (restoredState) {
+    saveState(restoredState);
+    return restoredState;
+  }
+  return state;
+}
+
 export function useResourceStore() {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_STATE);
-  const updateState = (updater: (current: ResourceState) => ResourceState) => saveState(updater(state));
+  useEffect(() => {
+    let disposed = false;
+    let events: EventSource | null = null;
+    const sync = () => {
+      if (!disposed) void refreshResourceStore().catch(() => undefined);
+    };
+    sync();
+    if (typeof EventSource !== "undefined") {
+      events = new EventSource("/api/resources/events");
+      events.addEventListener("resources-changed", sync);
+      events.addEventListener("ready", sync);
+    }
+    window.addEventListener("focus", sync);
+    return () => {
+      disposed = true;
+      events?.close();
+      window.removeEventListener("focus", sync);
+    };
+  }, []);
+  const updateState = (updater: (current: ResourceState) => ResourceState) => {
+    const nextState = normalizeState(updater(state));
+    saveState(nextState);
+    return saveStateToServer(nextState);
+  };
   return { state, updateState };
 }
 

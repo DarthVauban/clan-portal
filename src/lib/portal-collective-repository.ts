@@ -6,6 +6,7 @@ import { isPortalAdminDiscordId, type PortalSession } from "@/lib/auth-session";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
 import { emitPortalStateChange } from "@/lib/portal-live-events";
 import { canManageMembershipApplicants, hasPortalManagementRights } from "@/lib/portal-player-repository";
+import { emitPortalResourceChange } from "@/lib/portal-resource-events";
 import {
   applicantManagerRoles,
   collectiveRoleValues,
@@ -388,6 +389,15 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
       `,
     );
     const previousMemberIds = new Set(currentMemberResult.rows.map((row) => String(row.player_id)));
+    const nextCollectiveIds = normalized.collectives.map((collective) => collective.id);
+
+    if (nextCollectiveIds.length > 0) {
+      await client.query("DELETE FROM portal_resource_operations WHERE NOT (collective_id = ANY($1::text[]))", [nextCollectiveIds]);
+      await client.query("DELETE FROM portal_resource_balances WHERE NOT (collective_id = ANY($1::text[]))", [nextCollectiveIds]);
+    } else {
+      await client.query("DELETE FROM portal_resource_operations");
+      await client.query("DELETE FROM portal_resource_balances");
+    }
 
     await client.query("DELETE FROM portal_collective_members");
     await client.query("DELETE FROM portal_collectives");
@@ -456,6 +466,7 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
 
     await client.query("COMMIT");
     emitPortalStateChange();
+    emitPortalResourceChange();
     return listPortalCollectiveState(session);
   } catch (error) {
     await client.query("ROLLBACK");
