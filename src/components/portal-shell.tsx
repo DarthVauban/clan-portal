@@ -9,7 +9,6 @@ import {
   Calculator,
   CheckCheck,
   Check,
-  ChevronDown,
   Database,
   Hammer,
   HandCoins,
@@ -22,17 +21,19 @@ import {
   ShieldCheck,
   ShieldX,
   Sparkles,
+  UserRound,
   UserPlus,
   UsersRound,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import { applyCollectiveServerState, findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
 import { applyPortalAuthState, usePortalAuth } from "@/lib/auth-store";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
 import { markAllPortalNotificationsRead, markPortalNotificationsRead, useNotificationStore, type PortalNotification } from "@/lib/notification-store";
 import { hasCompletedRegistration, LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
+import { useRequestStore } from "@/lib/request-store";
 
 const AuthOnboarding = dynamic(
   () => import("@/components/auth-onboarding").then((module) => module.AuthOnboarding),
@@ -49,8 +50,8 @@ const primaryNavigation = [
 const requestNavigation = [
   { href: "/requests/membership", label: "Заявки на вступление", icon: UserPlus },
   { href: "/requests/resources", label: "На получение ресурсов", icon: HandCoins, restricted: true },
-  { href: "/requests/crafting", label: "На крафт предметов", icon: ScrollText, restricted: true },
-  { href: "/requests/my-crafting", label: "Мои заявки", icon: Hammer, restricted: true },
+  { href: "/requests/crafting", label: "На крафт предметов", icon: Hammer, restricted: true },
+  { href: "/requests/my-crafting", label: "Мои заявки", icon: ScrollText, restricted: true },
 ];
 
 const utilityNavigation = [
@@ -59,26 +60,33 @@ const utilityNavigation = [
   { href: "/blocked-users", label: "Заблокированные", icon: ShieldX, absoluteOnly: true },
 ];
 
-function NavLink({ href, label, icon: Icon, onNavigate, locked = false }: {
+function NavLink({ href, label, icon: Icon, onNavigate, locked = false, badgeCount, badgeFresh }: {
   href: string;
   label: string;
   icon: typeof Home;
   onNavigate: () => void;
   locked?: boolean;
+  badgeCount?: number;
+  badgeFresh?: boolean;
 }) {
   const pathname = usePathname();
   const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const badge = typeof badgeCount === "number" && badgeCount > 0
+    ? <em className={`nav-badge${badgeFresh ? " nav-badge--fresh" : ""}`}>{badgeCount > 99 ? "99+" : badgeCount}</em>
+    : null;
 
   return locked ? (
     <span className="nav-link nav-link--locked" title="Доступно только участникам коллективов">
       <Icon aria-hidden="true" size={18} strokeWidth={1.8} />
       <span>{label}</span>
+      {badge}
       <LockKeyhole size={12} className="nav-lock" />
     </span>
   ) : (
     <Link className={`nav-link${active ? " nav-link--active" : ""}`} href={href} onClick={onNavigate}>
       <Icon aria-hidden="true" size={18} strokeWidth={1.8} />
       <span>{label}</span>
+      {badge}
       {active && <span className="nav-marker" />}
     </Link>
   );
@@ -131,6 +139,8 @@ function NotificationItem({ notification, interactive, onRead }: { notification:
 
 function NotificationMenu({ collectiveAccess }: { collectiveAccess: boolean }) {
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const previousUnreadIds = useRef<Set<string> | null>(null);
   const { notifications } = useNotificationStore();
   const unreadCount = notifications.filter((notification) => !notification.readAt).length;
   const visibleNotifications = notifications.slice(0, 7);
@@ -139,8 +149,32 @@ function NotificationMenu({ collectiveAccess }: { collectiveAccess: boolean }) {
     setOpen(false);
   };
 
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [open]);
+
+  useEffect(() => {
+    const unreadIds = new Set(notifications.filter((notification) => !notification.readAt).map((notification) => notification.id));
+    if (!previousUnreadIds.current) {
+      previousUnreadIds.current = unreadIds;
+      return;
+    }
+    const hasNewUnread = [...unreadIds].some((id) => !previousUnreadIds.current?.has(id));
+    previousUnreadIds.current = unreadIds;
+    if (!hasNewUnread) return;
+    const audio = new Audio("/sounds/notification.mp3");
+    audio.volume = 0.55;
+    void audio.play().catch(() => undefined);
+  }, [notifications]);
+
   return (
-    <div className="notification-menu">
+    <div className="notification-menu" ref={menuRef}>
       <button className="notification-button" type="button" onClick={() => setOpen((current) => !current)} aria-label="Уведомления">
         <Bell size={17} />
         {unreadCount > 0 && <span>{unreadCount > 99 ? "99+" : unreadCount}</span>}
@@ -164,17 +198,58 @@ function NotificationMenu({ collectiveAccess }: { collectiveAccess: boolean }) {
   );
 }
 
+type RequestBadgeKey = "membership" | "resources" | "crafting";
+type SeenRequestCounts = Record<RequestBadgeKey, number>;
+
+const NAV_SEEN_STORAGE_KEY = "clan-portal:seen-request-nav-counts";
+const emptySeenRequestCounts: SeenRequestCounts = { membership: 0, resources: 0, crafting: 0 };
+const requestBadgeByHref: Record<string, RequestBadgeKey | undefined> = {
+  "/requests/membership": "membership",
+  "/requests/resources": "resources",
+  "/requests/crafting": "crafting",
+};
+
+function normalizeSeenRequestCounts(value: unknown): SeenRequestCounts {
+  if (!value || typeof value !== "object") return emptySeenRequestCounts;
+  const counts = value as Partial<SeenRequestCounts>;
+  return {
+    membership: typeof counts.membership === "number" ? Math.max(0, counts.membership) : 0,
+    resources: typeof counts.resources === "number" ? Math.max(0, counts.resources) : 0,
+    crafting: typeof counts.crafting === "number" ? Math.max(0, counts.crafting) : 0,
+  };
+}
+
+function readSeenRequestCounts() {
+  if (typeof window === "undefined") return emptySeenRequestCounts;
+  try {
+    return normalizeSeenRequestCounts(JSON.parse(window.localStorage.getItem(NAV_SEEN_STORAGE_KEY) ?? "{}"));
+  } catch {
+    return emptySeenRequestCounts;
+  }
+}
+
+function normalizeApplicantCount(value: unknown) {
+  if (!value || typeof value !== "object") return 0;
+  const applicants = (value as { applicants?: unknown }).applicants;
+  return Array.isArray(applicants) ? applicants.length : 0;
+}
+
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [editingPortalName, setEditingPortalName] = useState(false);
   const [portalNameDraft, setPortalNameDraft] = useState(DEFAULT_PORTAL_NAME);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [membershipRequestCount, setMembershipRequestCount] = useState(0);
+  const [seenRequestCounts, setSeenRequestCounts] = useState<SeenRequestCounts>(() => readSeenRequestCounts());
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { profile, updateProfile } = useLocalProfile();
   const { auth, loading, logout } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
+  const { state: requestState } = useRequestStore();
   const registrationComplete = auth.stage === "registered" && (hasCompletedRegistration(profile) || Boolean(auth.registeredProfile));
   const localPortalRole = state.portalRoles[LOCAL_PLAYER_ID];
   const portalName = normalizePortalName(state.portalName);
@@ -190,11 +265,36 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
   const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => item.href !== "/profile" && (!("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights)) : [];
   const blockedUsersRestrictedRoute = pathname.startsWith("/blocked-users") && !absoluteRights;
-  const initials = profile.displayName.trim().slice(0, 2).toLocaleUpperCase("ru") || "CP";
   const profileName = profile.displayName.trim() || auth.discordNickname || "Профиль";
   const waitingLabel = auth.applicationStatus === "accepted" ? "Без коллектива" : "Ожидает принятия";
   const waitingCaption = auth.applicationStatus === "accepted" ? "Ожидает распределения" : "Заявка на вступление";
   const blockedAuth = auth.applicationStatus === "blocked" || authError === "blocked";
+  const resourceRequestCount = useMemo(() => requestState.resourceRequests.filter((request) => (
+    request.status === "pending" || request.status === "approved" || request.status === "issued"
+  )).length, [requestState.resourceRequests]);
+  const craftRequestCount = useMemo(() => requestState.craftRequests.filter((request) => (
+    !request.executor && (request.status === "pending" || request.status === "approved")
+  )).length, [requestState.craftRequests]);
+  const requestBadgeCounts: SeenRequestCounts = {
+    membership: membershipRequestCount,
+    resources: resourceRequestCount,
+    crafting: craftRequestCount,
+  };
+  const loadMembershipRequestCount = useCallback(async () => {
+    if (auth.stage === "anonymous") {
+      setMembershipRequestCount(0);
+      return;
+    }
+    const response = await fetch("/api/membership/applicants", {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }).catch(() => null);
+    if (!response?.ok) {
+      setMembershipRequestCount(0);
+      return;
+    }
+    setMembershipRequestCount(normalizeApplicantCount(await response.json().catch(() => null)));
+  }, [auth.stage]);
 
   useEffect(() => {
     if (!auth.isPortalAdmin || localPortalRole === "administrator") return;
@@ -212,6 +312,40 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       setAuthError(new URLSearchParams(window.location.search).get("auth_error"));
     });
   }, [pathname]);
+
+  useEffect(() => {
+    if (auth.stage === "anonymous") return;
+    const timeout = window.setTimeout(() => void loadMembershipRequestCount(), 0);
+    window.addEventListener("focus", loadMembershipRequestCount);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("focus", loadMembershipRequestCount);
+    };
+  }, [auth.stage, auth.discordId, pathname, loadMembershipRequestCount]);
+
+  useEffect(() => {
+    const viewedKey = Object.entries(requestBadgeByHref).find(([href]) => pathname.startsWith(href))?.[1];
+    if (!viewedKey) return;
+    const viewedCount = viewedKey === "membership" ? membershipRequestCount : viewedKey === "resources" ? resourceRequestCount : craftRequestCount;
+    const timeout = window.setTimeout(() => {
+      setSeenRequestCounts((current) => {
+        const next = { ...current, [viewedKey]: viewedCount };
+        window.localStorage.setItem(NAV_SEEN_STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [pathname, membershipRequestCount, resourceRequestCount, craftRequestCount]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (profileMenuRef.current?.contains(event.target as Node)) return;
+      setProfileMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [profileMenuOpen]);
 
   useEffect(() => {
     const handleNavigationClick = (event: MouseEvent) => {
@@ -296,6 +430,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         const payload = JSON.parse(event.data) as { auth?: unknown; collectiveState?: unknown };
         if (payload.auth) applyPortalAuthState(payload.auth);
         if (payload.collectiveState) applyCollectiveServerState(payload.collectiveState);
+        void loadMembershipRequestCount();
       } catch {
         // Ignore malformed stream payloads; the EventSource connection will keep listening.
       }
@@ -305,7 +440,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       events.removeEventListener("portal-state", applyPortalState);
       events.close();
     };
-  }, [auth.stage]);
+  }, [auth.stage, loadMembershipRequestCount]);
 
   const closeMenu = () => setMenuOpen(false);
   const savePortalName = () => {
@@ -404,7 +539,20 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
           <div className="nav-group">
             <div className="nav-group-label">Заявки</div>
-            {visibleRequestNavigation.map((item) => <NavLink key={item.href} {...item} locked={Boolean("restricted" in item && item.restricted && !collectiveAccess)} onNavigate={closeMenu} />)}
+            {visibleRequestNavigation.map((item) => {
+              const badgeKey = requestBadgeByHref[item.href];
+              const badgeCount = badgeKey ? requestBadgeCounts[badgeKey] : undefined;
+              return (
+                <NavLink
+                  key={item.href}
+                  {...item}
+                  badgeCount={badgeCount}
+                  badgeFresh={Boolean(badgeKey && badgeCount && badgeCount > seenRequestCounts[badgeKey])}
+                  locked={Boolean("restricted" in item && item.restricted && !collectiveAccess)}
+                  onNavigate={closeMenu}
+                />
+              );
+            })}
           </div>
 
           {visibleUtilityNavigation.length > 0 && (
@@ -416,14 +564,26 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {collectiveAccess ? (
-          <Link className="sidebar-status sidebar-status--profile" href="/profile" onClick={closeMenu} aria-label="Открыть профиль">
-            <div className="status-icon"><ShieldCheck size={18} /></div>
-            <div>
-              <strong>{profileName}</strong>
-              <span>{portalRoleLabels[portalRole]}</span>
-            </div>
-            <Sparkles size={15} className="status-spark" />
-          </Link>
+          <div className="sidebar-profile-menu" ref={profileMenuRef}>
+            <button className="sidebar-status sidebar-status--profile" type="button" onClick={() => setProfileMenuOpen((current) => !current)} aria-label="Открыть меню профиля">
+              <div className="status-icon"><ShieldCheck size={18} /></div>
+              <div>
+                <strong>{profileName}</strong>
+                <span>{portalRoleLabels[portalRole]}</span>
+              </div>
+              <Sparkles size={15} className="status-spark" />
+            </button>
+            {profileMenuOpen && (
+              <div className="sidebar-profile-dropdown">
+                <Link href="/profile" onClick={() => { setProfileMenuOpen(false); closeMenu(); }}>
+                  <UserRound size={14} /> Профиль
+                </Link>
+                <button type="button" onClick={handleLogout}>
+                  <LogOut size={14} /> Выйти
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="sidebar-status">
             <div className="status-icon"><ShieldCheck size={18} /></div>
@@ -441,30 +601,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           <button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="Открыть меню">
             <Menu size={21} />
           </button>
-          <div className="topbar-breadcrumb">
-            <span className="online-dot" />
-            Единое пространство клана
-          </div>
           <div className="topbar-actions">
             <NotificationMenu collectiveAccess={collectiveAccess} />
-            <button className="logout-button" type="button" onClick={handleLogout} aria-label="Выйти из портала">
-              <LogOut size={16} />
-              <span>Выйти</span>
-            </button>
-            <button className="collective-switcher" type="button" aria-label="Выбранный коллектив">
-              <span className="collective-symbol">{membership?.collective.tag?.slice(0, 1) || "—"}</span>
-              <span className="collective-name">{membership?.collective.name ?? waitingLabel}</span>
-              <ChevronDown size={16} />
-            </button>
-            {collectiveAccess ? (
-              <Link className="profile-chip" href="/profile" aria-label="Открыть профиль">
-                <span>{initials}</span>
-              </Link>
-            ) : (
-              <span className="profile-chip profile-chip--disabled" aria-label="Профиль будет доступен после принятия">
-                <span>{initials}</span>
-              </span>
-            )}
           </div>
         </header>
 

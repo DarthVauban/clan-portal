@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock3, HandCoins, Minus, Plus, Search, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, HandCoins, Minus, Plus, Search, ShieldCheck, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { ResourceCatalogItem } from "@/components/resources-manager";
@@ -87,6 +87,8 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const [selectedCollectiveId, setSelectedCollectiveId] = useState(ALL_BANK_ID);
   const [amount, setAmount] = useState("1");
   const [purpose, setPurpose] = useState("");
+  const [cancelRequestId, setCancelRequestId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   const membership = findMembership(collectiveState, LOCAL_PLAYER_ID);
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
@@ -363,16 +365,27 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     notifyResponsible(request, "resource-request-completed", "Получение ресурсов подтверждено", `${request.requester.name}: ${request.resourceName}`, "completed");
   };
 
-  const cancelRequest = (request: ResourceRequest) => {
-    const reason = window.prompt("Причина отмены (необязательно)")?.trim() ?? "";
+  const cancelRequest = (request: ResourceRequest, reason: string) => {
+    const normalizedReason = reason.trim();
     updateResourceRequest(request.id, (current) => ({
-      ...withRequestHistory(current, "cancelled", "Заявка отменена", currentActor, reason),
+      ...withRequestHistory(current, "cancelled", "Заявка отменена", currentActor, normalizedReason),
       closedBy: currentActor,
-      cancelReason: reason,
+      cancelReason: normalizedReason,
     }));
     if (!currentActorIds.has(request.requester.id)) {
-      notifyRequester(request, "resource-request-cancelled", "Заявка на ресурсы отменена", reason || request.resourceName, "cancelled");
+      notifyRequester(request, "resource-request-cancelled", "Заявка на ресурсы отменена", normalizedReason || request.resourceName, "cancelled");
     }
+  };
+
+  const closeCancelDialog = () => {
+    setCancelRequestId(null);
+    setCancelReason("");
+  };
+
+  const submitCancelDialog = () => {
+    const request = activeResourceRequests.find((item) => item.id === cancelRequestId);
+    if (request) cancelRequest(request, cancelReason);
+    closeCancelDialog();
   };
 
   if (availableCollectives.length === 0) {
@@ -553,7 +566,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   )}
                   {canManage && request.status === "approved" && <button type="button" onClick={() => issueRequest(request)} disabled={!canIssue}><ShieldCheck size={14} /> Выдать</button>}
                   {canConfirmReceipt && <button type="button" onClick={() => confirmReceipt(request)}><CheckCircle2 size={14} /> Подтвердить получение</button>}
-                  {request.status !== "issued" && canCancel && <button type="button" className={styles.dangerButton} onClick={() => cancelRequest(request)}><XCircle size={14} /> Отменить</button>}
+                  {request.status !== "issued" && canCancel && <button type="button" className={styles.dangerButton} onClick={() => setCancelRequestId(request.id)}><XCircle size={14} /> Отменить</button>}
                 </div>
               </article>
             );
@@ -563,6 +576,30 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
         </section>
         )}
       </div>
+
+      {cancelRequestId && (
+        <div className={styles.confirmationBackdrop} role="presentation">
+          <section className={styles.confirmationModal} role="dialog" aria-modal="true" aria-labelledby="resource-cancel-title">
+            <header>
+              <div>
+                <span>Подтверждение действия</span>
+                <h2 id="resource-cancel-title">Отменить заявку</h2>
+              </div>
+              <button type="button" onClick={closeCancelDialog} aria-label="Закрыть окно"><X size={16} /></button>
+            </header>
+            <label className={styles.cancelReasonField}>
+              <span>Причина отмены <small>(необязательно)</small></span>
+              <textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} maxLength={240} autoFocus />
+            </label>
+            <footer className={styles.confirmationActions}>
+              <button type="button" className={styles.confirmationSecondaryButton} onClick={closeCancelDialog}>Закрыть</button>
+              <button type="button" className={styles.confirmationPrimaryButton} onClick={submitCancelDialog}>
+                <CheckCircle2 size={14} /> Подтвердить
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

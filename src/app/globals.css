@@ -217,11 +217,35 @@ button { color: inherit; }
 .nav-link--active svg { color: var(--bronze-bright); }
 .nav-link--locked { opacity: .38; cursor: not-allowed; }.nav-link--locked:hover { color: var(--text-muted); background: transparent; }.nav-lock { margin-left: auto; color: #777d82; }
 .nav-marker { position: absolute; right: 9px; width: 4px; height: 4px; border-radius: 50%; background: var(--bronze-bright); box-shadow: 0 0 11px var(--bronze-bright); }
+.nav-badge {
+  margin-left: auto;
+  min-width: 24px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 7px;
+  color: #aeb4b0;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  background: #1b1d1f;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+.nav-badge--fresh {
+  color: #10150f;
+  border-color: rgba(127,163,139,.52);
+  background: #7fa38b;
+  box-shadow: 0 0 14px rgba(127,163,139,.28);
+}
+.nav-badge + .nav-lock { margin-left: 0; }
 
 .sidebar-status {
   display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 12px;
   border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.025);
 }
+.sidebar-profile-menu { position: relative; margin-top: 16px; }
+.sidebar-profile-menu .sidebar-status { width: 100%; margin-top: 0; text-align: left; }
 .sidebar-status--profile { cursor: pointer; transition: .18s ease; }
 .sidebar-status--profile:hover { border-color: rgba(210,173,120,.22); background: rgba(176,138,96,.055); transform: translateY(-1px); }
 .status-icon { display: grid; place-items: center; width: 32px; height: 32px; color: var(--bronze-bright); background: rgba(176,138,96,.11); border-radius: 8px; }
@@ -229,11 +253,42 @@ button { color: inherit; }
 .sidebar-status strong { font-size: 11px; }
 .sidebar-status span { margin-top: 2px; color: #666d74; font-size: 10px; }
 .status-spark { margin-left: auto; color: #5e646a; }
+.sidebar-profile-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 45;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 10px;
+  background: rgba(13,16,20,.98);
+  box-shadow: 0 18px 54px rgba(0,0,0,.38);
+}
+.sidebar-profile-dropdown a,
+.sidebar-profile-dropdown button {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  color: #a8afb4;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.sidebar-profile-dropdown a:hover,
+.sidebar-profile-dropdown button:hover { color: #e2c590; background: rgba(176,138,96,.08); }
 
 .content-column { min-height: 100vh; margin-left: var(--sidebar-width); }
 .topbar {
   position: sticky; top: 0; z-index: 20; height: 74px;
-  display: flex; align-items: center; justify-content: space-between; padding: 0 38px;
+  display: flex; align-items: center; justify-content: flex-end; padding: 0 38px;
   background: rgba(9, 11, 13, .78); border-bottom: 1px solid var(--line); backdrop-filter: blur(20px);
 }
 .topbar-breadcrumb { display: flex; align-items: center; gap: 9px; color: #747b82; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
@@ -337,7 +392,7 @@ button { color: inherit; }
 .collective-name { font-size: 11px; }
 .profile-chip { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(210,173,120,.3); border-radius: 50%; background: linear-gradient(145deg, #3a3027, #1b2027); color: #e1c69f; font-size: 11px; font-weight: 700; }
 .profile-chip--disabled { opacity: .55; cursor: default; }
-.menu-button { display: none; width: 38px; height: 38px; place-items: center; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+.menu-button { display: none; width: 38px; height: 38px; place-items: center; margin-right: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
 .sidebar-backdrop { display: none; }
 
 .main-content { width: min(1420px, 100%); margin: 0 auto; padding: 38px clamp(24px, 3vw, 52px) 64px; }
