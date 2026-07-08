@@ -4,6 +4,7 @@ import type { PoolClient } from "pg";
 import { getDatabasePool } from "@/lib/database";
 import { isPortalAdminDiscordId, type PortalSession } from "@/lib/auth-session";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
+import { emitPortalStateChange } from "@/lib/portal-live-events";
 import { canManageMembershipApplicants, hasPortalManagementRights } from "@/lib/portal-player-repository";
 import {
   applicantManagerRoles,
@@ -454,6 +455,7 @@ export async function savePortalCollectiveState(session: PortalSession, rawState
     }
 
     await client.query("COMMIT");
+    emitPortalStateChange();
     return listPortalCollectiveState(session);
   } catch (error) {
     await client.query("ROLLBACK");
@@ -485,5 +487,6 @@ export async function leaveOwnCollective(session: PortalSession) {
   if (row.role === "leader" && Number(row.member_count) > 1) return null;
 
   await pool.query("DELETE FROM portal_collective_members WHERE player_id = $1", [playerId]);
+  emitPortalStateChange();
   return listPortalCollectiveState(session);
 }

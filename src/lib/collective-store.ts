@@ -164,6 +164,12 @@ function saveState(state: CollectiveState) {
   window.dispatchEvent(new Event(STORE_EVENT));
 }
 
+export function applyCollectiveServerState(rawState: unknown) {
+  const state = normalizeState(rawState);
+  saveState(state);
+  return state;
+}
+
 async function requestServerState(method: "GET" | "PUT", state?: CollectiveState) {
   const response = await fetch("/api/collectives/state", {
     method,

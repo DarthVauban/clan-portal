@@ -110,6 +110,12 @@ function setAuth(auth: PortalAuthState, markLoaded = true) {
   notify();
 }
 
+export function applyPortalAuthState(rawAuth: unknown) {
+  const auth = normalizeAuth(rawAuth);
+  setAuth(auth);
+  return auth;
+}
+
 async function requestAuth(input: RequestInfo | URL, init?: RequestInit) {
   const headers = new Headers(init?.headers);
   headers.set("Accept", "application/json");

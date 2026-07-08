@@ -8,6 +8,7 @@ import {
   isPortalAdminDiscordId,
   type PortalSession,
 } from "@/lib/auth-session";
+import { emitPortalStateChange } from "@/lib/portal-live-events";
 import { applicantManagerRoles, isGlobalPortalRole, memberManagerRoles, type PortalRole } from "@/lib/portal-permissions";
 
 export type PortalRegistrationPayload = {
@@ -164,6 +165,7 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
       [characterId, playerId, payload.characterName, payload.classSlug],
     );
     await client.query("COMMIT");
+    emitPortalStateChange();
     return playerId;
   } catch (error) {
     await client.query("ROLLBACK");
@@ -325,7 +327,9 @@ export async function acceptPendingMembershipApplicant(session: PortalSession, p
     `,
     [playerId, collectiveId],
   );
-  return Boolean(result.rowCount);
+  const ok = Boolean(result.rowCount);
+  if (ok) emitPortalStateChange();
+  return ok;
 }
 
 export async function rejectPendingMembershipApplicant(session: PortalSession, playerId: unknown) {
@@ -342,7 +346,9 @@ export async function rejectPendingMembershipApplicant(session: PortalSession, p
     `,
     [playerId],
   );
-  return Boolean(result.rowCount);
+  const ok = Boolean(result.rowCount);
+  if (ok) emitPortalStateChange();
+  return ok;
 }
 
 function mapBlockedRows(rows: Array<Record<string, unknown>>): BlockedPortalUser[] {
@@ -410,7 +416,9 @@ export async function deletePortalPlayer(session: PortalSession, playerId: unkno
   if (typeof targetDiscordId !== "string" || isPortalAdminDiscordId(targetDiscordId)) return false;
 
   const result = await pool.query("DELETE FROM portal_players WHERE player_id = $1 RETURNING player_id", [playerId]);
-  return Boolean(result.rowCount);
+  const ok = Boolean(result.rowCount);
+  if (ok) emitPortalStateChange();
+  return ok;
 }
 
 export async function blockPortalPlayer(session: PortalSession, playerId: unknown) {
@@ -441,7 +449,9 @@ export async function blockPortalPlayer(session: PortalSession, playerId: unknow
       [playerId],
     );
     await client.query("COMMIT");
-    return Boolean(result.rowCount);
+    const ok = Boolean(result.rowCount);
+    if (ok) emitPortalStateChange();
+    return ok;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -466,5 +476,7 @@ export async function unblockPortalPlayer(session: PortalSession, playerId: unkn
     `,
     [playerId],
   );
-  return Boolean(result.rowCount);
+  const ok = Boolean(result.rowCount);
+  if (ok) emitPortalStateChange();
+  return ok;
 }

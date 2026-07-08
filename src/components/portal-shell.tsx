@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
-import { findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, refreshCollectiveStore, useCollectiveStore } from "@/lib/collective-store";
-import { usePortalAuth } from "@/lib/auth-store";
+import { applyCollectiveServerState, findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
+import { applyPortalAuthState, usePortalAuth } from "@/lib/auth-store";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
 import { hasCompletedRegistration, LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 
@@ -35,8 +35,6 @@ const AuthOnboarding = dynamic(
   () => import("@/components/auth-onboarding").then((module) => module.AuthOnboarding),
   { loading: () => null },
 );
-
-const PORTAL_SYNC_INTERVAL_MS = 2500;
 
 const primaryNavigation = [
   { href: "/", label: "Обзор", icon: Home },
@@ -108,7 +106,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { profile, updateProfile } = useLocalProfile();
-  const { auth, loading, logout, refreshAuth } = usePortalAuth();
+  const { auth, loading, logout } = usePortalAuth();
   const { state, updateState } = useCollectiveStore();
   const registrationComplete = auth.stage === "registered" && (hasCompletedRegistration(profile) || Boolean(auth.registeredProfile));
   const localPortalRole = state.portalRoles[LOCAL_PLAYER_ID];
@@ -224,25 +222,23 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (auth.stage === "anonymous") return;
-    let disposed = false;
-    const syncPortalState = () => {
-      if (disposed) return;
-      void refreshAuth().catch(() => undefined);
-      void refreshCollectiveStore().catch(() => undefined);
+    if (typeof EventSource === "undefined") return;
+    const events = new EventSource("/api/portal/events");
+    const applyPortalState = (event: MessageEvent<string>) => {
+      try {
+        const payload = JSON.parse(event.data) as { auth?: unknown; collectiveState?: unknown };
+        if (payload.auth) applyPortalAuthState(payload.auth);
+        if (payload.collectiveState) applyCollectiveServerState(payload.collectiveState);
+      } catch {
+        // Ignore malformed stream payloads; the EventSource connection will keep listening.
+      }
     };
-    const interval = window.setInterval(syncPortalState, PORTAL_SYNC_INTERVAL_MS);
-    const handleVisibility = () => {
-      if (!document.hidden) syncPortalState();
-    };
-    window.addEventListener("focus", syncPortalState);
-    document.addEventListener("visibilitychange", handleVisibility);
+    events.addEventListener("portal-state", applyPortalState);
     return () => {
-      disposed = true;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", syncPortalState);
-      document.removeEventListener("visibilitychange", handleVisibility);
+      events.removeEventListener("portal-state", applyPortalState);
+      events.close();
     };
-  }, [auth.stage, refreshAuth]);
+  }, [auth.stage]);
 
   const closeMenu = () => setMenuOpen(false);
   const savePortalName = () => {
