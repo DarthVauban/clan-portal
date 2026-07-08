@@ -17,7 +17,27 @@
   --font-display: Georgia, "Times New Roman", serif;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(210, 173, 120, 0.46) rgba(5, 7, 9, 0.42);
+}
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: rgba(5, 7, 9, 0.42); border-radius: 999px; }
+*::-webkit-scrollbar-thumb { border: 2px solid rgba(5, 7, 9, 0.42); border-radius: 999px; background: linear-gradient(180deg, rgba(210,173,120,.68), rgba(101,64,34,.72)); }
+*::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(224,191,142,.82), rgba(137,93,55,.82)); }
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
 
 html { background: var(--ink); }
 

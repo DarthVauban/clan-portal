@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock3, Hammer, PackageCheck, Search, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Hammer, Minus, PackageCheck, Plus, Search, ShieldCheck, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem, CalculatorRecipe } from "@/components/craft-calculator";
@@ -35,7 +35,7 @@ const statusLabels: Record<RequestStatus, string> = {
   pending: "На рассмотрении",
   approved: "Одобрено",
   "in-progress": "В работе",
-  issued: "Выдано",
+  issued: "Ожидает получения",
   completed: "Завершено",
   rejected: "Отклонено",
   cancelled: "Отменено",
@@ -68,8 +68,10 @@ const clanApprovalLabels: Record<ClanCraftApprovalStatus, string> = {
   rejected: "Ресурсы клана отклонены",
 };
 
-const activeCraftRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress"]);
+const activeCraftRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress", "issued"]);
+type CraftWorkspaceView = "form" | "queue";
 type CraftTypeFilter = (typeof craftTypeOptions)[number]["value"];
+type CraftConfirmationState = { kind: "executor" | "requester"; requestId: string };
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -136,11 +138,13 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const [activeClass, setActiveClass] = useState("all");
   const [activeTier, setActiveTier] = useState<number | "all">("all");
   const [activeQuality, setActiveQuality] = useState("all");
+  const [activeView, setActiveView] = useState<CraftWorkspaceView>("form");
   const [funding, setFunding] = useState<CraftFundingType>("personal");
   const [selectedItemSlug, setSelectedItemSlug] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [note, setNote] = useState("");
+  const [confirmation, setConfirmation] = useState<CraftConfirmationState | null>(null);
 
   const membership = findMembership(collectiveState, LOCAL_PLAYER_ID);
   const portalRole = getPortalRole(collectiveState, LOCAL_PLAYER_ID);
@@ -227,12 +231,19 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const canSubmit = Boolean(selectedItem && selectedRecipe && requestedQuantity > 0);
   const activeCraftRequests = requestState.craftRequests.filter((request) => activeCraftRequestStatuses.has(request.status));
   const pendingCount = activeCraftRequests.filter((request) => request.status === "pending").length;
-  const activeCount = activeCraftRequests.filter((request) => request.status === "approved" || request.status === "in-progress").length;
+  const activeCount = activeCraftRequests.filter((request) => request.status === "approved" || request.status === "in-progress" || request.status === "issued").length;
   const completedCount = requestState.craftRequests.filter((request) => request.status === "completed").length;
+  const confirmationRequest = confirmation
+    ? requestState.craftRequests.find((request) => request.id === confirmation.requestId) ?? null
+    : null;
 
   const chooseItem = (item: CalculatorCraftItem) => {
     setSelectedItemSlug(item.slug);
     setSelectedRecipeId(item.recipes[0]?.id ?? "");
+  };
+
+  const adjustQuantity = (delta: number) => {
+    setQuantity(String(Math.max(1, requestedQuantity + delta)));
   };
 
   const createRequest = (event: React.FormEvent) => {
@@ -260,6 +271,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     updateRequestState((current) => ({ ...current, craftRequests: [request, ...current.craftRequests].slice(0, 200) }));
     setNote("");
     setQuantity("1");
+    setActiveView("queue");
   };
 
   const updateRequestStatus = (requestId: string, status: RequestStatus) => {
@@ -296,10 +308,18 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     }));
   };
 
-  const completeCraftRequest = (request: CraftRequest) => {
+  const confirmCraftExecution = (request: CraftRequest) => {
     if (!request.executor || !currentActorIds.has(request.executor.id)) return;
+    if (request.status !== "in-progress") return;
     if (request.funding === "clan" && request.clanApprovalStatus !== "approved") return;
+    updateRequestStatus(request.id, "issued");
+    setConfirmation(null);
+  };
+
+  const confirmCraftReceipt = (request: CraftRequest) => {
+    if (!currentActorIds.has(request.requester.id) || request.status !== "issued") return;
     updateRequestStatus(request.id, "completed");
+    setConfirmation(null);
   };
 
   return (
@@ -315,7 +335,17 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
         <div><strong>{accessRoleLabel}</strong><span>{canApproveClanCraft ? "Можно подтверждать крафт за ресурсы клана" : "Можно создавать и принимать заявки на крафт"}</span></div>
       </section>
 
+      <div className={styles.viewTabs} role="tablist" aria-label="Раздел заявок на крафт">
+        <button type="button" className={activeView === "form" ? styles.viewTabActive : ""} onClick={() => setActiveView("form")}>
+          Новая заявка
+        </button>
+        <button type="button" className={activeView === "queue" ? styles.viewTabActive : ""} onClick={() => setActiveView("queue")}>
+          Очередь <small>{activeCraftRequests.length}</small>
+        </button>
+      </div>
+
       <div className={styles.requestGrid}>
+        {activeView === "form" ? (
         <form className={styles.requestForm} onSubmit={createRequest}>
           <header><span>Новая заявка</span><h2>Крафт предмета</h2><p>Выберите предмет из базы, рецепт и нужное количество.</p></header>
 
@@ -408,7 +438,15 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
               <div className={`${styles.compactFieldGrid} ${!showClanBankCoverage ? styles.compactFieldGridSingle : ""}`}>
                 <label className={styles.field}>
                   <span>Количество</span>
-                  <input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+                  <div className={styles.numberStepper}>
+                    <button type="button" onClick={() => adjustQuantity(-1)} disabled={requestedQuantity <= 1} aria-label="Уменьшить количество">
+                      <Minus size={14} />
+                    </button>
+                    <input type="number" min="1" step="1" inputMode="numeric" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+                    <button type="button" onClick={() => adjustQuantity(1)} aria-label="Увеличить количество">
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </label>
                 {showClanBankCoverage && (
                   <div className={styles.coveragePreview}>
@@ -449,12 +487,13 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
             </section>
           </div>
         </form>
-
+        ) : (
         <section className={styles.requestList}>
           <header><span>Очередь</span><h2>Заявки на крафт</h2></header>
           {activeCraftRequests.length > 0 ? activeCraftRequests.map((request) => {
             const canAccept = !request.executor && !currentActorIds.has(request.requester.id) && !["completed", "rejected", "cancelled"].includes(request.status);
             const canComplete = Boolean(request.executor && currentActorIds.has(request.executor.id) && request.status === "in-progress" && (request.funding !== "clan" || request.clanApprovalStatus === "approved"));
+            const canConfirmReceipt = request.status === "issued" && currentActorIds.has(request.requester.id);
             const canCancelOwn = request.status === "pending" && currentActorIds.has(request.requester.id) && !request.executor;
             return (
               <article className={styles.requestCard} data-status={request.status} data-funding={request.funding} key={request.id}>
@@ -487,7 +526,8 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                       <button type="button" className={styles.dangerButton} onClick={() => updateClanApproval(request, "rejected")}><XCircle size={14} /> Отклонить ресурсы</button>
                     </>
                   )}
-                  {canComplete && <button type="button" onClick={() => completeCraftRequest(request)}><PackageCheck size={14} /> Завершить</button>}
+                  {canComplete && <button type="button" onClick={() => setConfirmation({ kind: "executor", requestId: request.id })}><PackageCheck size={14} /> Подтвердить выполнение</button>}
+                  {canConfirmReceipt && <button type="button" onClick={() => setConfirmation({ kind: "requester", requestId: request.id })}><CheckCircle2 size={14} /> Подтвердить получение</button>}
                   {canCancelOwn && <button type="button" onClick={() => updateRequestStatus(request.id, "cancelled")}><XCircle size={14} /> Отменить</button>}
                 </div>
               </article>
@@ -496,7 +536,55 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
             <div className={styles.emptyQueue}><Clock3 size={24} /><strong>Заявок пока нет</strong><p>Созданные заявки на крафт появятся здесь сразу после отправки.</p></div>
           )}
         </section>
+        )}
       </div>
+
+      {confirmation && confirmationRequest && (
+        <div className={styles.confirmationBackdrop} role="presentation">
+          <section className={styles.confirmationModal} role="dialog" aria-modal="true" aria-labelledby="craft-confirmation-title">
+            <header>
+              <div>
+                <span>{confirmation.kind === "executor" ? "Подтверждение выполнения" : "Подтверждение получения"}</span>
+                <h2 id="craft-confirmation-title">{confirmation.kind === "executor" ? "Заявка выполнена?" : "Предмет получен?"}</h2>
+              </div>
+              <button type="button" onClick={() => setConfirmation(null)} aria-label="Закрыть окно">
+                <X size={16} />
+              </button>
+            </header>
+
+            <div className={styles.confirmationItem}>
+              <span>{confirmationRequest.itemImage ? <LoadableImage src={confirmationRequest.itemImage} alt="" width={58} height={58} /> : <Hammer size={24} />}</span>
+              <div>
+                <strong>{confirmationRequest.itemName}</strong>
+                <small>x{formatAmount(confirmationRequest.quantity)} · {confirmationRequest.recipeName}</small>
+              </div>
+            </div>
+
+            <dl className={styles.confirmationDetails}>
+              <div><dt>Заказчик</dt><dd>{confirmationRequest.requester.name}</dd></div>
+              <div><dt>Исполнитель</dt><dd>{confirmationRequest.executor?.name ?? "Не назначен"}</dd></div>
+              <div><dt>Тип заявки</dt><dd>{craftFundingLabels[confirmationRequest.funding]}</dd></div>
+            </dl>
+
+            <div className={styles.confirmationNote}>
+              <span>Комментарий заказчика</span>
+              <p>{confirmationRequest.note || "Комментарий не указан."}</p>
+            </div>
+
+            <footer className={styles.confirmationActions}>
+              <button type="button" className={styles.confirmationSecondaryButton} onClick={() => setConfirmation(null)}>Закрыть</button>
+              <button type="button" className={styles.confirmationCancelButton} onClick={() => setConfirmation(null)}>Отмена</button>
+              <button
+                type="button"
+                className={styles.confirmationPrimaryButton}
+                onClick={() => confirmation.kind === "executor" ? confirmCraftExecution(confirmationRequest) : confirmCraftReceipt(confirmationRequest)}
+              >
+                <CheckCircle2 size={14} /> Подтвердить
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

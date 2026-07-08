@@ -9,6 +9,10 @@
 .accessNote strong,.accessNote span { display: block; }
 .accessNote strong { color: #d9c091; font-size: 12px; }
 .accessNote span { margin-top: 3px; font-size: 11px; }
+.viewTabs { width: fit-content; display: inline-flex; gap: 4px; padding: 4px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(5,7,9,.38); }
+.viewTabs button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; color: #858d92; border: 0; border-radius: 8px; background: transparent; font-size: 12px; cursor: pointer; }
+.viewTabs button:hover,.viewTabActive { color: #ebd0a2 !important; background: rgba(176,138,96,.13) !important; box-shadow: inset 0 0 0 1px rgba(210,173,120,.23); }
+.viewTabs small { min-width: 19px; height: 19px; display: inline-grid; place-items: center; color: #d8bd93; border-radius: 999px; background: rgba(210,173,120,.11); font-size: 10px; }
 .requestGrid { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; align-items: start; }
 .requestForm,.requestList { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.012); }
 .requestForm > header,.requestList > header { min-height: 86px; padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.065); background: linear-gradient(110deg, rgba(176,138,96,.07), transparent 52%); }
@@ -46,6 +50,11 @@
 .field input,.field select,.searchField input { height: 40px; padding: 0 12px; }
 .field textarea { min-height: 82px; resize: vertical; padding: 11px 12px; line-height: 1.55; }
 .field input:focus,.field select:focus,.field textarea:focus,.searchField input:focus { border-color: rgba(210,173,120,.3); box-shadow: 0 0 0 3px rgba(176,138,96,.055); }
+.numberStepper { display: grid; grid-template-columns: 38px minmax(0,1fr) 38px; gap: 6px; }
+.numberStepper input { height: 40px; padding: 0 8px !important; text-align: center; }
+.numberStepper button { min-height: 40px; display: grid; place-items: center; color: #d9bd89; border: 1px solid rgba(210,173,120,.2); border-radius: 8px; background: rgba(176,138,96,.075); cursor: pointer; }
+.numberStepper button:hover:not(:disabled) { border-color: rgba(210,173,120,.34); background: rgba(176,138,96,.13); }
+.numberStepper button:disabled { opacity: .34; cursor: not-allowed; }
 .searchField { position: relative; display: block; }
 .searchField svg { position: absolute; top: 12px; left: 12px; color: #687075; }
 .searchField input { padding-left: 36px; }
@@ -114,6 +123,31 @@
 .emptyQueue svg,.emptyState svg { color: #9d794e; }
 .emptyQueue strong,.emptyState h2 { margin: 12px 0 0; color: #d2d1cb; font: 18px var(--font-display),serif; }
 .emptyQueue p,.emptyState p { max-width: 430px; margin: 6px 0 0; font-size: 11px; line-height: 1.6; }
+.confirmationBackdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(3,5,7,.78); backdrop-filter: blur(8px); }
+.confirmationModal { width: min(560px,100%); max-height: calc(100vh - 44px); overflow: auto; border: 1px solid rgba(210,173,120,.17); border-radius: 12px; background: #101418; box-shadow: 0 30px 100px rgba(0,0,0,.5); }
+.confirmationModal > header { min-height: 76px; display: flex; align-items: center; gap: 14px; padding: 16px 19px; border-bottom: 1px solid rgba(255,255,255,.07); background: linear-gradient(110deg, rgba(176,138,96,.08), transparent); }
+.confirmationModal > header > div { flex: 1; }
+.confirmationModal > header span,.confirmationModal > header h2 { display: block; }
+.confirmationModal > header span { color: #9c784c; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.confirmationModal > header h2 { margin: 5px 0 0; color: #e6e2da; font: 20px var(--font-display),serif; }
+.confirmationModal > header button { width: 31px; height: 31px; display: grid; place-items: center; color: #72797e; border: 1px solid rgba(255,255,255,.07); border-radius: 7px; background: rgba(255,255,255,.02); cursor: pointer; }
+.confirmationItem { display: grid; grid-template-columns: 66px minmax(0,1fr); align-items: center; gap: 13px; margin: 17px 18px 0; padding: 12px; border: 1px solid rgba(210,173,120,.12); border-radius: 10px; background: rgba(176,138,96,.045); }
+.confirmationItem > span { width: 66px; height: 66px; display: grid; place-items: center; color: #b08a60; border-radius: 10px; background: rgba(5,7,9,.3); }
+.confirmationItem strong,.confirmationItem small { display: block; }
+.confirmationItem strong { color: #e0ddd7; font-size: 13px; }
+.confirmationItem small { margin-top: 5px; color: #7b8388; font-size: 11px; }
+.confirmationDetails { display: grid; gap: 7px; margin: 12px 18px 0; }
+.confirmationDetails div { display: grid; grid-template-columns: 118px minmax(0,1fr); gap: 10px; padding: 9px 10px; border: 1px solid rgba(255,255,255,.055); border-radius: 8px; background: rgba(255,255,255,.015); }
+.confirmationDetails dt { color: #716458; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.confirmationDetails dd { min-width: 0; margin: 0; overflow: hidden; color: #c8cbc9; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.confirmationNote { margin: 12px 18px 0; padding: 12px; border: 1px solid rgba(210,173,120,.1); border-radius: 9px; background: rgba(176,138,96,.04); }
+.confirmationNote span { color: #967147; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.confirmationNote p { margin: 6px 0 0; color: #858d92; font-size: 11px; line-height: 1.55; }
+.confirmationActions { min-height: 68px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 18px; padding: 13px 18px; border-top: 1px solid rgba(255,255,255,.065); }
+.confirmationActions button { min-height: 35px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border-radius: 7px; font-size: 11px; cursor: pointer; }
+.confirmationPrimaryButton { color: #e2c590; border: 1px solid rgba(210,173,120,.25); background: rgba(176,138,96,.11); }
+.confirmationSecondaryButton { color: #888f94; border: 1px solid rgba(255,255,255,.075); background: rgba(255,255,255,.018); }
+.confirmationCancelButton { color: #d68d84; border: 1px solid rgba(202,101,90,.2); background: rgba(135,55,47,.08); }
 .common { color: #c3c7ca !important; border-color: rgba(195,199,202,.38) !important; }
 .uncommon { color: #63c58a !important; border-color: rgba(83,190,123,.55) !important; }
 .rare { color: #6aa7f2 !important; border-color: rgba(82,145,230,.6) !important; }
@@ -125,6 +159,8 @@
 }
 @media (max-width: 680px) {
   .summaryBar,.formRow,.compactFieldGrid,.requirementPreview { grid-template-columns: 1fr; }
+  .viewTabs { width: 100%; }
+  .viewTabs button { flex: 1; }
   .summaryBar > div { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.06); }
   .summaryBar > div:last-child { border-bottom: 0; }
   .requestCard { grid-template-columns: 48px minmax(0,1fr); }
@@ -132,4 +168,7 @@
   .requestActions { grid-column: 1 / -1; justify-content: stretch; max-width: none; }
   .requestActions button,.requestForm > footer button,.requestDetailsPanel > footer button { flex: 1; }
   .requestForm > footer,.requestDetailsPanel > footer { align-items: stretch; flex-direction: column; }
+  .confirmationDetails div { grid-template-columns: 1fr; }
+  .confirmationActions { align-items: stretch; flex-direction: column; }
+  .confirmationActions button { width: 100%; }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock3, HandCoins, Search, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, HandCoins, Minus, Plus, Search, ShieldCheck, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { ResourceCatalogItem } from "@/components/resources-manager";
@@ -48,6 +48,7 @@ const ANCIENT_COIN_SLUG = "ancient-coin";
 const ANCIENT_COIN_NAME = "Древняя монета";
 const ANCIENT_COIN_IMAGE = "/game-assets/items/resource/ancient-coin.png";
 type RequestAssetKind = "resource" | "currency";
+type ResourceWorkspaceView = "form" | "queue";
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -65,6 +66,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const { state: requestState, updateState: updateRequestState } = useRequestStore();
   const [query, setQuery] = useState("");
   const [assetKind, setAssetKind] = useState<RequestAssetKind>("resource");
+  const [activeView, setActiveView] = useState<ResourceWorkspaceView>("form");
   const [activeProfession, setActiveProfession] = useState("all");
   const [activeQuality, setActiveQuality] = useState("all");
   const [selectedResourceSlug, setSelectedResourceSlug] = useState("");
@@ -179,6 +181,10 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     return ownMembership?.collective.id === request.collectiveId && roleIsIn(ownMembership.member.role, resourceRequestApproverRoles);
   };
 
+  const adjustAmount = (delta: number) => {
+    setAmount(String(Math.max(1, requestedAmount + delta)));
+  };
+
   const createRequest = (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSubmit || (assetKind === "resource" && !selectedResource)) return;
@@ -204,6 +210,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     setPurpose("");
     setAmount("1");
     if (assetKind === "resource") setSelectedResourceSlug("");
+    setActiveView("queue");
   };
 
   const updateRequestStatus = (requestId: string, status: RequestStatus) => {
@@ -270,7 +277,17 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
         <div><small>Выдано</small><strong>{issuedCount}</strong></div>
       </section>
 
+      <div className={styles.viewTabs} role="tablist" aria-label="Раздел заявок на ресурсы">
+        <button type="button" className={activeView === "form" ? styles.viewTabActive : ""} onClick={() => setActiveView("form")}>
+          Новая заявка
+        </button>
+        <button type="button" className={activeView === "queue" ? styles.viewTabActive : ""} onClick={() => setActiveView("queue")}>
+          Очередь <small>{activeResourceRequests.length}</small>
+        </button>
+      </div>
+
       <div className={styles.requestGrid}>
+        {activeView === "form" ? (
         <form className={styles.requestForm} onSubmit={createRequest}>
           <header><span>Новая заявка</span><h2>Получение ресурсов</h2><p>Выберите ресурс, количество и коллектив, из банка которого нужна выдача.</p></header>
 
@@ -367,7 +384,15 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
 
               <label className={styles.field}>
                 <span>Количество</span>
-                <input type="number" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                <div className={styles.numberStepper}>
+                  <button type="button" onClick={() => adjustAmount(-1)} disabled={requestedAmount <= 1} aria-label="Уменьшить количество">
+                    <Minus size={14} />
+                  </button>
+                  <input type="number" min="1" step="1" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                  <button type="button" onClick={() => adjustAmount(1)} aria-label="Увеличить количество">
+                    <Plus size={14} />
+                  </button>
+                </div>
               </label>
 
               <label className={styles.field}>
@@ -382,7 +407,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
             </section>
           </div>
         </form>
-
+        ) : (
         <section className={styles.requestList}>
           <header><span>Очередь</span><h2>Заявки на ресурсы</h2></header>
           {activeResourceRequests.length > 0 ? activeResourceRequests.map((request) => {
@@ -417,6 +442,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
             <div className={styles.emptyQueue}><Clock3 size={24} /><strong>Заявок пока нет</strong><p>Созданные заявки появятся здесь сразу после отправки.</p></div>
           )}
         </section>
+        )}
       </div>
     </div>
   );
