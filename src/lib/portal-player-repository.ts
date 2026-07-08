@@ -135,11 +135,13 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
           END,
           application_status = CASE
             WHEN portal_players.application_status = 'blocked' THEN 'blocked'
+            WHEN portal_players.application_status = 'accepted' THEN 'accepted'
             WHEN EXCLUDED.application_status = 'accepted' THEN 'accepted'
             ELSE EXCLUDED.application_status
           END,
           accepted_at = CASE
             WHEN portal_players.application_status = 'blocked' THEN portal_players.accepted_at
+            WHEN portal_players.application_status = 'accepted' THEN portal_players.accepted_at
             WHEN EXCLUDED.application_status = 'accepted' THEN COALESCE(portal_players.accepted_at, NOW())
             WHEN EXCLUDED.application_status = 'pending' THEN NULL
             ELSE portal_players.accepted_at
