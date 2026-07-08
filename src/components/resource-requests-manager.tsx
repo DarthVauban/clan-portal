@@ -43,6 +43,11 @@ const professionLabels: Record<string, string> = {
 };
 const resourceRequestApproverRoles = ["leader", "officer"] as const;
 const activeResourceRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress"]);
+const ALL_BANK_ID = "all";
+const ANCIENT_COIN_SLUG = "ancient-coin";
+const ANCIENT_COIN_NAME = "Древняя монета";
+const ANCIENT_COIN_IMAGE = "/game-assets/items/resource/ancient-coin.png";
+type RequestAssetKind = "resource" | "currency";
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -59,10 +64,11 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const { state: resourceState, updateState: updateResourceState } = useResourceStore();
   const { state: requestState, updateState: updateRequestState } = useRequestStore();
   const [query, setQuery] = useState("");
+  const [assetKind, setAssetKind] = useState<RequestAssetKind>("resource");
   const [activeProfession, setActiveProfession] = useState("all");
   const [activeQuality, setActiveQuality] = useState("all");
   const [selectedResourceSlug, setSelectedResourceSlug] = useState("");
-  const [selectedCollectiveId, setSelectedCollectiveId] = useState("");
+  const [selectedCollectiveId, setSelectedCollectiveId] = useState(ALL_BANK_ID);
   const [amount, setAmount] = useState("1");
   const [purpose, setPurpose] = useState("");
 
@@ -70,39 +76,37 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
   const portalRole = auth.isPortalAdmin ? "administrator" : getPortalRole(collectiveState, LOCAL_PLAYER_ID);
   const clanLeadershipRights = absoluteRights || portalRole === "administrator" || portalRole === "clan-leader";
-  const availableCollectives = absoluteRights ? collectiveState.collectives : membership ? [membership.collective] : [];
-  const activeCollective = availableCollectives.find((collective) => collective.id === selectedCollectiveId)
-    ?? availableCollectives[0]
-    ?? null;
-  const resourcesBySlug = useMemo(() => new Map(resources.map((resource) => [resource.slug, resource])), [resources]);
+  const availableCollectives = absoluteRights || membership ? collectiveState.collectives : [];
+  const activeBankId = selectedCollectiveId === ALL_BANK_ID || availableCollectives.some((collective) => collective.id === selectedCollectiveId)
+    ? selectedCollectiveId
+    : ALL_BANK_ID;
+  const activeCollective = activeBankId === ALL_BANK_ID
+    ? null
+    : availableCollectives.find((collective) => collective.id === activeBankId) ?? null;
+  const activeBankName = activeBankId === ALL_BANK_ID ? "Общий банк" : activeCollective?.name ?? "Общий банк";
+  const requestableResources = useMemo(() => resources.filter((resource) => resource.slug !== ANCIENT_COIN_SLUG), [resources]);
+  const resourcesBySlug = useMemo(() => new Map(requestableResources.map((resource) => [resource.slug, resource])), [requestableResources]);
   const selectedResource = resourcesBySlug.get(selectedResourceSlug) ?? null;
   const professionOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const resource of resources) counts.set(resource.profession ?? "other", (counts.get(resource.profession ?? "other") ?? 0) + 1);
-    return [...counts.entries()]
-      .map(([value, count]) => ({ value, count, label: professionLabels[value] ?? value }))
+    const values = new Set<string>();
+    for (const resource of requestableResources) values.add(resource.profession ?? "other");
+    return [...values]
+      .map((value) => ({ value, label: professionLabels[value] ?? value }))
       .sort((first, second) => first.label.localeCompare(second.label, "ru"));
-  }, [resources]);
+  }, [requestableResources]);
   const qualityOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const resource of resources) {
-      for (const quality of resource.qualities.length > 0 ? resource.qualities : [resource.quality]) counts.set(quality, (counts.get(quality) ?? 0) + 1);
+    const values = new Set<string>();
+    for (const resource of requestableResources) {
+      for (const quality of resource.qualities.length > 0 ? resource.qualities : [resource.quality]) values.add(quality);
     }
-    return [...counts.entries()]
-      .map(([value, count]) => ({ value, count, label: qualityLabels[value] ?? value }))
+    return [...values]
+      .map((value) => ({ value, label: qualityLabels[value] ?? value }))
       .sort((first, second) => {
         const firstOrder = qualityOrder.indexOf(first.value);
         const secondOrder = qualityOrder.indexOf(second.value);
         return (firstOrder === -1 ? 99 : firstOrder) - (secondOrder === -1 ? 99 : secondOrder);
       });
-  }, [resources]);
-  const normalizedQuery = query.trim().toLocaleLowerCase("ru");
-  const visibleResources = resources.filter((resource) => {
-    const matchesQuery = !normalizedQuery || [resource.name, resource.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery));
-    const matchesProfession = activeProfession === "all" || (resource.profession ?? "other") === activeProfession;
-    const matchesQuality = activeQuality === "all" || resource.qualities.includes(activeQuality) || resource.quality === activeQuality;
-    return matchesQuery && matchesProfession && matchesQuality;
-  }).slice(0, 80);
+  }, [requestableResources]);
   const clanResourceTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const collective of collectiveState.collectives) {
@@ -112,19 +116,64 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     }
     return totals;
   }, [collectiveState.collectives, resourceState.balances]);
+  const clanAncientCoinTotal = useMemo(() => collectiveState.collectives.reduce((total, collective) => (
+    total + (resourceState.balances[collective.id]?.ancientCoin ?? 0)
+  ), 0), [collectiveState.collectives, resourceState.balances]);
+  const resourceAmountInBank = (resourceSlug: string, bankId = activeBankId) => {
+    if (bankId === ALL_BANK_ID) return clanResourceTotals[resourceSlug] ?? 0;
+    return resourceState.balances[bankId]?.resources[resourceSlug] ?? 0;
+  };
+  const ancientCoinAmountInBank = (bankId = activeBankId) => (
+    bankId === ALL_BANK_ID ? clanAncientCoinTotal : resourceState.balances[bankId]?.ancientCoin ?? 0
+  );
+  const totalResourceUnitsInBank = (bankId: string) => {
+    if (bankId === ALL_BANK_ID) return Object.values(clanResourceTotals).reduce((total, amount) => total + amount, 0);
+    return Object.values(resourceState.balances[bankId]?.resources ?? {}).reduce((total, amount) => total + amount, 0);
+  };
+  const bankCounter = (bankId: string) => assetKind === "currency" ? ancientCoinAmountInBank(bankId) : totalResourceUnitsInBank(bankId);
+  const resourceMatchesFilters = (
+    resource: ResourceCatalogItem,
+    overrides: Partial<{ profession: string; quality: string; query: string }> = {},
+  ) => {
+    const nextProfession = overrides.profession ?? activeProfession;
+    const nextQuality = overrides.quality ?? activeQuality;
+    const nextQuery = overrides.query ?? query;
+    const nextNormalizedQuery = nextQuery.trim().toLocaleLowerCase("ru");
+    const matchesQuery = !nextNormalizedQuery || [resource.name, resource.englishName].some((name) => name.toLocaleLowerCase("ru").includes(nextNormalizedQuery));
+    const matchesProfession = nextProfession === "all" || (resource.profession ?? "other") === nextProfession;
+    const matchesQuality = nextQuality === "all" || resource.qualities.includes(nextQuality) || resource.quality === nextQuality;
+    return resourceAmountInBank(resource.slug) > 0 && matchesQuery && matchesProfession && matchesQuality;
+  };
+  const countResources = (overrides: Parameters<typeof resourceMatchesFilters>[1] = {}) => (
+    requestableResources.filter((resource) => resourceMatchesFilters(resource, overrides)).length
+  );
+  const professionAllCount = countResources({ profession: "all" });
+  const professionCounts = Object.fromEntries(professionOptions.map((profession) => [profession.value, countResources({ profession: profession.value })]));
+  const qualityAllCount = countResources({ quality: "all" });
+  const qualityCounts = Object.fromEntries(qualityOptions.map((quality) => [quality.value, countResources({ quality: quality.value })]));
+  const visibleResources = requestableResources.filter((resource) => resourceMatchesFilters(resource)).slice(0, 80);
   const requestedAmount = Math.max(1, Math.floor(Number(amount) || 1));
   const requesterName = profile.displayName.trim() || "Игрок";
   const requesterId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
   const currentActorIds = new Set([requesterId, LOCAL_PLAYER_ID]);
-  const canSubmit = Boolean(activeCollective && selectedResource && requestedAmount > 0);
+  const selectedAvailableAmount = assetKind === "currency"
+    ? ancientCoinAmountInBank()
+    : selectedResource ? resourceAmountInBank(selectedResource.slug) : 0;
+  const canSubmit = Boolean((activeBankId === ALL_BANK_ID || activeCollective)
+    && requestedAmount > 0
+    && selectedAvailableAmount > 0
+    && (assetKind === "currency" || selectedResource));
   const activeResourceRequests = requestState.resourceRequests.filter((request) => activeResourceRequestStatuses.has(request.status));
   const pendingCount = activeResourceRequests.filter((request) => request.status === "pending").length;
   const approvedCount = activeResourceRequests.filter((request) => request.status === "approved").length;
   const issuedCount = requestState.resourceRequests.filter((request) => request.status === "issued").length;
 
-  const availableAmount = (collectiveId: string, resourceSlug: string) => resourceState.balances[collectiveId]?.resources[resourceSlug] ?? 0;
-  const clanAvailableAmount = (resourceSlug: string) => clanResourceTotals[resourceSlug] ?? 0;
+  const availableAmount = (collectiveId: string, resourceSlug: string) => {
+    if (resourceSlug === ANCIENT_COIN_SLUG) return ancientCoinAmountInBank(collectiveId);
+    return resourceAmountInBank(resourceSlug, collectiveId);
+  };
   const canManageRequest = (request: ResourceRequest) => {
+    if (request.collectiveId === ALL_BANK_ID) return clanLeadershipRights;
     if (clanLeadershipRights) return true;
     const ownMembership = findMembership(collectiveState, LOCAL_PLAYER_ID);
     return ownMembership?.collective.id === request.collectiveId && roleIsIn(ownMembership.member.role, resourceRequestApproverRoles);
@@ -132,15 +181,18 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
 
   const createRequest = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!canSubmit || !activeCollective || !selectedResource) return;
+    if (!canSubmit || (assetKind === "resource" && !selectedResource)) return;
     const now = new Date().toISOString();
+    const requestResource = assetKind === "currency"
+      ? { slug: ANCIENT_COIN_SLUG, name: ANCIENT_COIN_NAME, image: ANCIENT_COIN_IMAGE }
+      : { slug: selectedResource!.slug, name: selectedResource!.name, image: selectedResource!.image };
     const request: ResourceRequest = {
       id: makeRequestId("resource"),
-      resourceSlug: selectedResource.slug,
-      resourceName: selectedResource.name,
-      resourceImage: selectedResource.image,
-      collectiveId: activeCollective.id,
-      collectiveName: activeCollective.name,
+      resourceSlug: requestResource.slug,
+      resourceName: requestResource.name,
+      resourceImage: requestResource.image,
+      collectiveId: activeBankId,
+      collectiveName: activeBankName,
       amount: requestedAmount,
       purpose: purpose.trim(),
       requester: { id: requesterId, name: requesterName },
@@ -151,6 +203,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     updateRequestState((current) => ({ ...current, resourceRequests: [request, ...current.resourceRequests].slice(0, 200) }));
     setPurpose("");
     setAmount("1");
+    if (assetKind === "resource") setSelectedResourceSlug("");
   };
 
   const updateRequestStatus = (requestId: string, status: RequestStatus) => {
@@ -161,21 +214,41 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   };
 
   const issueRequest = (request: ResourceRequest) => {
-    const balance = resourceState.balances[request.collectiveId] ?? emptyCollectiveBalance();
-    const currentAmount = balance.resources[request.resourceSlug] ?? 0;
-    if (currentAmount < request.amount) return;
-    const nextAmount = currentAmount - request.amount;
-    updateResourceState((current) => ({
-      balances: {
-        ...current.balances,
-        [request.collectiveId]: {
-          ...balance,
-          resources: { ...balance.resources, [request.resourceSlug]: nextAmount },
-          updatedAt: new Date().toISOString(),
-        },
-      },
-      operations: [makeResourceOperation(request.collectiveId, request.resourceSlug, -request.amount, nextAmount), ...current.operations].slice(0, 200),
-    }));
+    if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return;
+    const now = new Date().toISOString();
+    const isCurrency = request.resourceSlug === ANCIENT_COIN_SLUG;
+    updateResourceState((current) => {
+      if (request.collectiveId !== ALL_BANK_ID) {
+        const balance = current.balances[request.collectiveId] ?? emptyCollectiveBalance();
+        const currentAmount = isCurrency ? balance.ancientCoin : balance.resources[request.resourceSlug] ?? 0;
+        const nextAmount = currentAmount - request.amount;
+        const nextBalance = isCurrency
+          ? { ...balance, ancientCoin: nextAmount, updatedAt: now }
+          : { ...balance, resources: { ...balance.resources, [request.resourceSlug]: nextAmount }, updatedAt: now };
+        return {
+          balances: { ...current.balances, [request.collectiveId]: nextBalance },
+          operations: [makeResourceOperation(request.collectiveId, request.resourceSlug, -request.amount, nextAmount), ...current.operations].slice(0, 200),
+        };
+      }
+
+      let remaining = request.amount;
+      const balances = { ...current.balances };
+      const operations = [...current.operations];
+      for (const collective of collectiveState.collectives) {
+        if (remaining <= 0) break;
+        const balance = balances[collective.id] ?? emptyCollectiveBalance();
+        const currentAmount = isCurrency ? balance.ancientCoin : balance.resources[request.resourceSlug] ?? 0;
+        if (currentAmount <= 0) continue;
+        const taken = Math.min(currentAmount, remaining);
+        const nextAmount = currentAmount - taken;
+        balances[collective.id] = isCurrency
+          ? { ...balance, ancientCoin: nextAmount, updatedAt: now }
+          : { ...balance, resources: { ...balance.resources, [request.resourceSlug]: nextAmount }, updatedAt: now };
+        operations.unshift(makeResourceOperation(collective.id, request.resourceSlug, -taken, nextAmount));
+        remaining -= taken;
+      }
+      return { balances, operations: operations.slice(0, 200) };
+    });
     updateRequestStatus(request.id, "issued");
   };
 
@@ -201,15 +274,29 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
         <form className={styles.requestForm} onSubmit={createRequest}>
           <header><span>Новая заявка</span><h2>Получение ресурсов</h2><p>Выберите ресурс, количество и коллектив, из банка которого нужна выдача.</p></header>
 
-          <label className={styles.field}>
-            <span>Коллектив</span>
-            <select value={activeCollective?.id ?? ""} onChange={(event) => setSelectedCollectiveId(event.target.value)}>
-              {availableCollectives.map((collective) => <option value={collective.id} key={collective.id}>{collective.name}</option>)}
-            </select>
-          </label>
+          <div className={styles.inlineTabs}>
+            <button type="button" className={assetKind === "resource" ? styles.inlineTabActive : ""} onClick={() => setAssetKind("resource")}>Ресурсы</button>
+            <button type="button" className={assetKind === "currency" ? styles.inlineTabActive : ""} onClick={() => setAssetKind("currency")}>Древняя монета</button>
+          </div>
+
+          <div className={`${styles.filterChips} ${styles.bankFilters}`}>
+            <div>
+              <span>Банк</span>
+              <button type="button" className={activeBankId === ALL_BANK_ID ? styles.filterChipActive : ""} onClick={() => setSelectedCollectiveId(ALL_BANK_ID)}>
+                Общий банк <small>{formatAmount(bankCounter(ALL_BANK_ID))}</small>
+              </button>
+              {availableCollectives.map((collective) => (
+                <button type="button" className={activeBankId === collective.id ? styles.filterChipActive : ""} onClick={() => setSelectedCollectiveId(collective.id)} key={collective.id}>
+                  {collective.name} <small>{formatAmount(bankCounter(collective.id))}</small>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className={styles.requestComposer}>
             <section className={styles.requestPickerPanel}>
+              {assetKind === "resource" ? (
+                <>
               <label className={styles.searchField}>
                 <Search size={15} />
                 <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск ресурса..." />
@@ -218,19 +305,19 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
               <div className={styles.filterChips}>
                 <div>
                   <span>Профессия</span>
-                  <button type="button" className={activeProfession === "all" ? styles.filterChipActive : ""} onClick={() => setActiveProfession("all")}>Все</button>
+                  <button type="button" className={activeProfession === "all" ? styles.filterChipActive : ""} onClick={() => setActiveProfession("all")}>Все <small>{professionAllCount}</small></button>
                   {professionOptions.map((profession) => (
                     <button type="button" className={activeProfession === profession.value ? styles.filterChipActive : ""} onClick={() => setActiveProfession(profession.value)} key={profession.value}>
-                      {profession.label} <small>{profession.count}</small>
+                      {profession.label} <small>{professionCounts[profession.value]}</small>
                     </button>
                   ))}
                 </div>
                 <div>
                   <span>Качество</span>
-                  <button type="button" className={activeQuality === "all" ? styles.filterChipActive : ""} onClick={() => setActiveQuality("all")}>Все</button>
+                  <button type="button" className={activeQuality === "all" ? styles.filterChipActive : ""} onClick={() => setActiveQuality("all")}>Все <small>{qualityAllCount}</small></button>
                   {qualityOptions.map((quality) => (
                     <button type="button" className={`${activeQuality === quality.value ? styles.filterChipActive : ""} ${styles.qualityChip}`} onClick={() => setActiveQuality(quality.value)} key={quality.value}>
-                      <i className={styles[quality.value]} /> {quality.label}
+                      <i className={styles[quality.value]} /> {quality.label} <small>{qualityCounts[quality.value]}</small>
                     </button>
                   ))}
                 </div>
@@ -246,18 +333,34 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   >
                     <span>{resource.image && <LoadableImage src={resource.image} alt="" width={42} height={42} />}</span>
                     <div><strong>{resource.name}</strong><small>{resource.englishName} · T{resource.tier}</small></div>
-                    <em>{formatAmount(clanAvailableAmount(resource.slug))}</em>
+                    <em>{formatAmount(resourceAmountInBank(resource.slug))}</em>
                   </button>
                 ))}
               </div>
+                </>
+              ) : (
+                <div className={styles.currencyRequestPanel}>
+                  <span><LoadableImage src={ANCIENT_COIN_IMAGE} alt="" width={62} height={62} /></span>
+                  <div>
+                    <small>{activeBankName}</small>
+                    <strong>{ANCIENT_COIN_NAME}</strong>
+                    <p>Доступно: {formatAmount(ancientCoinAmountInBank())}</p>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className={styles.requestDetailsPanel}>
               <div className={styles.selectedPreview}>
-                {selectedResource ? (
+                {assetKind === "currency" ? (
+                  <>
+                    <span><LoadableImage src={ANCIENT_COIN_IMAGE} alt="" width={44} height={44} /></span>
+                    <div><strong>{ANCIENT_COIN_NAME}</strong><small>{activeBankName}: {formatAmount(selectedAvailableAmount)}</small></div>
+                  </>
+                ) : selectedResource ? (
                   <>
                     <span>{selectedResource.image && <LoadableImage src={selectedResource.image} alt="" width={44} height={44} />}</span>
-                    <div><strong>{selectedResource.name}</strong><small>В банке клана: {formatAmount(clanAvailableAmount(selectedResource.slug))}</small></div>
+                    <div><strong>{selectedResource.name}</strong><small>{activeBankName}: {formatAmount(selectedAvailableAmount)}</small></div>
                   </>
                 ) : <p>Ресурс не выбран</p>}
               </div>
@@ -284,9 +387,8 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
           <header><span>Очередь</span><h2>Заявки на ресурсы</h2></header>
           {activeResourceRequests.length > 0 ? activeResourceRequests.map((request) => {
             const canManage = canManageRequest(request);
-            const collectiveAvailable = availableAmount(request.collectiveId, request.resourceSlug);
-            const clanAvailable = clanAvailableAmount(request.resourceSlug);
-            const canIssue = canManage && request.status === "approved" && collectiveAvailable >= request.amount;
+            const bankAvailable = availableAmount(request.collectiveId, request.resourceSlug);
+            const canIssue = canManage && request.status === "approved" && bankAvailable >= request.amount;
             return (
               <article className={styles.requestCard} data-status={request.status} key={request.id}>
                 <div className={styles.requestIcon}>{request.resourceImage && <LoadableImage src={request.resourceImage} alt="" width={52} height={52} />}</div>
@@ -297,7 +399,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   </div>
                   <p>{formatAmount(request.amount)} ед. · {request.collectiveName} · {request.requester.name}</p>
                   {request.purpose && <em>{request.purpose}</em>}
-                  <small>Создано {formatRequestDate(request.createdAt)} · в банке клана {formatAmount(clanAvailable)}</small>
+                  <small>Создано {formatRequestDate(request.createdAt)} · доступно в банке {formatAmount(bankAvailable)}</small>
                 </div>
                 <div className={styles.requestActions}>
                   {canManage && request.status === "pending" && (

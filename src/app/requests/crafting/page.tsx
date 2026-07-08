@@ -45,6 +45,7 @@ export default async function CraftRequestsPage() {
       type: item.type,
       tier: item.tier,
       mastery: item.mastery ?? null,
+      profession: item.profession ?? null,
       quality: item.quality,
       qualities: [...new Set((variationsByRoot.get(item.slug) ?? [item]).map((variation) => variation.quality))],
       image: imageMap[item.slug] ?? null,

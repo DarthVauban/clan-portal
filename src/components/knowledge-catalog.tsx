@@ -201,27 +201,65 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
   const categoryCounts = useMemo(() => Object.fromEntries(
     categories.map((category) => [category.id, dataset.items.filter((item) => item.type === category.type).length]),
   ), [dataset.items]);
-  const weaponClassCounts = useMemo(() => Object.fromEntries(
-    weaponClasses.map((weaponClass) => [weaponClass.value, dataset.items.filter((item) => item.type === "weapon" && item.mastery === weaponClass.value).length]),
-  ), [dataset.items]);
-  const consumableProfessionCounts = useMemo(() => Object.fromEntries(
-    consumableProfessions.map((profession) => [profession.value, dataset.items.filter((item) => item.type === "consumable" && item.profession === profession.value).length]),
-  ), [dataset.items]);
-  const resourceProfessionCounts = useMemo(() => Object.fromEntries(
-    resourceProfessions.map((profession) => [profession.value, dataset.items.filter((item) => {
-      if (item.type !== "resource") return false;
-      if (profession.value === "other") return !primaryResourceProfessions.has(item.profession ?? "");
-      return item.profession === profession.value;
-    }).length]),
-  ), [dataset.items]);
   const weaponStatOptions = useMemo(() => makeStatFilterOptions(dataset.items, "weapon", dataset.stats, weaponStatsIgnoredInFilters), [dataset.items, dataset.stats]);
   const artifactStatOptions = useMemo(() => makeStatFilterOptions(dataset.items, "implant", dataset.stats), [dataset.items, dataset.stats]);
   const activeStatOptions = useMemo(() => (
     activeCategory === "weapons" ? weaponStatOptions : activeCategory === "artifacts" ? artifactStatOptions : []
   ), [activeCategory, artifactStatOptions, weaponStatOptions]);
   const availableStatTypes = useMemo(() => new Set(activeStatOptions.map((option) => option.type)), [activeStatOptions]);
-  const activeStatFilters = requestedStatFilters.filter((type) => availableStatTypes.has(type));
+  const activeStatFilters = requestedStatFilters
+    .filter((type) => availableStatTypes.has(type))
+    .slice(0, activeCategory === "weapons" ? 1 : undefined);
   const activeStatSet = useMemo(() => new Set(activeStatFilters), [activeStatFilters]);
+  const itemMatchesCurrentFilters = (
+    item: CorepunkCatalogDataset["items"][number],
+    overrides: Partial<Pick<CatalogState, "tier" | "quality" | "weaponClass" | "profession" | "statFilters" | "query">> = {},
+  ) => {
+    const nextTier = overrides.tier ?? activeTier;
+    const nextQuality = overrides.quality ?? activeQuality;
+    const nextWeaponClass = overrides.weaponClass ?? activeWeaponClass;
+    const nextProfession = overrides.profession ?? activeProfession;
+    const nextStatFilters = overrides.statFilters ?? activeStatFilters;
+    const nextQuery = overrides.query ?? query;
+    const nextNormalizedQuery = nextQuery.trim().toLocaleLowerCase("ru");
+    const matchesCategory = item.type === activeCategoryData.type;
+    const matchesTier = nextTier === "all" || item.tier === nextTier;
+    const matchesQuality = nextQuality === "all" || item.variations.some((variation) => variation.quality === nextQuality);
+    const matchesWeaponClass = activeCategoryData.type !== "weapon" || nextWeaponClass === "all" || item.mastery === nextWeaponClass;
+    const matchesProfession = nextProfession === "all"
+      || (activeCategoryData.type === "consumable" && item.profession === nextProfession)
+      || (activeCategoryData.type === "resource" && (
+        nextProfession === "other"
+          ? !primaryResourceProfessions.has(item.profession ?? "")
+          : item.profession === nextProfession
+      ))
+      || !["consumable", "resource"].includes(activeCategoryData.type);
+    const matchesStats = nextStatFilters.length === 0 || nextStatFilters.every((statType) => item.stats.some((stat) => stat.type === statType));
+    const matchesQuery = !nextNormalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(nextNormalizedQuery));
+    return matchesCategory && matchesTier && matchesQuality && matchesWeaponClass && matchesProfession && matchesStats && matchesQuery;
+  };
+  const countItemsForFilters = (overrides: Parameters<typeof itemMatchesCurrentFilters>[1] = {}) => (
+    dataset.items.filter((item) => itemMatchesCurrentFilters(item, overrides)).length
+  );
+  const activeCategoryFilterCount = countItemsForFilters();
+  const weaponClassAllCount = countItemsForFilters({ weaponClass: "all" });
+  const consumableProfessionAllCount = countItemsForFilters({ profession: "all" });
+  const resourceProfessionAllCount = countItemsForFilters({ profession: "all" });
+  const weaponClassFilterCounts = Object.fromEntries(
+    weaponClasses.map((weaponClass) => [weaponClass.value, countItemsForFilters({ weaponClass: weaponClass.value })]),
+  );
+  const consumableProfessionFilterCounts = Object.fromEntries(
+    consumableProfessions.map((profession) => [profession.value, countItemsForFilters({ profession: profession.value })]),
+  );
+  const resourceProfessionFilterCounts = Object.fromEntries(
+    resourceProfessions.map((profession) => [profession.value, countItemsForFilters({ profession: profession.value })]),
+  );
+  const statFilterCounts = Object.fromEntries(activeStatOptions.map((option) => {
+    const statFilters = activeCategory === "weapons"
+      ? [option.type]
+      : activeStatSet.has(option.type) ? activeStatFilters : [...activeStatFilters, option.type];
+    return [option.type, countItemsForFilters({ statFilters })];
+  }));
 
   const searchItems = useMemo(() => dataset.items.map((item) => ({
     name: showEnglishNames ? item.englishName : item.name,
@@ -232,26 +270,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
     aliases: [item.name, item.englishName],
   })), [dataset.items, showEnglishNames]);
 
-  const visibleItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase("ru");
-    return dataset.items.filter((item) => {
-      const matchesCategory = item.type === activeCategoryData.type;
-      const matchesTier = activeTier === "all" || item.tier === activeTier;
-      const matchesQuality = activeQuality === "all" || item.variations.some((variation) => variation.quality === activeQuality);
-      const matchesWeaponClass = activeCategoryData.type !== "weapon" || activeWeaponClass === "all" || item.mastery === activeWeaponClass;
-      const matchesProfession = activeProfession === "all"
-        || (activeCategoryData.type === "consumable" && item.profession === activeProfession)
-        || (activeCategoryData.type === "resource" && (
-          activeProfession === "other"
-            ? !primaryResourceProfessions.has(item.profession ?? "")
-            : item.profession === activeProfession
-        ))
-        || !["consumable", "resource"].includes(activeCategoryData.type);
-      const matchesStats = activeStatFilters.length === 0 || activeStatFilters.every((statType) => item.stats.some((stat) => stat.type === statType));
-      const matchesQuery = !normalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery));
-      return matchesCategory && matchesTier && matchesQuality && matchesWeaponClass && matchesProfession && matchesStats && matchesQuery;
-    });
-  }, [activeCategoryData.type, activeProfession, activeQuality, activeStatFilters, activeTier, activeWeaponClass, dataset.items, query]);
+  const visibleItems = dataset.items.filter((item) => itemMatchesCurrentFilters(item));
 
   const resetFilters = () => {
     updateCatalogState({ tier: "all", quality: "all", weaponClass: "all", profession: "all", statFilters: [], query: "" });
@@ -262,6 +281,10 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
   };
 
   const toggleStatFilter = (statType: string) => {
+    if (activeCategory === "weapons") {
+      updateCatalogState({ statFilters: activeStatSet.has(statType) ? [] : [statType] });
+      return;
+    }
     updateCatalogState({
       statFilters: activeStatSet.has(statType)
         ? activeStatFilters.filter((type) => type !== statType)
@@ -328,7 +351,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
             <span><ActiveIcon size={22} /></span>
             <div><h2>{activeCategoryData.label}</h2><p>{activeCategoryData.description}</p></div>
           </div>
-          <div className={styles.categoryCount}>{pluralItems(categoryCounts[activeCategory])}</div>
+          <div className={styles.categoryCount}>{pluralItems(activeCategoryFilterCount)}</div>
         </header>
 
         <div className={styles.filtersPanel}>
@@ -358,7 +381,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
             <div className={`${styles.filterGroup} ${styles.classFilterGroup}`} data-testid="weapon-class-filter">
               <span>Класс</span>
               <div>
-                <button type="button" className={activeWeaponClass === "all" ? styles.filterActive : ""} onClick={() => updateCatalogState({ weaponClass: "all" })} data-testid="filter-class-all">Все <small>{categoryCounts.weapons}</small></button>
+                <button type="button" className={activeWeaponClass === "all" ? styles.filterActive : ""} onClick={() => updateCatalogState({ weaponClass: "all" })} data-testid="filter-class-all">Все <small>{weaponClassAllCount}</small></button>
                 {weaponClasses.map((weaponClass) => (
                   <button
                     type="button"
@@ -367,7 +390,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                     data-testid={`filter-class-${weaponClass.value}`}
                     key={weaponClass.value}
                   >
-                    {weaponClass.label} <small>{weaponClassCounts[weaponClass.value]}</small>
+                    {weaponClass.label} <small>{weaponClassFilterCounts[weaponClass.value]}</small>
                   </button>
                 ))}
               </div>
@@ -378,7 +401,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
             <div className={`${styles.filterGroup} ${styles.classFilterGroup}`} data-testid="consumable-profession-filter">
               <span>Профессия</span>
               <div>
-                <button type="button" className={activeProfession === "all" ? styles.filterActive : ""} onClick={() => updateCatalogState({ profession: "all" })} data-testid="filter-profession-all">Все <small>{categoryCounts.consumables}</small></button>
+                <button type="button" className={activeProfession === "all" ? styles.filterActive : ""} onClick={() => updateCatalogState({ profession: "all" })} data-testid="filter-profession-all">Все <small>{consumableProfessionAllCount}</small></button>
                 {consumableProfessions.map((profession) => (
                   <button
                     type="button"
@@ -387,7 +410,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                     data-testid={`filter-profession-${profession.value}`}
                     key={profession.value}
                   >
-                    {profession.label} <small>{consumableProfessionCounts[profession.value]}</small>
+                    {profession.label} <small>{consumableProfessionFilterCounts[profession.value]}</small>
                   </button>
                 ))}
               </div>
@@ -398,7 +421,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
             <div className={`${styles.filterGroup} ${styles.classFilterGroup}`} data-testid="resource-profession-filter">
               <span>Профессия</span>
               <div>
-                <button type="button" className={activeProfession === "all" ? styles.filterActive : ""} onClick={() => updateCatalogState({ profession: "all" })} data-testid="filter-profession-all">Все <small>{categoryCounts.resources}</small></button>
+                <button type="button" className={activeProfession === "all" ? styles.filterActive : ""} onClick={() => updateCatalogState({ profession: "all" })} data-testid="filter-profession-all">Все <small>{resourceProfessionAllCount}</small></button>
                 {resourceProfessions.map((profession) => (
                   <button
                     type="button"
@@ -407,7 +430,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                     data-testid={`filter-profession-${profession.value}`}
                     key={profession.value}
                   >
-                    {profession.label} <small>{resourceProfessionCounts[profession.value]}</small>
+                    {profession.label} <small>{resourceProfessionFilterCounts[profession.value]}</small>
                   </button>
                 ))}
               </div>
@@ -427,7 +450,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                     key={option.type}
                   >
                     {option.asset?.downloaded && <LoadableImage src={option.asset.local} alt="" width={18} height={18} />}
-                    {option.label} <small>{option.count}</small>
+                    {option.label} <small>{statFilterCounts[option.type]}</small>
                   </button>
                 ))}
               </div>

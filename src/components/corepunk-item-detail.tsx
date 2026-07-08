@@ -116,7 +116,7 @@ function IngredientTile({ ingredient, dataset, showEnglishNames }: { ingredient:
     <>
       <div className={`${styles.ingredientImage} ${qualityClass(quality)}`}>
         {media?.downloaded && <LoadableImage src={media.local} alt={itemName} width={72} height={72} />}
-        <span>{ingredient.quantity}</span>
+        <span className={styles.ingredientAmount}>{ingredient.quantity}</span>
       </div>
       <div>
         <strong>{itemName}</strong>

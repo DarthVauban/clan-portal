@@ -39,6 +39,7 @@ export type CalculatorCraftItem = {
   type: string;
   tier: number;
   mastery: string | null;
+  profession: string | null;
   quality: string;
   qualities: string[];
   image: string | null;

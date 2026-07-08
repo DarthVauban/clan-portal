@@ -48,6 +48,15 @@ const qualityLabels: Record<string, string> = {
   epic: "Эпический",
 };
 const classOptions = corepunkClasses.map((heroClass) => ({ value: heroClass.slug, label: heroClass.name }));
+const craftTypeOptions = [
+  { value: "all", label: "Все" },
+  { value: "weapon", label: "Оружие" },
+  { value: "implant", label: "Артефакт" },
+  { value: "chip", label: "Чипы" },
+  { value: "rune", label: "Руны" },
+  { value: "alchemy", label: "Алхимия" },
+  { value: "cooking", label: "Кулинария" },
+] as const;
 const craftFundingLabels: Record<CraftFundingType, string> = {
   personal: "Обычная заявка",
   clan: "За счёт ресурсов клана",
@@ -60,6 +69,7 @@ const clanApprovalLabels: Record<ClanCraftApprovalStatus, string> = {
 };
 
 const activeCraftRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress"]);
+type CraftTypeFilter = (typeof craftTypeOptions)[number]["value"];
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -122,6 +132,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const { state: resourceState } = useResourceStore();
   const { state: requestState, updateState: updateRequestState } = useRequestStore();
   const [query, setQuery] = useState("");
+  const [activeItemType, setActiveItemType] = useState<CraftTypeFilter>("all");
   const [activeClass, setActiveClass] = useState("all");
   const [activeTier, setActiveTier] = useState<number | "all">("all");
   const [activeQuality, setActiveQuality] = useState("all");
@@ -148,34 +159,52 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const tierOptions = useMemo(() => [...new Set(craftItems.map((item) => item.tier))]
     .filter((tier) => Number.isFinite(tier) && tier > 0)
     .sort((first, second) => first - second), [craftItems]);
-  const classCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const item of craftItems) {
-      if (item.mastery) counts.set(item.mastery, (counts.get(item.mastery) ?? 0) + 1);
-    }
-    return counts;
-  }, [craftItems]);
   const qualityOptions = useMemo(() => {
-    const counts = new Map<string, number>();
+    const values = new Set<string>();
     for (const item of craftItems) {
-      for (const quality of item.qualities.length > 0 ? item.qualities : [item.quality]) counts.set(quality, (counts.get(quality) ?? 0) + 1);
+      for (const quality of item.qualities.length > 0 ? item.qualities : [item.quality]) values.add(quality);
     }
-    return [...counts.entries()]
-      .map(([value, count]) => ({ value, count, label: qualityLabels[value] ?? value }))
+    return [...values]
+      .map((value) => ({ value, label: qualityLabels[value] ?? value }))
       .sort((first, second) => {
         const firstOrder = qualityOrder.indexOf(first.value);
         const secondOrder = qualityOrder.indexOf(second.value);
         return (firstOrder === -1 ? 99 : firstOrder) - (secondOrder === -1 ? 99 : secondOrder);
       });
   }, [craftItems]);
-  const normalizedQuery = query.trim().toLocaleLowerCase("ru");
-  const visibleItems = craftItems.filter((item) => {
-    const matchesQuery = !normalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery));
-    const matchesClass = activeClass === "all" || item.mastery === activeClass;
-    const matchesTier = activeTier === "all" || item.tier === activeTier;
-    const matchesQuality = activeQuality === "all" || item.qualities.includes(activeQuality) || item.quality === activeQuality;
-    return matchesQuery && matchesClass && matchesTier && matchesQuality;
-  }).slice(0, 80);
+  const itemMatchesType = (item: CalculatorCraftItem, filter: CraftTypeFilter) => {
+    if (filter === "all") return true;
+    if (filter === "alchemy" || filter === "cooking") return item.type === "consumable" && item.profession === filter;
+    return item.type === filter;
+  };
+  const itemMatchesFilters = (
+    item: CalculatorCraftItem,
+    overrides: Partial<{ itemType: CraftTypeFilter; heroClass: string | "all"; tier: number | "all"; quality: string; query: string }> = {},
+  ) => {
+    const nextItemType = overrides.itemType ?? activeItemType;
+    const nextClass = overrides.heroClass ?? activeClass;
+    const nextTier = overrides.tier ?? activeTier;
+    const nextQuality = overrides.quality ?? activeQuality;
+    const nextQuery = overrides.query ?? query;
+    const nextNormalizedQuery = nextQuery.trim().toLocaleLowerCase("ru");
+    const matchesType = itemMatchesType(item, nextItemType);
+    const matchesQuery = !nextNormalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(nextNormalizedQuery));
+    const matchesClass = nextClass === "all" || item.mastery === nextClass;
+    const matchesTier = nextTier === "all" || item.tier === nextTier;
+    const matchesQuality = nextQuality === "all" || item.qualities.includes(nextQuality) || item.quality === nextQuality;
+    return matchesType && matchesQuery && matchesClass && matchesTier && matchesQuality;
+  };
+  const countCraftItems = (overrides: Parameters<typeof itemMatchesFilters>[1] = {}) => (
+    craftItems.filter((item) => itemMatchesFilters(item, overrides)).length
+  );
+  const typeFilterCounts = Object.fromEntries(craftTypeOptions.map((option) => [option.value, countCraftItems({ itemType: option.value })]));
+  const classAllCount = countCraftItems({ heroClass: "all" });
+  const classCounts = Object.fromEntries(classOptions.map((heroClass) => [heroClass.value, countCraftItems({ heroClass: heroClass.value })]));
+  const tierAllCount = countCraftItems({ tier: "all" });
+  const tierCounts = Object.fromEntries(tierOptions.map((tier) => [tier, countCraftItems({ tier })]));
+  const qualityAllCount = countCraftItems({ quality: "all" });
+  const qualityCounts = Object.fromEntries(qualityOptions.map((quality) => [quality.value, countCraftItems({ quality: quality.value })]));
+  const visibleItems = craftItems.filter((item) => itemMatchesFilters(item)).slice(0, 80);
   const clanBalances = useMemo(() => {
     const total: Record<string, number> = {};
     for (const collective of collectiveState.collectives) {
@@ -299,10 +328,18 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
 
               <div className={styles.filterChips}>
                 <div>
+                  <span>Тип предмета</span>
+                  {craftTypeOptions.map((option) => (
+                    <button type="button" className={activeItemType === option.value ? styles.filterChipActive : ""} onClick={() => setActiveItemType(option.value)} key={option.value}>
+                      {option.label} <small>{typeFilterCounts[option.value]}</small>
+                    </button>
+                  ))}
+                </div>
+                <div>
                   <span>Класс</span>
-                  <button type="button" className={activeClass === "all" ? styles.filterChipActive : ""} onClick={() => setActiveClass("all")}>Все</button>
+                  <button type="button" className={activeClass === "all" ? styles.filterChipActive : ""} onClick={() => setActiveClass("all")}>Все <small>{classAllCount}</small></button>
                   {classOptions.map((heroClass) => {
-                    const count = classCounts.get(heroClass.value) ?? 0;
+                    const count = classCounts[heroClass.value] ?? 0;
                     if (count === 0) return null;
                     return (
                       <button type="button" className={activeClass === heroClass.value ? styles.filterChipActive : ""} onClick={() => setActiveClass(heroClass.value)} key={heroClass.value}>
@@ -313,15 +350,15 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                 </div>
                 <div>
                   <span>Тир</span>
-                  <button type="button" className={activeTier === "all" ? styles.filterChipActive : ""} onClick={() => setActiveTier("all")}>Все</button>
-                  {tierOptions.map((tier) => <button type="button" className={activeTier === tier ? styles.filterChipActive : ""} onClick={() => setActiveTier(tier)} key={tier}>T{tier}</button>)}
+                  <button type="button" className={activeTier === "all" ? styles.filterChipActive : ""} onClick={() => setActiveTier("all")}>Все <small>{tierAllCount}</small></button>
+                  {tierOptions.map((tier) => <button type="button" className={activeTier === tier ? styles.filterChipActive : ""} onClick={() => setActiveTier(tier)} key={tier}>T{tier} <small>{tierCounts[tier]}</small></button>)}
                 </div>
                 <div>
                   <span>Качество</span>
-                  <button type="button" className={activeQuality === "all" ? styles.filterChipActive : ""} onClick={() => setActiveQuality("all")}>Все</button>
+                  <button type="button" className={activeQuality === "all" ? styles.filterChipActive : ""} onClick={() => setActiveQuality("all")}>Все <small>{qualityAllCount}</small></button>
                   {qualityOptions.map((quality) => (
                     <button type="button" className={`${activeQuality === quality.value ? styles.filterChipActive : ""} ${styles.qualityChip}`} onClick={() => setActiveQuality(quality.value)} key={quality.value}>
-                      <i className={styles[quality.value]} /> {quality.label}
+                      <i className={styles[quality.value]} /> {quality.label} <small>{qualityCounts[quality.value]}</small>
                     </button>
                   ))}
                 </div>

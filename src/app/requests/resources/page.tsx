@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function ResourceRequestsPage() {
   const catalogDataset = await getCatalogDataset();
   const resources: ResourceCatalogItem[] = catalogDataset.items
-    .filter((item) => item.type === "resource")
+    .filter((item) => item.type === "resource" && item.slug !== "ancient-coin")
     .map((item) => ({
       slug: item.slug,
       name: item.name,
