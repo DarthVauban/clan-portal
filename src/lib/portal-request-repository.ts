@@ -64,6 +64,14 @@ type RequestState = {
 
 const LOCAL_PLAYER_ID = "local-user";
 const EMPTY_STATE: RequestState = { resourceRequests: [], craftRequests: [] };
+const PORTAL_REQUEST_ACCESS_SQL = `
+  SELECT 1
+  FROM portal_players p
+  JOIN portal_collective_members m ON m.player_id = p.player_id
+  WHERE p.discord_id = $1
+    AND p.application_status NOT IN ('revoked', 'blocked')
+  LIMIT 1
+`;
 const validStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress", "issued", "completed", "rejected", "cancelled"]);
 const validCraftFundingTypes = new Set<CraftFundingType>(["personal", "clan"]);
 const validClanCraftApprovalStatuses = new Set<ClanCraftApprovalStatus>(["not-required", "pending", "approved", "rejected"]);
@@ -192,16 +200,14 @@ function toIso(value: unknown) {
 
 async function canAccessRequests(client: PoolClient, session: PortalSession) {
   if (isPortalAdminDiscordId(session.discordUser.id)) return true;
-  const result = await client.query(
-    `
-      SELECT 1
-      FROM portal_players
-      WHERE discord_id = $1
-        AND application_status = 'accepted'
-      LIMIT 1
-    `,
-    [session.discordUser.id],
-  );
+  const result = await client.query(PORTAL_REQUEST_ACCESS_SQL, [session.discordUser.id]);
+  return Boolean(result.rowCount);
+}
+
+export async function hasPortalRequestAccess(session: PortalSession) {
+  if (isPortalAdminDiscordId(session.discordUser.id)) return true;
+  const pool = getDatabasePool();
+  const result = await pool.query(PORTAL_REQUEST_ACCESS_SQL, [session.discordUser.id]);
   return Boolean(result.rowCount);
 }
 

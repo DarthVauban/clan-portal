@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { AUTH_SESSION_COOKIE, readSessionCookieValue } from "@/lib/auth-session";
+import { hasPortalRequestAccess } from "@/lib/portal-request-repository";
 import { subscribePortalRequestEvents } from "@/lib/portal-request-events";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,9 @@ export async function GET(request: NextRequest) {
   const session = readSession(request);
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
+  }
+  if (!(await hasPortalRequestAccess(session))) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   const encoder = new TextEncoder();
