@@ -3,6 +3,7 @@ import "server-only";
 import type { PoolClient } from "pg";
 import { isPortalAdminDiscordId, type PortalSession } from "@/lib/auth-session";
 import { getDatabasePool } from "@/lib/database";
+import { emitPortalRequestChange } from "@/lib/portal-request-events";
 
 type RequestStatus = "pending" | "approved" | "in-progress" | "issued" | "completed" | "rejected" | "cancelled";
 type CraftFundingType = "personal" | "clan";
@@ -303,9 +304,6 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
     const playerResult = await client.query("SELECT player_id FROM portal_players");
     const existingPlayerIds = new Set(playerResult.rows.map((row) => String(row.player_id)));
     const playerIdOrNull = (playerId: string | null | undefined) => playerId && existingPlayerIds.has(playerId) ? playerId : null;
-    await client.query("DELETE FROM portal_craft_request_requirements");
-    await client.query("DELETE FROM portal_craft_requests");
-    await client.query("DELETE FROM portal_resource_requests");
 
     for (const request of state.resourceRequests) {
       await client.query(
@@ -315,6 +313,18 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
             requester_player_id, requester_name, status, created_at, updated_at
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::timestamptz, $13::timestamptz)
+          ON CONFLICT (request_id) DO UPDATE SET
+            resource_slug = EXCLUDED.resource_slug,
+            resource_name = EXCLUDED.resource_name,
+            resource_image = EXCLUDED.resource_image,
+            collective_id = EXCLUDED.collective_id,
+            collective_name = EXCLUDED.collective_name,
+            amount = EXCLUDED.amount,
+            purpose = EXCLUDED.purpose,
+            requester_player_id = EXCLUDED.requester_player_id,
+            requester_name = EXCLUDED.requester_name,
+            status = EXCLUDED.status,
+            updated_at = EXCLUDED.updated_at
         `,
         [
           request.id,
@@ -343,6 +353,22 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
             status, created_at, updated_at
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::timestamptz, $17::timestamptz)
+          ON CONFLICT (request_id) DO UPDATE SET
+            item_slug = EXCLUDED.item_slug,
+            item_name = EXCLUDED.item_name,
+            item_image = EXCLUDED.item_image,
+            recipe_id = EXCLUDED.recipe_id,
+            recipe_name = EXCLUDED.recipe_name,
+            quantity = EXCLUDED.quantity,
+            note = EXCLUDED.note,
+            funding = EXCLUDED.funding,
+            clan_approval_status = EXCLUDED.clan_approval_status,
+            requester_player_id = EXCLUDED.requester_player_id,
+            requester_name = EXCLUDED.requester_name,
+            executor_player_id = EXCLUDED.executor_player_id,
+            executor_name = EXCLUDED.executor_name,
+            status = EXCLUDED.status,
+            updated_at = EXCLUDED.updated_at
         `,
         [
           request.id,
@@ -364,6 +390,7 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
           request.updatedAt,
         ],
       );
+      await client.query("DELETE FROM portal_craft_request_requirements WHERE request_id = $1", [request.id]);
       for (const [position, requirement] of request.requirements.entries()) {
         await client.query(
           `
@@ -378,6 +405,7 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
     }
 
     await client.query("COMMIT");
+    emitPortalRequestChange();
     return listPortalRequestState(session);
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);

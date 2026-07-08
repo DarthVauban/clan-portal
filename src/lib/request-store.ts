@@ -250,15 +250,20 @@ export function useRequestStore() {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_STATE);
   useEffect(() => {
     let disposed = false;
+    let events: EventSource | null = null;
     const sync = () => {
       if (!disposed) void refreshRequestStore().catch(() => undefined);
     };
     sync();
-    const interval = window.setInterval(sync, 2500);
+    if (typeof EventSource !== "undefined") {
+      events = new EventSource("/api/requests/events");
+      events.addEventListener("requests-changed", sync);
+      events.addEventListener("ready", sync);
+    }
     window.addEventListener("focus", sync);
     return () => {
       disposed = true;
-      window.clearInterval(interval);
+      events?.close();
       window.removeEventListener("focus", sync);
     };
   }, []);

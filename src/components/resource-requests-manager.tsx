@@ -42,6 +42,7 @@ const professionLabels: Record<string, string> = {
   weaponsmithing: "Оружейное дело",
 };
 const resourceRequestApproverRoles = ["leader", "officer"] as const;
+const activeResourceRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress"]);
 
 function formatAmount(value: number) {
   return numberFormatter.format(value);
@@ -107,8 +108,9 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const requesterId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
   const currentActorIds = new Set([requesterId, LOCAL_PLAYER_ID]);
   const canSubmit = Boolean(activeCollective && selectedResource && requestedAmount > 0);
-  const pendingCount = requestState.resourceRequests.filter((request) => request.status === "pending").length;
-  const approvedCount = requestState.resourceRequests.filter((request) => request.status === "approved").length;
+  const activeResourceRequests = requestState.resourceRequests.filter((request) => activeResourceRequestStatuses.has(request.status));
+  const pendingCount = activeResourceRequests.filter((request) => request.status === "pending").length;
+  const approvedCount = activeResourceRequests.filter((request) => request.status === "approved").length;
   const issuedCount = requestState.resourceRequests.filter((request) => request.status === "issued").length;
 
   const availableAmount = (collectiveId: string, resourceSlug: string) => resourceState.balances[collectiveId]?.resources[resourceSlug] ?? 0;
@@ -270,7 +272,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
 
         <section className={styles.requestList}>
           <header><span>Очередь</span><h2>Заявки на ресурсы</h2></header>
-          {requestState.resourceRequests.length > 0 ? requestState.resourceRequests.map((request) => {
+          {activeResourceRequests.length > 0 ? activeResourceRequests.map((request) => {
             const canManage = canManageRequest(request);
             const available = availableAmount(request.collectiveId, request.resourceSlug);
             const canIssue = canManage && request.status === "approved" && available >= request.amount;

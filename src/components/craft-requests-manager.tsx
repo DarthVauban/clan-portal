@@ -59,6 +59,8 @@ const clanApprovalLabels: Record<ClanCraftApprovalStatus, string> = {
   rejected: "Ресурсы клана отклонены",
 };
 
+const activeCraftRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress"]);
+
 function formatAmount(value: number) {
   return numberFormatter.format(value);
 }
@@ -189,8 +191,9 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const currentActorIds = new Set([currentActorId, LOCAL_PLAYER_ID]);
   const currentActor: RequestActor = { id: currentActorId, name: requesterName };
   const canSubmit = Boolean(selectedItem && selectedRecipe && requestedQuantity > 0);
-  const pendingCount = requestState.craftRequests.filter((request) => request.status === "pending").length;
-  const activeCount = requestState.craftRequests.filter((request) => request.status === "approved" || request.status === "in-progress").length;
+  const activeCraftRequests = requestState.craftRequests.filter((request) => activeCraftRequestStatuses.has(request.status));
+  const pendingCount = activeCraftRequests.filter((request) => request.status === "pending").length;
+  const activeCount = activeCraftRequests.filter((request) => request.status === "approved" || request.status === "in-progress").length;
   const completedCount = requestState.craftRequests.filter((request) => request.status === "completed").length;
 
   const chooseItem = (item: CalculatorCraftItem) => {
@@ -398,7 +401,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
 
         <section className={styles.requestList}>
           <header><span>Очередь</span><h2>Заявки на крафт</h2></header>
-          {requestState.craftRequests.length > 0 ? requestState.craftRequests.map((request) => {
+          {activeCraftRequests.length > 0 ? activeCraftRequests.map((request) => {
             const canAccept = !request.executor && !currentActorIds.has(request.requester.id) && !["completed", "rejected", "cancelled"].includes(request.status);
             const canComplete = Boolean(request.executor && currentActorIds.has(request.executor.id) && request.status === "in-progress" && (request.funding !== "clan" || request.clanApprovalStatus === "approved"));
             const canCancelOwn = request.status === "pending" && currentActorIds.has(request.requester.id) && !request.executor;
