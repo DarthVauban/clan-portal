@@ -38,6 +38,7 @@ import {
   useCollectiveStore,
 } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
+import { makePortalNotification, pushPortalNotifications } from "@/lib/notification-store";
 import { applicantManagerRoles, memberManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import styles from "@/app/collectives/collectives.module.css";
@@ -172,6 +173,25 @@ export function CollectivesManager() {
       .some((value) => value.toLocaleLowerCase("ru").includes(normalizedPlayerQuery));
   });
   const totalMembers = state.collectives.reduce((total, collective) => total + collective.members.length, 0);
+  const currentActor = {
+    id: auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID,
+    name: profile.displayName.trim() || auth.discordNickname || "Игрок",
+  };
+
+  const notifyPlayer = (playerId: string, kind: string, title: string, body: string, href = "/collectives", suffix = "") => {
+    const notification = makePortalNotification({
+      recipientPlayerId: playerId,
+      kind,
+      title,
+      body,
+      href,
+      actor: currentActor,
+      entityType: "collective",
+      entityId: activeCollective?.id ?? "collective",
+      suffix,
+    });
+    if (notification) void pushPortalNotifications([notification]).catch(() => undefined);
+  };
 
   const createCollective = () => {
     if (!hasAbsoluteRights) return;
@@ -218,6 +238,7 @@ export function CollectivesManager() {
         body: JSON.stringify({ playerId, collectiveId: activeCollective.id }),
       }).catch(() => undefined);
       setServerApplicants((current) => current.filter((player) => player.id !== playerId));
+      notifyPlayer(playerId, "collective-accepted", "Вы приняты в коллектив", activeCollective.name, "/collectives", "accepted");
     }
   };
 
@@ -239,6 +260,8 @@ export function CollectivesManager() {
   const changeRole = (playerId: string, nextRole: CollectiveRole) => {
     if (!activeCollective || !canManageRoles) return;
     if (nextRole === "leader" && !canReassignLeader) return;
+    const currentMember = activeCollective.members.find((member) => member.playerId === playerId);
+    if (currentMember?.role === nextRole) return;
     updateState((current) => ({
       ...current,
       collectives: current.collectives.map((collective) => collective.id === activeCollective.id
@@ -251,6 +274,7 @@ export function CollectivesManager() {
         }
         : collective),
     }));
+    notifyPlayer(playerId, "collective-role-changed", "Роль в коллективе изменена", `${activeCollective.name}: ${collectiveRoleLabels[nextRole]}`, "/collectives", `role-${nextRole}`);
   };
 
   const openTransfer = (playerId: string) => {
@@ -279,6 +303,7 @@ export function CollectivesManager() {
         return collective;
       }),
     }));
+    notifyPlayer(transferPlayerId, "collective-transferred", "Вы переведены в другой коллектив", `${activeCollective.name} → ${target.name}`, "/collectives", `transfer-${target.id}`);
     setTransferPlayerId(null);
     setTargetCollectiveId("");
   };

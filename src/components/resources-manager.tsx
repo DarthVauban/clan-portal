@@ -15,9 +15,10 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { usePortalAuth } from "@/lib/auth-store";
 import { findMembership, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
 import { resourceManagerRoles, roleIsIn } from "@/lib/portal-permissions";
-import { LOCAL_PLAYER_ID } from "@/lib/profile-store";
+import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
 import styles from "@/app/resources/resources.module.css";
 
@@ -69,6 +70,8 @@ function formatOperationDate(value: string) {
 }
 
 export function ResourcesManager({ resources }: { resources: ResourceCatalogItem[] }) {
+  const { profile } = useLocalProfile();
+  const { auth } = usePortalAuth();
   const { state: collectiveState } = useCollectiveStore();
   const { state, updateState } = useResourceStore();
   const [selectedCollectiveId, setSelectedCollectiveId] = useState<string>("all");
@@ -122,6 +125,10 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
   const transactionValid = Boolean(transaction
     && transactionQuantity > 0
     && (transaction.kind === "add" || transactionQuantity <= transaction.currentAmount));
+  const actor = {
+    id: auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID,
+    name: profile.displayName.trim() || auth.discordNickname || "Игрок",
+  };
 
   const setAmount = (collectiveId: string, slug: string, nextAmount: number) => {
     const normalizedAmount = Math.max(0, Math.floor(nextAmount));
@@ -134,7 +141,14 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
         : { ...previousBalance, resources: { ...previousBalance.resources, [slug]: normalizedAmount }, updatedAt: new Date().toISOString() };
       return {
         balances: { ...current.balances, [collectiveId]: nextBalance },
-        operations: [makeResourceOperation(collectiveId, slug, normalizedAmount - previousAmount, normalizedAmount), ...current.operations].slice(0, 200),
+        operations: [makeResourceOperation(collectiveId, slug, normalizedAmount - previousAmount, normalizedAmount, {
+          actor,
+          balanceBefore: previousAmount,
+          collectiveName: activeCollective?.name ?? "",
+          resourceName: slug === ANCIENT_COIN_SLUG ? "Древняя монета" : resourcesBySlug.get(slug)?.name ?? slug,
+          resourceImage: slug === ANCIENT_COIN_SLUG ? ANCIENT_COIN_IMAGE : resourcesBySlug.get(slug)?.image ?? null,
+          source: "manual",
+        }), ...current.operations].slice(0, 200),
       };
     });
   };
@@ -163,7 +177,14 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
       return {
         balances: { ...current.balances, [activeCollective.id]: { ...balance, resources, updatedAt: new Date().toISOString() } },
         operations: previousAmount > 0
-          ? [makeResourceOperation(activeCollective.id, slug, -previousAmount, 0), ...current.operations].slice(0, 200)
+          ? [makeResourceOperation(activeCollective.id, slug, -previousAmount, 0, {
+            actor,
+            balanceBefore: previousAmount,
+            collectiveName: activeCollective.name,
+            resourceName: resourcesBySlug.get(slug)?.name ?? slug,
+            resourceImage: resourcesBySlug.get(slug)?.image ?? null,
+            source: "manual",
+          }), ...current.operations].slice(0, 200)
           : current.operations,
       };
     });

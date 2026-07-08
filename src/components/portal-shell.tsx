@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
+  Bell,
   Calculator,
+  CheckCheck,
   Check,
   ChevronDown,
   Database,
@@ -29,6 +31,7 @@ import { LoadableImage } from "@/components/loadable-image";
 import { applyCollectiveServerState, findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
 import { applyPortalAuthState, usePortalAuth } from "@/lib/auth-store";
 import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding";
+import { markAllPortalNotificationsRead, markPortalNotificationsRead, useNotificationStore, type PortalNotification } from "@/lib/notification-store";
 import { hasCompletedRegistration, LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 
 const AuthOnboarding = dynamic(
@@ -47,10 +50,11 @@ const requestNavigation = [
   { href: "/requests/membership", label: "Заявки на вступление", icon: UserPlus },
   { href: "/requests/resources", label: "На получение ресурсов", icon: HandCoins, restricted: true },
   { href: "/requests/crafting", label: "На крафт предметов", icon: ScrollText, restricted: true },
-  { href: "/requests/my-crafting", label: "Мои крафт-заявки", icon: Hammer, restricted: true },
+  { href: "/requests/my-crafting", label: "Мои заявки", icon: Hammer, restricted: true },
 ];
 
 const utilityNavigation = [
+  { href: "/audit-log", label: "Журнал учета", icon: ScrollText, restricted: true },
   { href: "/craft-calculator", label: "Калькулятор крафта", icon: Calculator, restricted: true },
   { href: "/blocked-users", label: "Заблокированные", icon: ShieldX, absoluteOnly: true },
 ];
@@ -94,6 +98,69 @@ function AccessDenied({ revoked = false, pendingApproval = false }: { revoked?: 
       </p>
       {!revoked && <Link href={pendingApproval ? "/requests/membership" : "/collectives"}>{pendingApproval ? "Перейти к заявке" : "Перейти к коллективам"}</Link>}
     </section>
+  );
+}
+
+function formatNotificationDate(value: string) {
+  return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function NotificationItem({ notification, interactive, onRead }: { notification: PortalNotification; interactive: boolean; onRead: (id: string) => void }) {
+  const content = (
+    <>
+      <strong>{notification.title}</strong>
+      {notification.body && <span>{notification.body}</span>}
+      <small>{formatNotificationDate(notification.createdAt)}</small>
+    </>
+  );
+
+  if (!interactive || !notification.href) {
+    return (
+      <button type="button" className={`notification-item${notification.readAt ? "" : " notification-item--unread"}`} onClick={() => onRead(notification.id)}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link className={`notification-item${notification.readAt ? "" : " notification-item--unread"}`} href={notification.href} onClick={() => onRead(notification.id)}>
+      {content}
+    </Link>
+  );
+}
+
+function NotificationMenu({ collectiveAccess }: { collectiveAccess: boolean }) {
+  const [open, setOpen] = useState(false);
+  const { notifications } = useNotificationStore();
+  const unreadCount = notifications.filter((notification) => !notification.readAt).length;
+  const visibleNotifications = notifications.slice(0, 7);
+  const markRead = (id: string) => {
+    void markPortalNotificationsRead([id]).catch(() => undefined);
+    setOpen(false);
+  };
+
+  return (
+    <div className="notification-menu">
+      <button className="notification-button" type="button" onClick={() => setOpen((current) => !current)} aria-label="Уведомления">
+        <Bell size={17} />
+        {unreadCount > 0 && <span>{unreadCount > 99 ? "99+" : unreadCount}</span>}
+      </button>
+      {open && (
+        <section className="notification-dropdown">
+          <header>
+            <strong>Уведомления</strong>
+            <button type="button" onClick={() => void markAllPortalNotificationsRead().catch(() => undefined)} disabled={unreadCount === 0}>
+              <CheckCheck size={14} /> Прочитать все
+            </button>
+          </header>
+          <div>
+            {visibleNotifications.length > 0 ? visibleNotifications.map((notification) => (
+              <NotificationItem notification={notification} interactive={collectiveAccess} onRead={markRead} key={notification.id} />
+            )) : <p>Новых уведомлений нет</p>}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 
@@ -379,6 +446,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             Единое пространство клана
           </div>
           <div className="topbar-actions">
+            <NotificationMenu collectiveAccess={collectiveAccess} />
             <button className="logout-button" type="button" onClick={handleLogout} aria-label="Выйти из портала">
               <LogOut size={16} />
               <span>Выйти</span>

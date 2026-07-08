@@ -58,3 +58,8 @@ export const LazyMyCraftRequestsManager = dynamic(
   () => import("@/components/my-craft-requests-manager").then((module) => module.MyCraftRequestsManager),
   { loading: sectionLoading },
 );
+
+export const LazyAuditLogManager = dynamic(
+  () => import("@/components/audit-log-manager").then((module) => module.AuditLogManager),
+  { loading: sectionLoading },
+);

@@ -1,18 +1,20 @@
 "use client";
 
-import { CheckCircle2, Clock3, Hammer, Minus, PackageCheck, Plus, Search, ShieldCheck, X, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Hammer, Minus, Plus, Search, ShieldCheck, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem, CalculatorRecipe } from "@/components/craft-calculator";
 import { usePortalAuth } from "@/lib/auth-store";
 import { collectiveRoleLabels, findMembership, getPortalRole, hasAbsolutePortalRights, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
 import { corepunkClasses } from "@/lib/corepunk-classes";
+import { makePortalNotification, pushPortalNotifications } from "@/lib/notification-store";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
 import {
+  makeRequestHistoryEntry,
   makeRequestId,
-  touchRequest,
   useRequestStore,
+  withRequestHistory,
   type ClanCraftApprovalStatus,
   type CraftFundingType,
   type CraftRequest,
@@ -68,7 +70,7 @@ const clanApprovalLabels: Record<ClanCraftApprovalStatus, string> = {
   rejected: "Ресурсы клана отклонены",
 };
 
-const activeCraftRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress", "issued"]);
+const activeCraftRequestStatuses = new Set<RequestStatus>(["pending", "approved"]);
 type CraftWorkspaceView = "form" | "queue";
 type CraftTypeFilter = (typeof craftTypeOptions)[number]["value"];
 type CraftConfirmationState = { kind: "executor" | "requester"; requestId: string };
@@ -150,7 +152,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const portalRole = getPortalRole(collectiveState, LOCAL_PLAYER_ID);
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
   const effectivePortalRole = auth.isPortalAdmin ? "administrator" : portalRole;
-  const canApproveClanCraft = absoluteRights || effectivePortalRole === "administrator" || effectivePortalRole === "clan-leader" || membership?.member.role === "leader";
+  const canApproveClanCraft = absoluteRights || effectivePortalRole === "administrator" || effectivePortalRole === "clan-leader" || membership?.member.role === "leader" || membership?.member.role === "treasurer";
   const accessRoleLabel = portalRole !== "member"
     ? portalRoleLabels[portalRole]
     : membership ? collectiveRoleLabels[membership.member.role] : "Участник";
@@ -229,7 +231,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const currentActorIds = new Set([currentActorId, LOCAL_PLAYER_ID]);
   const currentActor: RequestActor = { id: currentActorId, name: requesterName };
   const canSubmit = Boolean(selectedItem && selectedRecipe && requestedQuantity > 0);
-  const activeCraftRequests = requestState.craftRequests.filter((request) => activeCraftRequestStatuses.has(request.status));
+  const activeCraftRequests = requestState.craftRequests.filter((request) => activeCraftRequestStatuses.has(request.status) && !request.executor);
   const pendingCount = activeCraftRequests.filter((request) => request.status === "pending").length;
   const activeCount = activeCraftRequests.filter((request) => request.status === "approved" || request.status === "in-progress" || request.status === "issued").length;
   const completedCount = requestState.craftRequests.filter((request) => request.status === "completed").length;
@@ -263,6 +265,13 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
       clanApprovalStatus: funding === "clan" ? "pending" : "not-required",
       requester: currentActor,
       executor: null,
+      clanApprover: null,
+      completedBy: null,
+      receiver: null,
+      cancelledBy: null,
+      cancelReason: "",
+      history: [makeRequestHistoryEntry("pending", "Заявка создана", currentActor)],
+      requesterHidden: false,
       requirements,
       status: "pending",
       createdAt: now,
@@ -274,13 +283,6 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     setActiveView("queue");
   };
 
-  const updateRequestStatus = (requestId: string, status: RequestStatus) => {
-    updateRequestState((current) => ({
-      ...current,
-      craftRequests: current.craftRequests.map((request) => request.id === requestId ? touchRequest(request, status) : request),
-    }));
-  };
-
   const updateCraftRequest = (requestId: string, updater: (request: CraftRequest) => CraftRequest) => {
     updateRequestState((current) => ({
       ...current,
@@ -288,37 +290,71 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     }));
   };
 
+  const notifyRequester = (request: CraftRequest, kind: string, title: string, body: string, suffix = "") => {
+    const notification = makePortalNotification({
+      recipientPlayerId: request.requester.id,
+      kind,
+      title,
+      body,
+      href: "/requests/my-crafting",
+      actor: currentActor,
+      entityType: "craft-request",
+      entityId: request.id,
+      suffix,
+    });
+    if (notification) void pushPortalNotifications([notification]).catch(() => undefined);
+  };
+
   const acceptCraftRequest = (request: CraftRequest) => {
     if (request.executor || ["completed", "rejected", "cancelled"].includes(request.status)) return;
+    if (request.funding === "clan" && request.clanApprovalStatus !== "approved") return;
     updateCraftRequest(request.id, (current) => ({
-      ...current,
+      ...withRequestHistory(current, "in-progress", "Заявка взята в работу", currentActor),
       executor: currentActor,
-      status: "in-progress",
-      updatedAt: new Date().toISOString(),
     }));
+    notifyRequester(request, "craft-request-accepted", "Заявка взята в работу", `${request.itemName} x${formatAmount(request.quantity)}`, "accepted");
   };
 
   const updateClanApproval = (request: CraftRequest, clanApprovalStatus: ClanCraftApprovalStatus) => {
     if (request.funding !== "clan" || !canApproveClanCraft) return;
     updateCraftRequest(request.id, (current) => ({
-      ...current,
+      ...withRequestHistory(
+        current,
+        clanApprovalStatus === "rejected" ? "rejected" : current.executor ? "in-progress" : "approved",
+        clanApprovalStatus === "rejected" ? "Клановые ресурсы отклонены" : "Клановые ресурсы подтверждены",
+        currentActor,
+      ),
       clanApprovalStatus,
-      status: clanApprovalStatus === "rejected" ? "rejected" : current.executor ? "in-progress" : "approved",
-      updatedAt: new Date().toISOString(),
+      clanApprover: clanApprovalStatus === "approved" ? currentActor : current.clanApprover,
+      cancelledBy: clanApprovalStatus === "rejected" ? currentActor : current.cancelledBy,
     }));
+    notifyRequester(
+      request,
+      clanApprovalStatus === "rejected" ? "craft-clan-resources-rejected" : "craft-clan-resources-approved",
+      clanApprovalStatus === "rejected" ? "Клановые ресурсы отклонены" : "Клановые ресурсы подтверждены",
+      request.itemName,
+      clanApprovalStatus,
+    );
   };
 
   const confirmCraftExecution = (request: CraftRequest) => {
     if (!request.executor || !currentActorIds.has(request.executor.id)) return;
     if (request.status !== "in-progress") return;
     if (request.funding === "clan" && request.clanApprovalStatus !== "approved") return;
-    updateRequestStatus(request.id, "issued");
+    updateCraftRequest(request.id, (current) => ({
+      ...withRequestHistory(current, "issued", "Выполнение подтверждено", currentActor),
+      completedBy: currentActor,
+    }));
+    notifyRequester(request, "craft-request-completed-by-executor", "Крафт выполнен", "Подтвердите получение предмета в разделе «Мои заявки».", "executor-complete");
     setConfirmation(null);
   };
 
   const confirmCraftReceipt = (request: CraftRequest) => {
     if (!currentActorIds.has(request.requester.id) || request.status !== "issued") return;
-    updateRequestStatus(request.id, "completed");
+    updateCraftRequest(request.id, (current) => ({
+      ...withRequestHistory(current, "completed", "Получение подтверждено", currentActor),
+      receiver: currentActor,
+    }));
     setConfirmation(null);
   };
 
@@ -491,9 +527,10 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
         <section className={styles.requestList}>
           <header><span>Очередь</span><h2>Заявки на крафт</h2></header>
           {activeCraftRequests.length > 0 ? activeCraftRequests.map((request) => {
-            const canAccept = !request.executor && !currentActorIds.has(request.requester.id) && !["completed", "rejected", "cancelled"].includes(request.status);
-            const canComplete = Boolean(request.executor && currentActorIds.has(request.executor.id) && request.status === "in-progress" && (request.funding !== "clan" || request.clanApprovalStatus === "approved"));
-            const canConfirmReceipt = request.status === "issued" && currentActorIds.has(request.requester.id);
+            const canAccept = !request.executor
+              && !currentActorIds.has(request.requester.id)
+              && !["completed", "rejected", "cancelled"].includes(request.status)
+              && (request.funding !== "clan" || (request.status === "approved" && request.clanApprovalStatus === "approved"));
             const canCancelOwn = request.status === "pending" && currentActorIds.has(request.requester.id) && !request.executor;
             return (
               <article className={styles.requestCard} data-status={request.status} data-funding={request.funding} key={request.id}>
@@ -526,9 +563,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                       <button type="button" className={styles.dangerButton} onClick={() => updateClanApproval(request, "rejected")}><XCircle size={14} /> Отклонить ресурсы</button>
                     </>
                   )}
-                  {canComplete && <button type="button" onClick={() => setConfirmation({ kind: "executor", requestId: request.id })}><PackageCheck size={14} /> Подтвердить выполнение</button>}
-                  {canConfirmReceipt && <button type="button" onClick={() => setConfirmation({ kind: "requester", requestId: request.id })}><CheckCircle2 size={14} /> Подтвердить получение</button>}
-                  {canCancelOwn && <button type="button" onClick={() => updateRequestStatus(request.id, "cancelled")}><XCircle size={14} /> Отменить</button>}
+                  {canCancelOwn && <button type="button" onClick={() => updateCraftRequest(request.id, (current) => ({ ...withRequestHistory(current, "cancelled", "Заявка отменена", currentActor), cancelledBy: currentActor }))}><XCircle size={14} /> Отменить</button>}
                 </div>
               </article>
             );

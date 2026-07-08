@@ -8,12 +8,24 @@ export type CollectiveBalance = {
   updatedAt: string;
 };
 
+export type ResourceOperationActor = {
+  id: string;
+  name: string;
+};
+
 export type ResourceOperation = {
   id: string;
   collectiveId: string;
+  collectiveName: string;
   resourceSlug: string;
+  resourceName: string;
+  resourceImage: string | null;
   delta: number;
+  balanceBefore: number;
   balance: number;
+  actor: ResourceOperationActor | null;
+  note: string;
+  source: "manual" | "request";
   createdAt: string;
 };
 
@@ -32,6 +44,13 @@ let cachedState = EMPTY_STATE;
 function normalizeAmount(value: unknown) {
   const amount = typeof value === "number" ? value : Number(value);
   return Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+}
+
+function normalizeActor(value: unknown): ResourceOperationActor | null {
+  if (!value || typeof value !== "object") return null;
+  const actor = value as Partial<ResourceOperationActor>;
+  if (typeof actor.id !== "string" || typeof actor.name !== "string") return null;
+  return { id: actor.id, name: actor.name.trim().slice(0, 40) || "Игрок" };
 }
 
 function normalizeState(value: unknown): ResourceState {
@@ -58,11 +77,18 @@ function normalizeState(value: unknown): ResourceState {
     return [{
       id: entry.id,
       collectiveId: entry.collectiveId,
+      collectiveName: typeof entry.collectiveName === "string" ? entry.collectiveName : "",
       resourceSlug: entry.resourceSlug,
+      resourceName: typeof entry.resourceName === "string" ? entry.resourceName : entry.resourceSlug,
+      resourceImage: typeof entry.resourceImage === "string" ? entry.resourceImage : null,
       delta: typeof entry.delta === "number" ? Math.trunc(entry.delta) : 0,
+      balanceBefore: normalizeAmount(entry.balanceBefore),
       balance: normalizeAmount(entry.balance),
+      actor: normalizeActor(entry.actor),
+      note: typeof entry.note === "string" ? entry.note.trim().slice(0, 240) : "",
+      source: entry.source === "request" ? "request" : "manual",
       createdAt: typeof entry.createdAt === "string" ? entry.createdAt : new Date(0).toISOString(),
-    }];
+    } satisfies ResourceOperation];
   }).slice(0, 200) : [];
   return { balances, operations };
 }
@@ -200,13 +226,26 @@ export function emptyCollectiveBalance(): CollectiveBalance {
   return { ancientCoin: 0, resources: {}, updatedAt: new Date(0).toISOString() };
 }
 
-export function makeResourceOperation(collectiveId: string, resourceSlug: string, delta: number, balance: number): ResourceOperation {
+export function makeResourceOperation(
+  collectiveId: string,
+  resourceSlug: string,
+  delta: number,
+  balance: number,
+  details: Partial<Omit<ResourceOperation, "id" | "collectiveId" | "resourceSlug" | "delta" | "balance" | "createdAt">> = {},
+): ResourceOperation {
   return {
     id: `operation-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     collectiveId,
+    collectiveName: details.collectiveName ?? "",
     resourceSlug,
+    resourceName: details.resourceName ?? resourceSlug,
+    resourceImage: details.resourceImage ?? null,
     delta,
+    balanceBefore: typeof details.balanceBefore === "number" ? Math.max(0, Math.floor(details.balanceBefore)) : Math.max(0, balance - delta),
     balance,
+    actor: details.actor ?? null,
+    note: details.note ?? "",
+    source: details.source ?? "manual",
     createdAt: new Date().toISOString(),
   };
 }

@@ -61,7 +61,7 @@ export const portalRoles: Array<{ value: PortalRole; label: string }> = portalRo
 
 export const applicantManagerRoles = ["leader", "officer", "recruiter"] as const satisfies readonly CollectiveRole[];
 export const memberManagerRoles = ["leader", "officer"] as const satisfies readonly CollectiveRole[];
-export const resourceManagerRoles = ["leader", "officer", "treasurer"] as const satisfies readonly CollectiveRole[];
+export const resourceManagerRoles = ["leader", "treasurer"] as const satisfies readonly CollectiveRole[];
 export const craftManagerRoles = ["leader", "officer", "treasurer", "raid-leader"] as const satisfies readonly CollectiveRole[];
 export const extendedCalculatorRoles = ["leader", "officer", "treasurer", "raid-leader"] as const satisfies readonly CollectiveRole[];
 

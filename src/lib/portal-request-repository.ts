@@ -14,6 +14,15 @@ type RequestActor = {
   name: string;
 };
 
+type RequestHistoryEntry = {
+  id: string;
+  status: RequestStatus;
+  label: string;
+  actor: RequestActor | null;
+  note: string;
+  createdAt: string;
+};
+
 type ResourceRequest = {
   id: string;
   resourceSlug: string;
@@ -24,6 +33,12 @@ type ResourceRequest = {
   amount: number;
   purpose: string;
   requester: RequestActor;
+  approver: RequestActor | null;
+  issuer: RequestActor | null;
+  receiver: RequestActor | null;
+  closedBy: RequestActor | null;
+  cancelReason: string;
+  history: RequestHistoryEntry[];
   status: RequestStatus;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +66,13 @@ type CraftRequest = {
   clanApprovalStatus: ClanCraftApprovalStatus;
   requester: RequestActor;
   executor: RequestActor | null;
+  clanApprover: RequestActor | null;
+  completedBy: RequestActor | null;
+  receiver: RequestActor | null;
+  cancelledBy: RequestActor | null;
+  cancelReason: string;
+  history: RequestHistoryEntry[];
+  requesterHidden: boolean;
   requirements: CraftRequestRequirement[];
   status: RequestStatus;
   createdAt: string;
@@ -115,6 +137,11 @@ function normalizeActor(value: unknown, session: PortalSession): RequestActor {
   };
 }
 
+function normalizeNullableActor(value: unknown, session: PortalSession): RequestActor | null {
+  if (!value || typeof value !== "object") return null;
+  return normalizeActor(value, session);
+}
+
 function normalizeCraftFunding(value: unknown): CraftFundingType {
   return typeof value === "string" && validCraftFundingTypes.has(value as CraftFundingType) ? value as CraftFundingType : "personal";
 }
@@ -124,6 +151,22 @@ function normalizeClanCraftApprovalStatus(value: unknown, funding: CraftFundingT
   return typeof value === "string" && validClanCraftApprovalStatuses.has(value as ClanCraftApprovalStatus) && value !== "not-required"
     ? value as ClanCraftApprovalStatus
     : "pending";
+}
+
+function normalizeHistory(value: unknown, session: PortalSession): RequestHistoryEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Partial<RequestHistoryEntry>;
+    return [{
+      id: normalizeText(item.id, `history-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, 80),
+      status: normalizeStatus(item.status),
+      label: normalizeText(item.label, "", 100),
+      actor: normalizeNullableActor(item.actor, session),
+      note: typeof item.note === "string" ? item.note.trim().slice(0, 240) : "",
+      createdAt: normalizeDate(item.createdAt),
+    } satisfies RequestHistoryEntry];
+  }).slice(0, 80);
 }
 
 function normalizeRequestState(value: unknown, session: PortalSession): RequestState {
@@ -144,6 +187,12 @@ function normalizeRequestState(value: unknown, session: PortalSession): RequestS
         amount: normalizeAmount(item.amount),
         purpose: typeof item.purpose === "string" ? item.purpose.trim().slice(0, 240) : "",
         requester: normalizeActor(item.requester, session),
+        approver: normalizeNullableActor(item.approver, session),
+        issuer: normalizeNullableActor(item.issuer, session),
+        receiver: normalizeNullableActor(item.receiver, session),
+        closedBy: normalizeNullableActor(item.closedBy, session),
+        cancelReason: typeof item.cancelReason === "string" ? item.cancelReason.trim().slice(0, 240) : "",
+        history: normalizeHistory(item.history, session),
         status: normalizeStatus(item.status),
         createdAt: normalizeDate(item.createdAt),
         updatedAt: normalizeDate(item.updatedAt),
@@ -184,6 +233,13 @@ function normalizeRequestState(value: unknown, session: PortalSession): RequestS
         clanApprovalStatus: normalizeClanCraftApprovalStatus(item.clanApprovalStatus, funding),
         requester: normalizeActor(item.requester, session),
         executor: item.executor ? normalizeActor(item.executor, session) : null,
+        clanApprover: normalizeNullableActor(item.clanApprover, session),
+        completedBy: normalizeNullableActor(item.completedBy, session),
+        receiver: normalizeNullableActor(item.receiver, session),
+        cancelledBy: normalizeNullableActor(item.cancelledBy, session),
+        cancelReason: typeof item.cancelReason === "string" ? item.cancelReason.trim().slice(0, 240) : "",
+        history: normalizeHistory(item.history, session),
+        requesterHidden: item.requesterHidden === true,
         requirements,
         status: normalizeStatus(item.status),
         createdAt: normalizeDate(item.createdAt),
@@ -196,6 +252,28 @@ function normalizeRequestState(value: unknown, session: PortalSession): RequestS
 
 function toIso(value: unknown) {
   return value instanceof Date ? value.toISOString() : typeof value === "string" ? new Date(value).toISOString() : new Date().toISOString();
+}
+
+function rowActor(id: unknown, name: unknown): RequestActor | null {
+  return typeof id === "string" && id.trim()
+    ? { id, name: typeof name === "string" && name.trim() ? name : "Игрок" }
+    : null;
+}
+
+function parseHistory(value: unknown): RequestHistoryEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Partial<RequestHistoryEntry>;
+    return [{
+      id: typeof item.id === "string" ? item.id : `history-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      status: normalizeStatus(item.status),
+      label: typeof item.label === "string" ? item.label : "",
+      actor: item.actor && typeof item.actor === "object" ? rowActor((item.actor as Partial<RequestActor>).id, (item.actor as Partial<RequestActor>).name) : null,
+      note: typeof item.note === "string" ? item.note : "",
+      createdAt: toIso(item.createdAt),
+    } satisfies RequestHistoryEntry];
+  });
 }
 
 async function canAccessRequests(client: PoolClient, session: PortalSession) {
@@ -220,7 +298,9 @@ export async function listPortalRequestState(session: PortalSession) {
       client.query(
         `
           SELECT request_id, resource_slug, resource_name, resource_image, collective_id, collective_name, amount, purpose,
-            requester_player_id, requester_name, status, created_at, updated_at
+            requester_player_id, requester_name, approver_player_id, approver_name, issuer_player_id, issuer_name,
+            receiver_player_id, receiver_name, closed_by_player_id, closed_by_name, cancel_reason, status_history,
+            status, created_at, updated_at
           FROM portal_resource_requests
           ORDER BY created_at DESC
           LIMIT 300
@@ -230,6 +310,9 @@ export async function listPortalRequestState(session: PortalSession) {
         `
           SELECT request_id, item_slug, item_name, item_image, recipe_id, recipe_name, quantity, note, funding,
             clan_approval_status, requester_player_id, requester_name, executor_player_id, executor_name,
+            clan_approver_player_id, clan_approver_name, completed_by_player_id, completed_by_name,
+            receiver_player_id, receiver_name, cancelled_by_player_id, cancelled_by_name,
+            cancel_reason, status_history, requester_hidden,
             status, created_at, updated_at
           FROM portal_craft_requests
           ORDER BY created_at DESC
@@ -269,6 +352,12 @@ export async function listPortalRequestState(session: PortalSession) {
         amount: Number(row.amount) || 1,
         purpose: String(row.purpose ?? ""),
         requester: { id: String(row.requester_player_id ?? "deleted-player"), name: String(row.requester_name) },
+        approver: rowActor(row.approver_player_id, row.approver_name),
+        issuer: rowActor(row.issuer_player_id, row.issuer_name),
+        receiver: rowActor(row.receiver_player_id, row.receiver_name),
+        closedBy: rowActor(row.closed_by_player_id, row.closed_by_name),
+        cancelReason: String(row.cancel_reason ?? ""),
+        history: parseHistory(row.status_history),
         status: normalizeStatus(row.status),
         createdAt: toIso(row.created_at),
         updatedAt: toIso(row.updated_at),
@@ -288,6 +377,13 @@ export async function listPortalRequestState(session: PortalSession) {
           clanApprovalStatus: normalizeClanCraftApprovalStatus(row.clan_approval_status, funding),
           requester: { id: String(row.requester_player_id ?? "deleted-player"), name: String(row.requester_name) },
           executor: row.executor_player_id ? { id: String(row.executor_player_id), name: String(row.executor_name ?? "Игрок") } : null,
+          clanApprover: rowActor(row.clan_approver_player_id, row.clan_approver_name),
+          completedBy: rowActor(row.completed_by_player_id, row.completed_by_name),
+          receiver: rowActor(row.receiver_player_id, row.receiver_name),
+          cancelledBy: rowActor(row.cancelled_by_player_id, row.cancelled_by_name),
+          cancelReason: String(row.cancel_reason ?? ""),
+          history: parseHistory(row.status_history),
+          requesterHidden: row.requester_hidden === true,
           requirements: requirementsByRequest.get(String(row.request_id)) ?? [],
           status: normalizeStatus(row.status),
           createdAt: toIso(row.created_at),
@@ -316,9 +412,11 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
         `
           INSERT INTO portal_resource_requests (
             request_id, resource_slug, resource_name, resource_image, collective_id, collective_name, amount, purpose,
-            requester_player_id, requester_name, status, created_at, updated_at
+            requester_player_id, requester_name, approver_player_id, approver_name, issuer_player_id, issuer_name,
+            receiver_player_id, receiver_name, closed_by_player_id, closed_by_name, cancel_reason, status_history,
+            status, created_at, updated_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::timestamptz, $13::timestamptz)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20::jsonb, $21, $22::timestamptz, $23::timestamptz)
           ON CONFLICT (request_id) DO UPDATE SET
             resource_slug = EXCLUDED.resource_slug,
             resource_name = EXCLUDED.resource_name,
@@ -329,6 +427,16 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
             purpose = EXCLUDED.purpose,
             requester_player_id = EXCLUDED.requester_player_id,
             requester_name = EXCLUDED.requester_name,
+            approver_player_id = EXCLUDED.approver_player_id,
+            approver_name = EXCLUDED.approver_name,
+            issuer_player_id = EXCLUDED.issuer_player_id,
+            issuer_name = EXCLUDED.issuer_name,
+            receiver_player_id = EXCLUDED.receiver_player_id,
+            receiver_name = EXCLUDED.receiver_name,
+            closed_by_player_id = EXCLUDED.closed_by_player_id,
+            closed_by_name = EXCLUDED.closed_by_name,
+            cancel_reason = EXCLUDED.cancel_reason,
+            status_history = EXCLUDED.status_history,
             status = EXCLUDED.status,
             updated_at = EXCLUDED.updated_at
         `,
@@ -343,6 +451,16 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
           request.purpose,
           playerIdOrNull(request.requester.id),
           request.requester.name,
+          playerIdOrNull(request.approver?.id),
+          request.approver?.name ?? null,
+          playerIdOrNull(request.issuer?.id),
+          request.issuer?.name ?? null,
+          playerIdOrNull(request.receiver?.id),
+          request.receiver?.name ?? null,
+          playerIdOrNull(request.closedBy?.id),
+          request.closedBy?.name ?? null,
+          request.cancelReason,
+          JSON.stringify(request.history),
           request.status,
           request.createdAt,
           request.updatedAt,
@@ -356,9 +474,11 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
           INSERT INTO portal_craft_requests (
             request_id, item_slug, item_name, item_image, recipe_id, recipe_name, quantity, note, funding,
             clan_approval_status, requester_player_id, requester_name, executor_player_id, executor_name,
-            status, created_at, updated_at
+            clan_approver_player_id, clan_approver_name, completed_by_player_id, completed_by_name,
+            receiver_player_id, receiver_name, cancelled_by_player_id, cancelled_by_name,
+            cancel_reason, status_history, requester_hidden, status, created_at, updated_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::timestamptz, $17::timestamptz)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24::jsonb, $25, $26, $27::timestamptz, $28::timestamptz)
           ON CONFLICT (request_id) DO UPDATE SET
             item_slug = EXCLUDED.item_slug,
             item_name = EXCLUDED.item_name,
@@ -373,6 +493,17 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
             requester_name = EXCLUDED.requester_name,
             executor_player_id = EXCLUDED.executor_player_id,
             executor_name = EXCLUDED.executor_name,
+            clan_approver_player_id = EXCLUDED.clan_approver_player_id,
+            clan_approver_name = EXCLUDED.clan_approver_name,
+            completed_by_player_id = EXCLUDED.completed_by_player_id,
+            completed_by_name = EXCLUDED.completed_by_name,
+            receiver_player_id = EXCLUDED.receiver_player_id,
+            receiver_name = EXCLUDED.receiver_name,
+            cancelled_by_player_id = EXCLUDED.cancelled_by_player_id,
+            cancelled_by_name = EXCLUDED.cancelled_by_name,
+            cancel_reason = EXCLUDED.cancel_reason,
+            status_history = EXCLUDED.status_history,
+            requester_hidden = EXCLUDED.requester_hidden,
             status = EXCLUDED.status,
             updated_at = EXCLUDED.updated_at
         `,
@@ -391,6 +522,17 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
           request.requester.name,
           playerIdOrNull(request.executor?.id),
           request.executor?.name ?? null,
+          playerIdOrNull(request.clanApprover?.id),
+          request.clanApprover?.name ?? null,
+          playerIdOrNull(request.completedBy?.id),
+          request.completedBy?.name ?? null,
+          playerIdOrNull(request.receiver?.id),
+          request.receiver?.name ?? null,
+          playerIdOrNull(request.cancelledBy?.id),
+          request.cancelledBy?.name ?? null,
+          request.cancelReason,
+          JSON.stringify(request.history),
+          request.requesterHidden,
           request.status,
           request.createdAt,
           request.updatedAt,

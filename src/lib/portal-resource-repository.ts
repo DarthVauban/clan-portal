@@ -12,12 +12,24 @@ type CollectiveBalance = {
   updatedAt: string;
 };
 
+type ResourceOperationActor = {
+  id: string;
+  name: string;
+};
+
 type ResourceOperation = {
   id: string;
   collectiveId: string;
+  collectiveName: string;
   resourceSlug: string;
+  resourceName: string;
+  resourceImage: string | null;
   delta: number;
+  balanceBefore: number;
   balance: number;
+  actor: ResourceOperationActor | null;
+  note: string;
+  source: "manual" | "request";
   createdAt: string;
 };
 
@@ -50,6 +62,21 @@ type BalanceMutation = {
 function normalizeAmount(value: unknown) {
   const amount = typeof value === "number" ? value : Number(value);
   return Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+}
+
+function normalizeText(value: unknown, fallback: string, maxLength: number) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, maxLength) : fallback;
+}
+
+function normalizeNullableText(value: unknown, maxLength: number) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, maxLength) : null;
+}
+
+function normalizeActor(value: unknown): ResourceOperationActor | null {
+  if (!value || typeof value !== "object") return null;
+  const actor = value as Partial<ResourceOperationActor>;
+  if (typeof actor.id !== "string" || typeof actor.name !== "string") return null;
+  return { id: actor.id.slice(0, 100), name: normalizeText(actor.name, "Игрок", 80) };
 }
 
 function normalizeDate(value: unknown) {
@@ -87,9 +114,16 @@ function normalizeResourceState(value: unknown): ResourceState {
       return [{
         id: entry.id.slice(0, 80),
         collectiveId: entry.collectiveId.slice(0, 100),
+        collectiveName: normalizeText(entry.collectiveName, "", 80),
         resourceSlug: entry.resourceSlug.slice(0, 140),
+        resourceName: normalizeText(entry.resourceName, entry.resourceSlug, 100),
+        resourceImage: normalizeNullableText(entry.resourceImage, 240),
         delta: typeof entry.delta === "number" ? Math.trunc(entry.delta) : Number(entry.delta) || 0,
+        balanceBefore: normalizeAmount(entry.balanceBefore),
         balance: normalizeAmount(entry.balance),
+        actor: normalizeActor(entry.actor),
+        note: typeof entry.note === "string" ? entry.note.trim().slice(0, 240) : "",
+        source: entry.source === "request" ? "request" : "manual",
         createdAt: normalizeDate(entry.createdAt),
       } satisfies ResourceOperation];
     }).slice(0, 200)
@@ -181,7 +215,8 @@ export async function listPortalResourceState(session: PortalSession) {
       ),
       client.query(
         `
-          SELECT operation_id, collective_id, resource_slug, delta, balance, created_at
+          SELECT operation_id, collective_id, collective_name, resource_slug, resource_name, resource_image,
+            delta, balance_before, balance, actor_player_id, actor_name, note, source, created_at
           FROM portal_resource_operations
           ORDER BY created_at DESC
           LIMIT 200
@@ -207,9 +242,16 @@ export async function listPortalResourceState(session: PortalSession) {
       operations: operationResult.rows.map((row) => ({
         id: String(row.operation_id),
         collectiveId: String(row.collective_id),
+        collectiveName: String(row.collective_name ?? ""),
         resourceSlug: String(row.resource_slug),
+        resourceName: String(row.resource_name ?? row.resource_slug),
+        resourceImage: typeof row.resource_image === "string" ? row.resource_image : null,
         delta: Number(row.delta) || 0,
+        balanceBefore: normalizeAmount(row.balance_before),
         balance: normalizeAmount(row.balance),
+        actor: row.actor_player_id ? { id: String(row.actor_player_id), name: String(row.actor_name ?? "Игрок") } : null,
+        note: String(row.note ?? ""),
+        source: row.source === "request" ? "request" : "manual",
         createdAt: toIso(row.created_at),
       })),
     } satisfies ResourceState;
@@ -280,13 +322,29 @@ export async function savePortalResourceState(session: PortalSession, rawState: 
       const insertResult = await client.query(
         `
           INSERT INTO portal_resource_operations (
-            operation_id, collective_id, resource_slug, delta, balance, actor_player_id, created_at
+            operation_id, collective_id, collective_name, resource_slug, resource_name, resource_image,
+            delta, balance_before, balance, actor_player_id, actor_name, note, source, created_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::timestamptz)
           ON CONFLICT (operation_id) DO NOTHING
           RETURNING operation_id
         `,
-        [operation.id, operation.collectiveId, operation.resourceSlug, operation.delta, operation.balance, access?.playerId ?? null, operation.createdAt],
+        [
+          operation.id,
+          operation.collectiveId,
+          operation.collectiveName,
+          operation.resourceSlug,
+          operation.resourceName,
+          operation.resourceImage,
+          operation.delta,
+          operation.balanceBefore,
+          operation.balance,
+          access?.playerId ?? null,
+          operation.actor?.name ?? "",
+          operation.note,
+          operation.source,
+          operation.createdAt,
+        ],
       );
       if (insertResult.rowCount === 0) continue;
       const mutation = ensureMutation(operation.collectiveId, operation.resourceSlug, operation.createdAt);

@@ -8,14 +8,23 @@ import { usePortalAuth } from "@/lib/auth-store";
 import { findMembership, getPortalRole, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
 import { roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
+import { makePortalNotification, pushPortalNotifications } from "@/lib/notification-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
-import { makeRequestId, touchRequest, useRequestStore, type RequestStatus, type ResourceRequest } from "@/lib/request-store";
+import {
+  makeRequestHistoryEntry,
+  makeRequestId,
+  useRequestStore,
+  withRequestHistory,
+  type RequestActor,
+  type RequestStatus,
+  type ResourceRequest,
+} from "@/lib/request-store";
 import styles from "@/app/requests/requests.module.css";
 
 const numberFormatter = new Intl.NumberFormat("ru-RU");
 const statusLabels: Record<RequestStatus, string> = {
   pending: "На рассмотрении",
-  approved: "Одобрено",
+  approved: "Ожидает получения",
   "in-progress": "В работе",
   issued: "Выдано",
   completed: "Завершено",
@@ -41,8 +50,9 @@ const professionLabels: Record<string, string> = {
   other: "Другое",
   weaponsmithing: "Оружейное дело",
 };
-const resourceRequestApproverRoles = ["leader", "officer"] as const;
-const activeResourceRequestStatuses = new Set<RequestStatus>(["pending", "approved", "in-progress"]);
+const resourceRequestApproverRoles = ["leader", "treasurer"] as const;
+const activeResourceRequestStatuses = new Set<RequestStatus>(["pending", "approved", "issued"]);
+const UNCONFIRMED_RESOURCE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ALL_BANK_ID = "all";
 const ANCIENT_COIN_SLUG = "ancient-coin";
 const ANCIENT_COIN_NAME = "Древняя монета";
@@ -56,6 +66,10 @@ function formatAmount(value: number) {
 
 function formatRequestDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function isExpiredUnconfirmedRequest(request: ResourceRequest) {
+  return request.status === "issued" && Date.now() - new Date(request.updatedAt).getTime() > UNCONFIRMED_RESOURCE_TTL_MS;
 }
 
 export function ResourceRequestsManager({ resources }: { resources: ResourceCatalogItem[] }) {
@@ -157,6 +171,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const requestedAmount = Math.max(1, Math.floor(Number(amount) || 1));
   const requesterName = profile.displayName.trim() || "Игрок";
   const requesterId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
+  const currentActor: RequestActor = { id: requesterId, name: requesterName };
   const currentActorIds = new Set([requesterId, LOCAL_PLAYER_ID]);
   const selectedAvailableAmount = assetKind === "currency"
     ? ancientCoinAmountInBank()
@@ -165,7 +180,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     && requestedAmount > 0
     && selectedAvailableAmount > 0
     && (assetKind === "currency" || selectedResource));
-  const activeResourceRequests = requestState.resourceRequests.filter((request) => activeResourceRequestStatuses.has(request.status));
+  const activeResourceRequests = requestState.resourceRequests.filter((request) => activeResourceRequestStatuses.has(request.status) && !isExpiredUnconfirmedRequest(request));
   const pendingCount = activeResourceRequests.filter((request) => request.status === "pending").length;
   const approvedCount = activeResourceRequests.filter((request) => request.status === "approved").length;
   const issuedCount = requestState.resourceRequests.filter((request) => request.status === "issued").length;
@@ -179,6 +194,38 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     if (clanLeadershipRights) return true;
     const ownMembership = findMembership(collectiveState, LOCAL_PLAYER_ID);
     return ownMembership?.collective.id === request.collectiveId && roleIsIn(ownMembership.member.role, resourceRequestApproverRoles);
+  };
+
+  const notifyRequester = (request: ResourceRequest, kind: string, title: string, body: string, suffix = "") => {
+    const notification = makePortalNotification({
+      recipientPlayerId: request.requester.id,
+      kind,
+      title,
+      body,
+      href: "/requests/my-crafting",
+      actor: currentActor,
+      entityType: "resource-request",
+      entityId: request.id,
+      suffix,
+    });
+    if (notification) void pushPortalNotifications([notification]).catch(() => undefined);
+  };
+
+  const notifyResponsible = (request: ResourceRequest, kind: string, title: string, body: string, suffix = "") => {
+    const recipient = request.issuer ?? request.approver;
+    if (!recipient) return;
+    const notification = makePortalNotification({
+      recipientPlayerId: recipient.id,
+      kind,
+      title,
+      body,
+      href: "/requests/my-crafting",
+      actor: currentActor,
+      entityType: "resource-request",
+      entityId: request.id,
+      suffix,
+    });
+    if (notification) void pushPortalNotifications([notification]).catch(() => undefined);
   };
 
   const adjustAmount = (delta: number) => {
@@ -202,6 +249,12 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
       amount: requestedAmount,
       purpose: purpose.trim(),
       requester: { id: requesterId, name: requesterName },
+      approver: null,
+      issuer: null,
+      receiver: null,
+      closedBy: null,
+      cancelReason: "",
+      history: [makeRequestHistoryEntry("pending", "Заявка создана", currentActor)],
       status: "pending",
       createdAt: now,
       updatedAt: now,
@@ -213,14 +266,14 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     setActiveView("queue");
   };
 
-  const updateRequestStatus = (requestId: string, status: RequestStatus) => {
+  const updateResourceRequest = (requestId: string, updater: (request: ResourceRequest) => ResourceRequest) => {
     updateRequestState((current) => ({
       ...current,
-      resourceRequests: current.resourceRequests.map((request) => request.id === requestId ? touchRequest(request, status) : request),
+      resourceRequests: current.resourceRequests.map((request) => request.id === requestId ? updater(request) : request),
     }));
   };
 
-  const issueRequest = (request: ResourceRequest) => {
+  const deductRequestResources = (request: ResourceRequest) => {
     if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return;
     const now = new Date().toISOString();
     const isCurrency = request.resourceSlug === ANCIENT_COIN_SLUG;
@@ -234,7 +287,15 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
           : { ...balance, resources: { ...balance.resources, [request.resourceSlug]: nextAmount }, updatedAt: now };
         return {
           balances: { ...current.balances, [request.collectiveId]: nextBalance },
-          operations: [makeResourceOperation(request.collectiveId, request.resourceSlug, -request.amount, nextAmount), ...current.operations].slice(0, 200),
+          operations: [makeResourceOperation(request.collectiveId, request.resourceSlug, -request.amount, nextAmount, {
+            actor: currentActor,
+            balanceBefore: currentAmount,
+            collectiveName: request.collectiveName,
+            resourceName: request.resourceName,
+            resourceImage: request.resourceImage,
+            note: `Заявка ${request.requester.name}`,
+            source: "request",
+          }), ...current.operations].slice(0, 200),
         };
       }
 
@@ -251,12 +312,67 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
         balances[collective.id] = isCurrency
           ? { ...balance, ancientCoin: nextAmount, updatedAt: now }
           : { ...balance, resources: { ...balance.resources, [request.resourceSlug]: nextAmount }, updatedAt: now };
-        operations.unshift(makeResourceOperation(collective.id, request.resourceSlug, -taken, nextAmount));
+        operations.unshift(makeResourceOperation(collective.id, request.resourceSlug, -taken, nextAmount, {
+          actor: currentActor,
+          balanceBefore: currentAmount,
+          collectiveName: collective.name,
+          resourceName: request.resourceName,
+          resourceImage: request.resourceImage,
+          note: `Заявка ${request.requester.name}`,
+          source: "request",
+        }));
         remaining -= taken;
       }
       return { balances, operations: operations.slice(0, 200) };
     });
-    updateRequestStatus(request.id, "issued");
+  };
+
+  const approveRequest = (request: ResourceRequest) => {
+    updateResourceRequest(request.id, (current) => ({
+      ...withRequestHistory(current, "approved", "Заявка одобрена", currentActor),
+      approver: currentActor,
+    }));
+    notifyRequester(request, "resource-request-approved", "Заявка на ресурсы одобрена", `${request.resourceName}: ${formatAmount(request.amount)}`, "approved");
+  };
+
+  const rejectRequest = (request: ResourceRequest) => {
+    updateResourceRequest(request.id, (current) => ({
+      ...withRequestHistory(current, "rejected", "Заявка отклонена", currentActor),
+      closedBy: currentActor,
+    }));
+    notifyRequester(request, "resource-request-rejected", "Заявка на ресурсы отклонена", request.resourceName, "rejected");
+  };
+
+  const issueRequest = (request: ResourceRequest) => {
+    if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return;
+    updateResourceRequest(request.id, (current) => ({
+      ...withRequestHistory(current, "issued", "Ресурсы выданы", currentActor),
+      issuer: currentActor,
+    }));
+    notifyRequester(request, "resource-request-issued", "Ресурсы выданы", "Подтвердите получение в разделе «Мои заявки».", "issued");
+  };
+
+  const confirmReceipt = (request: ResourceRequest) => {
+    if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return;
+    deductRequestResources(request);
+    updateResourceRequest(request.id, (current) => ({
+      ...withRequestHistory(current, "completed", "Получение подтверждено", currentActor),
+      receiver: currentActor,
+      closedBy: currentActor,
+    }));
+    notifyResponsible(request, "resource-request-completed", "Получение ресурсов подтверждено", `${request.requester.name}: ${request.resourceName}`, "completed");
+  };
+
+  const cancelRequest = (request: ResourceRequest) => {
+    const reason = window.prompt("Причина отмены (необязательно)")?.trim() ?? "";
+    updateResourceRequest(request.id, (current) => ({
+      ...withRequestHistory(current, "cancelled", "Заявка отменена", currentActor, reason),
+      closedBy: currentActor,
+      cancelReason: reason,
+    }));
+    if (!currentActorIds.has(request.requester.id)) {
+      notifyRequester(request, "resource-request-cancelled", "Заявка на ресурсы отменена", reason || request.resourceName, "cancelled");
+    }
   };
 
   if (availableCollectives.length === 0) {
@@ -414,6 +530,8 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
             const canManage = canManageRequest(request);
             const bankAvailable = availableAmount(request.collectiveId, request.resourceSlug);
             const canIssue = canManage && request.status === "approved" && bankAvailable >= request.amount;
+            const canConfirmReceipt = request.status === "issued" && currentActorIds.has(request.requester.id) && bankAvailable >= request.amount;
+            const canCancel = currentActorIds.has(request.requester.id) || canManage;
             return (
               <article className={styles.requestCard} data-status={request.status} key={request.id}>
                 <div className={styles.requestIcon}>{request.resourceImage && <LoadableImage src={request.resourceImage} alt="" width={52} height={52} />}</div>
@@ -429,12 +547,13 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                 <div className={styles.requestActions}>
                   {canManage && request.status === "pending" && (
                     <>
-                      <button type="button" onClick={() => updateRequestStatus(request.id, "approved")}><CheckCircle2 size={14} /> Одобрить</button>
-                      <button type="button" className={styles.dangerButton} onClick={() => updateRequestStatus(request.id, "rejected")}><XCircle size={14} /> Отклонить</button>
+                      <button type="button" onClick={() => approveRequest(request)}><CheckCircle2 size={14} /> Одобрить</button>
+                      <button type="button" className={styles.dangerButton} onClick={() => rejectRequest(request)}><XCircle size={14} /> Отклонить</button>
                     </>
                   )}
                   {canManage && request.status === "approved" && <button type="button" onClick={() => issueRequest(request)} disabled={!canIssue}><ShieldCheck size={14} /> Выдать</button>}
-                  {request.status === "pending" && currentActorIds.has(request.requester.id) && !canManage && <button type="button" onClick={() => updateRequestStatus(request.id, "cancelled")}><XCircle size={14} /> Отменить</button>}
+                  {canConfirmReceipt && <button type="button" onClick={() => confirmReceipt(request)}><CheckCircle2 size={14} /> Подтвердить получение</button>}
+                  {request.status !== "issued" && canCancel && <button type="button" className={styles.dangerButton} onClick={() => cancelRequest(request)}><XCircle size={14} /> Отменить</button>}
                 </div>
               </article>
             );

@@ -11,6 +11,15 @@ export type RequestActor = {
   name: string;
 };
 
+export type RequestHistoryEntry = {
+  id: string;
+  status: RequestStatus;
+  label: string;
+  actor: RequestActor | null;
+  note: string;
+  createdAt: string;
+};
+
 export type ResourceRequest = {
   id: string;
   resourceSlug: string;
@@ -21,6 +30,12 @@ export type ResourceRequest = {
   amount: number;
   purpose: string;
   requester: RequestActor;
+  approver: RequestActor | null;
+  issuer: RequestActor | null;
+  receiver: RequestActor | null;
+  closedBy: RequestActor | null;
+  cancelReason: string;
+  history: RequestHistoryEntry[];
   status: RequestStatus;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +63,13 @@ export type CraftRequest = {
   clanApprovalStatus: ClanCraftApprovalStatus;
   requester: RequestActor;
   executor: RequestActor | null;
+  clanApprover: RequestActor | null;
+  completedBy: RequestActor | null;
+  receiver: RequestActor | null;
+  cancelledBy: RequestActor | null;
+  cancelReason: string;
+  history: RequestHistoryEntry[];
+  requesterHidden: boolean;
   requirements: CraftRequestRequirement[];
   status: RequestStatus;
   createdAt: string;
@@ -82,6 +104,11 @@ function normalizeActor(value: unknown): RequestActor {
   };
 }
 
+function normalizeNullableActor(value: unknown): RequestActor | null {
+  if (!value || typeof value !== "object") return null;
+  return normalizeActor(value);
+}
+
 function normalizeStatus(value: unknown): RequestStatus {
   return typeof value === "string" && validStatuses.has(value as RequestStatus) ? value as RequestStatus : "pending";
 }
@@ -99,6 +126,22 @@ function normalizeClanCraftApprovalStatus(value: unknown, funding: CraftFundingT
 
 function normalizeDate(value: unknown) {
   return typeof value === "string" && value.trim() ? value : new Date().toISOString();
+}
+
+function normalizeHistory(value: unknown): RequestHistoryEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Partial<RequestHistoryEntry>;
+    return [{
+      id: typeof item.id === "string" ? item.id : `history-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      status: normalizeStatus(item.status),
+      label: typeof item.label === "string" ? item.label.trim().slice(0, 100) : "",
+      actor: normalizeNullableActor(item.actor),
+      note: typeof item.note === "string" ? item.note.trim().slice(0, 240) : "",
+      createdAt: normalizeDate(item.createdAt),
+    } satisfies RequestHistoryEntry];
+  }).slice(0, 80);
 }
 
 function normalizeState(value: unknown): RequestState {
@@ -119,6 +162,12 @@ function normalizeState(value: unknown): RequestState {
         amount: normalizeAmount(item.amount),
         purpose: typeof item.purpose === "string" ? item.purpose.trim().slice(0, 240) : "",
         requester: normalizeActor(item.requester),
+        approver: normalizeNullableActor(item.approver),
+        issuer: normalizeNullableActor(item.issuer),
+        receiver: normalizeNullableActor(item.receiver),
+        closedBy: normalizeNullableActor(item.closedBy),
+        cancelReason: typeof item.cancelReason === "string" ? item.cancelReason.trim().slice(0, 240) : "",
+        history: normalizeHistory(item.history),
         status: normalizeStatus(item.status),
         createdAt: normalizeDate(item.createdAt),
         updatedAt: normalizeDate(item.updatedAt),
@@ -159,6 +208,13 @@ function normalizeState(value: unknown): RequestState {
         clanApprovalStatus: normalizeClanCraftApprovalStatus(item.clanApprovalStatus, funding),
         requester: normalizeActor(item.requester),
         executor: item.executor ? normalizeActor(item.executor) : null,
+        clanApprover: normalizeNullableActor(item.clanApprover),
+        completedBy: normalizeNullableActor(item.completedBy),
+        receiver: normalizeNullableActor(item.receiver),
+        cancelledBy: normalizeNullableActor(item.cancelledBy),
+        cancelReason: typeof item.cancelReason === "string" ? item.cancelReason.trim().slice(0, 240) : "",
+        history: normalizeHistory(item.history),
+        requesterHidden: item.requesterHidden === true,
         requirements,
         status: normalizeStatus(item.status),
         createdAt: normalizeDate(item.createdAt),
@@ -217,17 +273,8 @@ async function requestServerState(method: "GET" | "PUT", state?: RequestState) {
 }
 
 export async function refreshRequestStore() {
-  const localState = getSnapshot();
   const serverState = await requestServerState("GET");
-  if (!serverState) return localState;
-  if (serverState.resourceRequests.length === 0 && serverState.craftRequests.length === 0
-    && (localState.resourceRequests.length > 0 || localState.craftRequests.length > 0)) {
-    const migratedState = await requestServerState("PUT", localState).catch(() => null);
-    if (migratedState) {
-      saveState(migratedState);
-      return migratedState;
-    }
-  }
+  if (!serverState) return getSnapshot();
   saveState(serverState);
   return serverState;
 }
@@ -277,6 +324,32 @@ export function useRequestStore() {
 
 export function makeRequestId(prefix: "resource" | "craft") {
   return `${prefix}-request-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function makeRequestHistoryEntry(status: RequestStatus, label: string, actor: RequestActor | null, note = ""): RequestHistoryEntry {
+  return {
+    id: `history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    status,
+    label,
+    actor,
+    note: note.trim().slice(0, 240),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function withRequestHistory<T extends { history: RequestHistoryEntry[]; updatedAt: string; status: RequestStatus }>(
+  request: T,
+  status: RequestStatus,
+  label: string,
+  actor: RequestActor | null,
+  note = "",
+): T {
+  return {
+    ...request,
+    status,
+    updatedAt: new Date().toISOString(),
+    history: [makeRequestHistoryEntry(status, label, actor, note), ...request.history].slice(0, 80),
+  };
 }
 
 export function touchRequest<T extends { updatedAt: string; status: RequestStatus }>(request: T, status: RequestStatus): T {

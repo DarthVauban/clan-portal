@@ -5,9 +5,9 @@ export default function MyCraftRequestsPage() {
     <div className="page-stack">
       <section className="page-hero">
         <div>
-          <div className="eyebrow">Заявки · Мой крафт</div>
-          <h1>Мои крафт-заявки</h1>
-          <p>Личный список заявок, где вы выступаете заказчиком или исполнителем крафта.</p>
+          <div className="eyebrow">Заявки · Личный список</div>
+          <h1>Мои заявки</h1>
+          <p>Личный список заявок на ресурсы, валюту и крафт, где требуется ваше действие или хранится история.</p>
         </div>
       </section>
       <LazyMyCraftRequestsManager />
