@@ -228,10 +228,16 @@ function readSeenRequestCounts() {
   }
 }
 
-function normalizeApplicantCount(value: unknown) {
+function normalizeApplicantCount(value: unknown, assignedPlayerIds: Set<string>) {
   if (!value || typeof value !== "object") return 0;
   const applicants = (value as { applicants?: unknown }).applicants;
-  return Array.isArray(applicants) ? applicants.length : 0;
+  if (!Array.isArray(applicants)) return 0;
+  return applicants.filter((applicant) => (
+    applicant
+    && typeof applicant === "object"
+    && typeof (applicant as { id?: unknown }).id === "string"
+    && !assignedPlayerIds.has((applicant as { id: string }).id)
+  )).length;
 }
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
@@ -264,6 +270,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
   const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
   const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => item.href !== "/profile" && (!("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights)) : [];
+  const assignedPlayerIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
   const blockedUsersRestrictedRoute = pathname.startsWith("/blocked-users") && !absoluteRights;
   const profileName = profile.displayName.trim() || auth.discordNickname || "Профиль";
   const waitingLabel = auth.applicationStatus === "accepted" ? "Без коллектива" : "Ожидает принятия";
@@ -293,8 +300,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       setMembershipRequestCount(0);
       return;
     }
-    setMembershipRequestCount(normalizeApplicantCount(await response.json().catch(() => null)));
-  }, [auth.stage]);
+    setMembershipRequestCount(normalizeApplicantCount(await response.json().catch(() => null), assignedPlayerIds));
+  }, [assignedPlayerIds, auth.stage]);
 
   useEffect(() => {
     if (!auth.isPortalAdmin || localPortalRole === "administrator") return;

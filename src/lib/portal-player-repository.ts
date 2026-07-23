@@ -297,6 +297,11 @@ export async function listPendingMembershipApplicants(session: PortalSession) {
       FROM portal_players p
       LEFT JOIN portal_player_characters c ON c.player_id = p.player_id
       WHERE p.application_status = 'pending'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM portal_collective_members m
+          WHERE m.player_id = p.player_id
+        )
         AND ($1::boolean OR p.discord_id = $2::text)
       ORDER BY p.registered_at ASC, c.is_main DESC, c.created_at ASC
     `,
