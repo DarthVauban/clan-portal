@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, LockKeyhole, MessageCircle, ShieldCheck, ShieldX, Sparkles, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { corepunkClasses } from "@/lib/corepunk-classes";
-import { findMembership, useCollectiveStore } from "@/lib/collective-store";
+import { COLLECTIVE_LIMIT, findMembership, useCollectiveStore } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
 import { normalizePortalName } from "@/lib/portal-branding";
 import { LOCAL_PLAYER_ID, type PlayerCharacter, useLocalProfile } from "@/lib/profile-store";
@@ -27,9 +27,11 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "b
   const [profileName, setProfileName] = useState(profile.displayName || auth.discordNickname || "");
   const [characterName, setCharacterName] = useState(currentMainCharacter?.name ?? "");
   const [classSlug, setClassSlug] = useState(currentMainCharacter?.classSlug ?? "");
+  const [requestedCollectiveId, setRequestedCollectiveId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const canSubmit = Boolean(profileName.trim() && characterName.trim() && classSlug) && !submitting;
+  const canChooseCollective = state.collectives.length > 0;
+  const canSubmit = Boolean(profileName.trim() && characterName.trim() && classSlug && (!canChooseCollective || requestedCollectiveId)) && !submitting;
 
   const connectDiscord = () => {
     loginWithDiscord();
@@ -72,6 +74,7 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "b
         profileName: profileName.trim(),
         characterName: characterName.trim(),
         classSlug,
+        requestedCollectiveId: requestedCollectiveId || null,
       });
       router.replace("/requests/membership");
     } catch {
@@ -164,6 +167,22 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "b
               placeholder="Игровой ник"
               data-testid="registration-character-name"
             />
+          </label>
+          <label className="registration-field-wide">
+            <span>Коллектив</span>
+            <select
+              value={requestedCollectiveId}
+              onChange={(event) => setRequestedCollectiveId(event.target.value)}
+              disabled={!canChooseCollective}
+              data-testid="registration-collective"
+            >
+              <option value="">{canChooseCollective ? "Выберите коллектив" : "Коллективы еще не созданы"}</option>
+              {state.collectives.map((collective) => (
+                <option value={collective.id} key={collective.id}>
+                  {collective.name} · {collective.members.length}/{COLLECTIVE_LIMIT}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 

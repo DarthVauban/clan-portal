@@ -22,11 +22,16 @@ import styles from "@/app/requests/membership/membership.module.css";
 
 const APPLICANT_REFRESH_INTERVAL_MS = 2500;
 
+type MembershipApplicant = DirectoryPlayer & {
+  requestedCollectiveId: string | null;
+  requestedCollectiveName: string | null;
+};
+
 function getServerPlayerId(discordId: string | null) {
   return discordId ? `player-${discordId}` : null;
 }
 
-function normalizeServerApplicants(value: unknown): DirectoryPlayer[] {
+function normalizeServerApplicants(value: unknown): MembershipApplicant[] {
   if (!value || typeof value !== "object") return [];
   const applicants = (value as { applicants?: unknown }).applicants;
   if (!Array.isArray(applicants)) return [];
@@ -50,6 +55,8 @@ function normalizeServerApplicants(value: unknown): DirectoryPlayer[] {
       characters,
       mainCharacterId: typeof item.mainCharacterId === "string" ? item.mainCharacterId : characters[0]?.id ?? null,
       local: false,
+      requestedCollectiveId: typeof (item as { requestedCollectiveId?: unknown }).requestedCollectiveId === "string" ? (item as { requestedCollectiveId: string }).requestedCollectiveId : null,
+      requestedCollectiveName: typeof (item as { requestedCollectiveName?: unknown }).requestedCollectiveName === "string" ? (item as { requestedCollectiveName: string }).requestedCollectiveName : null,
     }];
   });
 }
@@ -60,7 +67,7 @@ export function MembershipRequestsManager() {
   const { state, updateState } = useCollectiveStore();
   const [query, setQuery] = useState("");
   const [targets, setTargets] = useState<Record<string, string>>({});
-  const [serverApplicants, setServerApplicants] = useState<DirectoryPlayer[]>([]);
+  const [serverApplicants, setServerApplicants] = useState<MembershipApplicant[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
   const localPlayers = useMemo(() => getPlayerDirectory(profile, state), [profile, state]);
   const currentServerPlayerId = getServerPlayerId(auth.discordId);
@@ -68,7 +75,8 @@ export function MembershipRequestsManager() {
   const players = useMemo(() => {
     const canUseLocalApplicantFallback = !membership && (auth.applicationStatus === "pending" || auth.applicationStatus === null);
     const includeLocalProfile = !auth.isPortalAdmin && canUseLocalApplicantFallback && (!currentServerPlayerId || !serverApplicants.some((player) => player.id === currentServerPlayerId));
-    const combined = includeLocalProfile ? [...localPlayers, ...serverApplicants] : serverApplicants;
+    const localApplicants = localPlayers.map((player) => ({ ...player, requestedCollectiveId: null, requestedCollectiveName: null }));
+    const combined = includeLocalProfile ? [...localApplicants, ...serverApplicants] : serverApplicants;
     return combined.filter((player, index, allPlayers) => allPlayers.findIndex((candidate) => candidate.id === player.id) === index);
   }, [auth.applicationStatus, auth.isPortalAdmin, currentServerPlayerId, localPlayers, membership, serverApplicants]);
   const assignedIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
@@ -115,7 +123,11 @@ export function MembershipRequestsManager() {
   }, [auth.stage, auth.discordId]);
 
   const assignPlayer = async (playerId: string) => {
-    const targetId = targets[playerId] || manageableCollectives[0]?.id;
+    const applicant = applicants.find((player) => player.id === playerId);
+    const requestedTarget = applicant?.requestedCollectiveId && manageableCollectives.some((collective) => collective.id === applicant.requestedCollectiveId)
+      ? applicant.requestedCollectiveId
+      : "";
+    const targetId = targets[playerId] || requestedTarget || manageableCollectives[0]?.id;
     if (!canManageApplicants || !targetId || assignedIds.has(playerId) || !manageableCollectives.some((collective) => collective.id === targetId)) return;
     await updateState((current) => ({
       ...current,
@@ -185,7 +197,10 @@ export function MembershipRequestsManager() {
             {filteredApplicants.map((player) => {
               const mainCharacter = getMainCharacter(player);
               const heroClass = mainCharacter ? corepunkClassesBySlug.get(mainCharacter.classSlug) : undefined;
-              const selectedTarget = targets[player.id] || manageableCollectives[0]?.id || "";
+              const requestedTarget = player.requestedCollectiveId && manageableCollectives.some((collective) => collective.id === player.requestedCollectiveId)
+                ? player.requestedCollectiveId
+                : "";
+              const selectedTarget = targets[player.id] ?? (requestedTarget || manageableCollectives[0]?.id || "");
               return (
                 <article className={styles.requestCard} data-testid={`membership-request-${player.id}`} key={player.id}>
                   <span className={styles.playerIcon}>{heroClass ? <LoadableImage src={heroClass.image} alt="" width={48} height={48} /> : <UsersRound size={20} />}</span>
@@ -193,6 +208,7 @@ export function MembershipRequestsManager() {
                     <div><strong>{player.displayName}</strong><em>Новый игрок</em></div>
                     <small>{mainCharacter ? `${mainCharacter.name} · ${heroClass?.name ?? mainCharacter.classSlug}` : "Основной персонаж не указан"}</small>
                     <p>{player.discordNickname ? `Discord: ${player.discordNickname}` : "Discord будет подключён после авторизации"}</p>
+                    <p>{player.requestedCollectiveName ? `Заявленный коллектив: ${player.requestedCollectiveName}` : "Заявленный коллектив не указан"}</p>
                   </div>
                   <div className={styles.requestStatus}><Clock3 size={13} /><span>Ожидает распределения</span></div>
                   <div className={styles.requestActions}>

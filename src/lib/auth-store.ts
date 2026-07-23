@@ -25,6 +25,7 @@ export type PortalRegistrationPayload = {
   profileName: string;
   characterName: string;
   classSlug: string;
+  requestedCollectiveId?: string | null;
 };
 
 const EMPTY_AUTH: PortalAuthState = {

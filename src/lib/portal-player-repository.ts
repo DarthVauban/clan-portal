@@ -15,6 +15,7 @@ export type PortalRegistrationPayload = {
   profileName: string;
   characterName: string;
   classSlug: string;
+  requestedCollectiveId?: string | null;
 };
 
 export type PortalApplicationStatus = "pending" | "accepted" | "revoked" | "blocked";
@@ -32,6 +33,8 @@ export type PortalDirectoryPlayer = {
   characters: PortalDirectoryCharacter[];
   mainCharacterId: string | null;
   local: false;
+  requestedCollectiveId?: string | null;
+  requestedCollectiveName?: string | null;
 };
 
 export type BlockedPortalUser = PortalDirectoryPlayer & {
@@ -91,9 +94,11 @@ function normalizeRegistrationPayload(payload: unknown): PortalRegistrationPaylo
   const profileName = trimText(candidate.profileName, 40);
   const characterName = trimText(candidate.characterName, 40);
   const classSlug = trimText(candidate.classSlug, 80);
+  const hasRequestedCollective = Object.prototype.hasOwnProperty.call(candidate, "requestedCollectiveId");
+  const requestedCollectiveId = hasRequestedCollective ? trimText(candidate.requestedCollectiveId, 80) || null : undefined;
   const heroClass = corepunkClassesBySlug.get(classSlug);
   if (!profileName || !characterName || !heroClass?.available) return null;
-  return { profileName, characterName, classSlug };
+  return { profileName, characterName, classSlug, requestedCollectiveId };
 }
 
 export async function upsertPortalRegistration(session: PortalSession, rawPayload: unknown) {
@@ -105,10 +110,16 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
   const characterId = `${playerId}-main`;
   const portalRole = isPortalAdminDiscordId(session.discordUser.id) ? "administrator" : "member";
   const applicationStatus = portalRole === "administrator" ? "accepted" : "pending";
+  const shouldUpdateRequestedCollective = payload.requestedCollectiveId !== undefined;
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    let requestedCollectiveId = payload.requestedCollectiveId ?? null;
+    if (requestedCollectiveId) {
+      const collectiveResult = await client.query("SELECT collective_id FROM portal_collectives WHERE collective_id = $1 LIMIT 1", [requestedCollectiveId]);
+      if (collectiveResult.rowCount === 0) requestedCollectiveId = null;
+    }
     await client.query(
       `
         INSERT INTO portal_players (
@@ -119,10 +130,11 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
           avatar_url,
           portal_role,
           application_status,
+          requested_collective_id,
           accepted_at,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $7 = 'accepted' THEN NOW() ELSE NULL END, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $7 = 'accepted' THEN NOW() ELSE NULL END, NOW())
         ON CONFLICT (discord_id) DO UPDATE SET
           display_name = EXCLUDED.display_name,
           discord_nickname = EXCLUDED.discord_nickname,
@@ -132,6 +144,11 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
             WHEN EXCLUDED.portal_role = 'administrator' THEN 'administrator'
             WHEN portal_players.application_status = 'revoked' THEN 'member'
             ELSE portal_players.portal_role
+          END,
+          requested_collective_id = CASE
+            WHEN portal_players.application_status = 'blocked' THEN portal_players.requested_collective_id
+            WHEN $9::boolean THEN EXCLUDED.requested_collective_id
+            ELSE portal_players.requested_collective_id
           END,
           application_status = CASE
             WHEN portal_players.application_status = 'blocked' THEN 'blocked'
@@ -154,6 +171,8 @@ export async function upsertPortalRegistration(session: PortalSession, rawPayloa
         getDiscordAvatarUrl(session.discordUser),
         portalRole,
         applicationStatus,
+        requestedCollectiveId,
+        shouldUpdateRequestedCollective,
       ],
     );
     await client.query("DELETE FROM portal_player_characters WHERE player_id = $1", [playerId]);
@@ -264,6 +283,8 @@ function mapApplicantRows(rows: Array<Record<string, unknown>>): PortalDirectory
       characters: [],
       mainCharacterId: null,
       local: false as const,
+      requestedCollectiveId: typeof row.requested_collective_id === "string" ? row.requested_collective_id : null,
+      requestedCollectiveName: typeof row.requested_collective_name === "string" ? row.requested_collective_name : null,
     };
     if (typeof row.character_id === "string" && typeof row.character_name === "string" && typeof row.class_slug === "string") {
       current.characters.push({
@@ -290,11 +311,14 @@ export async function listPendingMembershipApplicants(session: PortalSession) {
         p.player_id,
         p.display_name,
         p.discord_nickname,
+        p.requested_collective_id,
+        requested_collective.name AS requested_collective_name,
         c.character_id,
         c.name AS character_name,
         c.class_slug,
         c.is_main
       FROM portal_players p
+      LEFT JOIN portal_collectives requested_collective ON requested_collective.collective_id = p.requested_collective_id
       LEFT JOIN portal_player_characters c ON c.player_id = p.player_id
       WHERE p.application_status = 'pending'
         AND NOT EXISTS (
