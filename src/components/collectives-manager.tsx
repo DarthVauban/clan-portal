@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadableImage } from "@/components/loadable-image";
+import { CustomSelect } from "@/components/custom-select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -431,15 +432,18 @@ export function CollectivesManager() {
                       <article className={styles.memberRow} data-testid={`member-${member.playerId}`} key={member.playerId}>
                         <PlayerIdentity player={player} portalRole={getPortalRole(state, player.id)} />
                         <div className={styles.roleCell}>
-                          <select
+                          <CustomSelect
                             value={member.role}
-                            onChange={(event) => changeRole(member.playerId, event.target.value as CollectiveRole)}
+                            onChange={(nextValue) => changeRole(member.playerId, nextValue as CollectiveRole)}
                             disabled={!canManageRoles || (member.role === "leader" && !canReassignLeader)}
                             className={roleClass(member.role)}
-                            aria-label={`Роль игрока ${player.displayName}`}
-                          >
-                            {collectiveRoles.map((role) => <option value={role.value} disabled={role.value === "leader" && !canReassignLeader} key={role.value}>{role.label}</option>)}
-                          </select>
+                            ariaLabel={`Роль игрока ${player.displayName}`}
+                            options={collectiveRoles.map((role) => ({
+                              value: role.value,
+                              label: role.label,
+                              disabled: role.value === "leader" && !canReassignLeader,
+                            }))}
+                          />
                         </div>
                         <time>{formatCollectiveDate(member.joinedAt)}</time>
                         <div className={styles.memberActions}>
@@ -501,7 +505,7 @@ export function CollectivesManager() {
           <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="transfer-player-title" data-testid="transfer-player-modal">
             <header><div><span>Перевод между коллективами</span><h2 id="transfer-player-title">Перевести игрока</h2></div><button type="button" onClick={() => setTransferPlayerId(null)} aria-label="Закрыть"><X size={17} /></button></header>
             {transferPlayerData && <div className={styles.transferPlayer}><PlayerIdentity player={transferPlayerData} portalRole={getPortalRole(state, transferPlayerData.id)} /></div>}
-            <label><span>Новый коллектив</span><select value={targetCollectiveId} onChange={(event) => setTargetCollectiveId(event.target.value)} data-testid="transfer-target"><option value="">Выберите коллектив</option>{transferTargets.map((collective) => <option value={collective.id} key={collective.id}>{collective.name} · {collective.members.length}/{COLLECTIVE_LIMIT}</option>)}</select></label>
+            <label><span>Новый коллектив</span><CustomSelect value={targetCollectiveId} onChange={setTargetCollectiveId} testId="transfer-target" placeholder="Выберите коллектив" options={[{ value: "", label: "Выберите коллектив" }, ...transferTargets.map((collective) => ({ value: collective.id, label: `${collective.name} · ${collective.members.length}/${COLLECTIVE_LIMIT}` }))]} /></label>
             <div className={styles.modalHint}><ArrowRightLeft size={15} /><span>После перевода роль будет изменена на «Участник», а дата вступления обновится автоматически.</span></div>
             <footer><button type="button" className={styles.secondaryButton} onClick={() => setTransferPlayerId(null)}>Отмена</button><button type="button" className={styles.primaryButton} onClick={transferPlayer} disabled={!targetCollectiveId} data-testid="confirm-transfer">Перевести <ArrowRightLeft size={14} /></button></footer>
           </section>

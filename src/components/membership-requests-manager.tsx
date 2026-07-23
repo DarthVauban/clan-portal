@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadableImage } from "@/components/loadable-image";
+import { CustomSelect } from "@/components/custom-select";
 import Link from "next/link";
 import { Check, Clock3, ExternalLink, Search, UserPlus, UsersRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -215,9 +216,16 @@ export function MembershipRequestsManager() {
                     {canManageApplicants && <Link href={player.local ? "/profile" : `/profile/${player.id}`}><ExternalLink size={13} /> Профиль</Link>}
                     {manageableCollectives.length > 0 && canManageApplicants && (
                       <>
-                        <select value={selectedTarget} onChange={(event) => setTargets((current) => ({ ...current, [player.id]: event.target.value }))} aria-label={`Коллектив для ${player.displayName}`}>
-                          {manageableCollectives.map((collective) => <option value={collective.id} key={collective.id}>{collective.name} · {collective.members.length}/{COLLECTIVE_LIMIT}</option>)}
-                        </select>
+                        <CustomSelect
+                          value={selectedTarget}
+                          onChange={(nextValue) => setTargets((current) => ({ ...current, [player.id]: nextValue }))}
+                          ariaLabel={`Коллектив для ${player.displayName}`}
+                          layout="inline"
+                          options={manageableCollectives.map((collective) => ({
+                            value: collective.id,
+                            label: `${collective.name} · ${collective.members.length}/${COLLECTIVE_LIMIT}`,
+                          }))}
+                        />
                         <button type="button" onClick={() => assignPlayer(player.id)} data-testid={`approve-membership-${player.id}`}><Check size={14} /> Принять</button>
                         <button type="button" className={styles.rejectButton} onClick={() => rejectPlayer(player.id)} data-testid={`reject-membership-${player.id}`}><X size={14} /> Отклонить</button>
                       </>

@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Hammer, HandCoins, PackageCheck, RotateCcw, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CustomSelect } from "@/components/custom-select";
 import { LoadableImage } from "@/components/loadable-image";
 import { findMembership, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
 import { makePortalNotification, pushPortalNotifications } from "@/lib/notification-store";
@@ -415,20 +416,30 @@ export function MyCraftRequestsManager() {
             <div className={styles.myRequestFilters}>
               <label>
                 <span>Тип</span>
-                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as RequestTypeFilter)}>
-                  <option value="all">Все</option>
-                  <option value="resources">Ресурсы</option>
-                  <option value="currency">Валюта</option>
-                  <option value="craft">Крафт</option>
-                </select>
+                <CustomSelect
+                  value={typeFilter}
+                  onChange={(nextValue) => setTypeFilter(nextValue as RequestTypeFilter)}
+                  ariaLabel="Тип заявки"
+                  options={[
+                    { value: "all", label: "Все" },
+                    { value: "resources", label: "Ресурсы" },
+                    { value: "currency", label: "Валюта" },
+                    { value: "craft", label: "Крафт" },
+                  ]}
+                />
               </label>
               <label>
                 <span>Роль</span>
-                <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}>
-                  <option value="all">Все роли</option>
-                  <option value="customer">Я заказчик</option>
-                  <option value="executor">Я исполнитель / ответственный</option>
-                </select>
+                <CustomSelect
+                  value={roleFilter}
+                  onChange={(nextValue) => setRoleFilter(nextValue as RoleFilter)}
+                  ariaLabel="Роль в заявке"
+                  options={[
+                    { value: "all", label: "Все роли" },
+                    { value: "customer", label: "Я заказчик" },
+                    { value: "executor", label: "Я исполнитель / ответственный" },
+                  ]}
+                />
               </label>
             </div>
           </div>

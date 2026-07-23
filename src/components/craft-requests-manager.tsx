@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Clock3, Hammer, Minus, Plus, Search, ShieldCheck, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CustomSelect } from "@/components/custom-select";
 import { LoadableImage } from "@/components/loadable-image";
 import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem, CalculatorRecipe } from "@/components/craft-calculator";
 import { usePortalAuth } from "@/lib/auth-store";
@@ -462,9 +463,12 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                   </div>
                   <label className={styles.field}>
                     <span>Рецепт</span>
-                    <select value={selectedRecipe?.id ?? ""} onChange={(event) => setSelectedRecipeId(event.target.value)}>
-                      {selectedItem.recipes.map((recipe) => <option value={recipe.id} key={recipe.id}>{recipe.name}</option>)}
-                    </select>
+                    <CustomSelect
+                      value={selectedRecipe?.id ?? ""}
+                      onChange={setSelectedRecipeId}
+                      ariaLabel="Рецепт"
+                      options={selectedItem.recipes.map((recipe) => ({ value: recipe.id, label: recipe.name }))}
+                    />
                   </label>
                 </section>
               ) : (

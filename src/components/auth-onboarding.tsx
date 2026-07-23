@@ -4,6 +4,7 @@ import { LoadableImage } from "@/components/loadable-image";
 import { useRouter } from "next/navigation";
 import { Check, LockKeyhole, MessageCircle, ShieldCheck, ShieldX, Sparkles, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CustomSelect } from "@/components/custom-select";
 import { corepunkClasses } from "@/lib/corepunk-classes";
 import { COLLECTIVE_LIMIT, findMembership, useCollectiveStore } from "@/lib/collective-store";
 import { usePortalAuth } from "@/lib/auth-store";
@@ -170,19 +171,22 @@ export function AuthOnboarding({ mode }: { mode: "welcome" | "registration" | "b
           </label>
           <label className="registration-field-wide">
             <span>Коллектив</span>
-            <select
+            <CustomSelect
               value={requestedCollectiveId}
-              onChange={(event) => setRequestedCollectiveId(event.target.value)}
+              onChange={setRequestedCollectiveId}
               disabled={!canChooseCollective}
-              data-testid="registration-collective"
-            >
-              <option value="">{canChooseCollective ? "Выберите коллектив" : "Коллективы еще не созданы"}</option>
-              {state.collectives.map((collective) => (
-                <option value={collective.id} key={collective.id}>
-                  {collective.name} · {collective.members.length}/{COLLECTIVE_LIMIT}
-                </option>
-              ))}
-            </select>
+              placeholder={canChooseCollective ? "Выберите коллектив" : "Коллективы еще не созданы"}
+              ariaLabel="Коллектив"
+              testId="registration-collective"
+              size="regular"
+              options={[
+                { value: "", label: canChooseCollective ? "Выберите коллектив" : "Коллективы еще не созданы" },
+                ...state.collectives.map((collective) => ({
+                  value: collective.id,
+                  label: `${collective.name} · ${collective.members.length}/${COLLECTIVE_LIMIT}`,
+                })),
+              ]}
+            />
           </label>
         </div>
 
