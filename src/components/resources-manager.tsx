@@ -20,6 +20,8 @@ import { findMembership, hasAbsolutePortalRights, useCollectiveStore } from "@/l
 import { resourceManagerRoles, roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
+import { useRequestStore } from "@/lib/request-store";
+import { getAvailableResourceAmount, getReservedResourceAmount } from "@/lib/request-reservations";
 import styles from "@/app/resources/resources.module.css";
 
 export type ResourceCatalogItem = {
@@ -39,6 +41,7 @@ type ResourceTransaction = {
   image: string | null;
   kind: "add" | "take";
   currentAmount: number;
+  availableAmount: number;
 };
 
 const ANCIENT_COIN_SLUG = "ancient-coin";
@@ -74,6 +77,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
   const { auth } = usePortalAuth();
   const { state: collectiveState } = useCollectiveStore();
   const { state, updateState } = useResourceStore();
+  const { state: requestState } = useRequestStore();
   const [selectedCollectiveId, setSelectedCollectiveId] = useState<string>("all");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [resourceQuery, setResourceQuery] = useState("");
@@ -124,7 +128,7 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
   const transactionQuantity = Math.max(0, Math.floor(Number(transactionAmount) || 0));
   const transactionValid = Boolean(transaction
     && transactionQuantity > 0
-    && (transaction.kind === "add" || transactionQuantity <= transaction.currentAmount));
+    && (transaction.kind === "add" || transactionQuantity <= transaction.availableAmount));
   const actor = {
     id: auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID,
     name: profile.displayName.trim() || auth.discordNickname || "Игрок",
@@ -169,6 +173,8 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
 
   const removeResource = (slug: string) => {
     if (!activeCollective || !canEdit) return;
+    const currentAmount = state.balances[activeCollective.id]?.resources[slug] ?? 0;
+    if (getAvailableResourceAmount(state, requestState, collectiveState, activeCollective.id, slug) < currentAmount) return;
     updateState((current) => {
       const balance = current.balances[activeCollective.id] ?? emptyCollectiveBalance();
       const previousAmount = balance.resources[slug] ?? 0;
@@ -202,9 +208,17 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
 
   const confirmTransaction = () => {
     if (!activeCollective || !transaction || !transactionValid) return;
+    const latestBalance = state.balances[activeCollective.id] ?? emptyCollectiveBalance();
+    const latestAmount = transaction.slug === ANCIENT_COIN_SLUG
+      ? latestBalance.ancientCoin
+      : latestBalance.resources[transaction.slug] ?? 0;
+    if (
+      transaction.kind === "take"
+      && transactionQuantity > getAvailableResourceAmount(state, requestState, collectiveState, activeCollective.id, transaction.slug)
+    ) return;
     const nextAmount = transaction.kind === "add"
-      ? transaction.currentAmount + transactionQuantity
-      : transaction.currentAmount - transactionQuantity;
+      ? latestAmount + transactionQuantity
+      : latestAmount - transactionQuantity;
     setAmount(activeCollective.id, transaction.slug, nextAmount);
     closeTransaction();
   };
@@ -226,6 +240,14 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
         <div className={styles.coinSummary}><span><LoadableImage src={ANCIENT_COIN_IMAGE} alt="" width={40} height={40} /></span><div><small>Общий баланс валюты</small><strong>{formatAmount(aggregate.ancientCoin)}</strong><em>Древняя монета</em></div></div>
         <div><span><Boxes size={17} /></span><div><small>Всего единиц ресурсов</small><strong>{formatAmount(totalResourceUnits)}</strong></div></div>
         <div><span><ShieldCheck size={17} /></span><div><small>Коллективов с активами</small><strong>{collectivesWithAssets} / {collectiveState.collectives.length}</strong></div></div>
+      </section>
+
+      <section className={styles.accessScope}>
+        <ShieldCheck size={16} />
+        <div>
+          <strong>{absoluteRights ? "Полный доступ к учёту" : "Прозрачный баланс клана"}</strong>
+          <span>{absoluteRights ? "Можно изменять балансы всех коллективов. Каждая операция сохраняется с вашим именем." : "Балансы всех коллективов доступны для просмотра. Изменять активы могут руководитель и казначей своего состава."}</span>
+        </div>
       </section>
 
       <div className={styles.resourcesWorkspace}>
@@ -257,8 +279,11 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
                 <strong>{formatAmount(selectedCollectiveId === "all" ? aggregate.ancientCoin : activeBalance?.ancientCoin ?? 0)}</strong>
                 {activeCollective && activeBalance && canEdit && (
                   <div className={styles.transactionButtons}>
-                    <button type="button" onClick={() => openTransaction("add", { slug: ANCIENT_COIN_SLUG, name: "Древняя монета", image: ANCIENT_COIN_IMAGE, currentAmount: activeBalance.ancientCoin })}>Добавить</button>
-                    <button type="button" onClick={() => openTransaction("take", { slug: ANCIENT_COIN_SLUG, name: "Древняя монета", image: ANCIENT_COIN_IMAGE, currentAmount: activeBalance.ancientCoin })} disabled={activeBalance.ancientCoin === 0}>Забрать</button>
+                    <button type="button" onClick={() => openTransaction("add", { slug: ANCIENT_COIN_SLUG, name: "Древняя монета", image: ANCIENT_COIN_IMAGE, currentAmount: activeBalance.ancientCoin, availableAmount: activeBalance.ancientCoin })}>Добавить</button>
+                    <button type="button" onClick={() => {
+                      const availableAmount = getAvailableResourceAmount(state, requestState, collectiveState, activeCollective.id, ANCIENT_COIN_SLUG);
+                      openTransaction("take", { slug: ANCIENT_COIN_SLUG, name: "Древняя монета", image: ANCIENT_COIN_IMAGE, currentAmount: activeBalance.ancientCoin, availableAmount });
+                    }} disabled={getAvailableResourceAmount(state, requestState, collectiveState, activeCollective.id, ANCIENT_COIN_SLUG) === 0}>Забрать</button>
                   </div>
                 )}
               </div>
@@ -271,20 +296,25 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
               <div className={styles.resourceGrid}>
                 {displayedResourceEntries.map(([slug, amount]) => {
                   const resource = resourcesBySlug.get(slug)!;
+                  const availableAmount = activeCollective
+                    ? getAvailableResourceAmount(state, requestState, collectiveState, activeCollective.id, slug)
+                    : amount - getReservedResourceAmount(requestState, slug);
+                  const reservedAmount = Math.max(0, amount - availableAmount);
                   return (
                     <article className={styles.resourceCard} data-testid={`resource-balance-${slug}`} key={slug}>
                       <span className={styles.resourceIcon}>{resource.image && <LoadableImage src={resource.image} alt="" width={54} height={54} />}</span>
                       <div className={styles.resourceIdentity}><strong>{resource.name}</strong><small>{resource.englishName} · T{resource.tier}</small></div>
                       <div className={styles.resourceBalanceBlock}>
                         <strong className={styles.readonlyAmount}>{formatAmount(amount)}</strong>
+                        {reservedAmount > 0 && <small className={styles.reservedAmount}>В резерве {formatAmount(reservedAmount)}</small>}
                         {activeCollective && canEdit && (
                           <div className={styles.transactionButtons}>
-                            <button type="button" onClick={() => openTransaction("add", { slug, name: resource.name, image: resource.image, currentAmount: amount })}>Добавить</button>
-                            <button type="button" onClick={() => openTransaction("take", { slug, name: resource.name, image: resource.image, currentAmount: amount })} disabled={amount === 0}>Забрать</button>
+                            <button type="button" onClick={() => openTransaction("add", { slug, name: resource.name, image: resource.image, currentAmount: amount, availableAmount: amount })}>Добавить</button>
+                            <button type="button" onClick={() => openTransaction("take", { slug, name: resource.name, image: resource.image, currentAmount: amount, availableAmount })} disabled={availableAmount === 0}>Забрать</button>
                           </div>
                         )}
                       </div>
-                      {activeCollective && canEdit && <button type="button" className={styles.removeResource} onClick={() => removeResource(slug)} aria-label={`Удалить ${resource.name}`}><Trash2 size={13} /></button>}
+                      {activeCollective && canEdit && <button type="button" className={styles.removeResource} onClick={() => removeResource(slug)} disabled={reservedAmount > 0} title={reservedAmount > 0 ? "Ресурс зарезервирован активными заявками" : "Удалить ресурс"} aria-label={`Удалить ${resource.name}`}><Trash2 size={13} /></button>}
                     </article>
                   );
                 })}
@@ -356,14 +386,14 @@ export function ResourcesManager({ resources }: { resources: ResourceCatalogItem
             <div className={styles.transactionBody}>
               <div className={styles.transactionResource}>
                 <span>{transaction.image && <LoadableImage src={transaction.image} alt="" width={64} height={64} />}</span>
-                <div><strong>{transaction.name}</strong><small>Текущий баланс: {formatAmount(transaction.currentAmount)}</small></div>
+                <div><strong>{transaction.name}</strong><small>Текущий баланс: {formatAmount(transaction.currentAmount)}{transaction.kind === "take" && transaction.availableAmount < transaction.currentAmount ? ` · свободно ${formatAmount(transaction.availableAmount)}` : ""}</small></div>
               </div>
               <label className={styles.transactionInput}>
                 <span>Количество</span>
-                <input autoFocus type="number" min="1" max={transaction.kind === "take" ? transaction.currentAmount : undefined} step="1" value={transactionAmount} onChange={(event) => setTransactionAmount(event.target.value)} placeholder="Введите количество" data-testid="transaction-amount" />
+                <input autoFocus type="number" min="1" max={transaction.kind === "take" ? transaction.availableAmount : undefined} step="1" value={transactionAmount} onChange={(event) => setTransactionAmount(event.target.value)} placeholder="Введите количество" data-testid="transaction-amount" />
               </label>
-              {transaction.kind === "take" && transactionQuantity > transaction.currentAmount ? (
-                <div className={`${styles.transactionAlert} ${styles.transactionAlertError}`}>Недостаточно ресурса. Доступно: {formatAmount(transaction.currentAmount)}.</div>
+              {transaction.kind === "take" && transactionQuantity > transaction.availableAmount ? (
+                <div className={`${styles.transactionAlert} ${styles.transactionAlertError}`}>Недостаточно свободного ресурса. Доступно: {formatAmount(transaction.availableAmount)}; остальное зарезервировано заявками.</div>
               ) : transactionQuantity > 0 ? (
                 <div className={styles.transactionAlert}>Будет {transaction.kind === "add" ? "добавлено" : "забрано"} <strong>{formatAmount(transactionQuantity)}</strong> ед. ресурса «{transaction.name}».</div>
               ) : (

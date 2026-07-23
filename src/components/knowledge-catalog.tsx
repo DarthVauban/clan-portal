@@ -10,13 +10,17 @@ import {
   FlaskConical,
   Gem,
   Hexagon,
+  History,
+  LayoutGrid,
   RotateCcw,
+  Star,
   Swords,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { KnowledgeSearch } from "@/components/knowledge-search";
 import { ItemNameLanguageToggle } from "@/components/item-name-language-toggle";
 import { type CorepunkCatalogDataset } from "@/lib/corepunk-item-data";
+import { useItemPreferences, type ItemCollectionFilter } from "@/lib/item-preferences";
 import { useItemNameLanguage } from "@/lib/use-item-name-language";
 import styles from "@/app/items/item-card.module.css";
 
@@ -145,6 +149,15 @@ function pluralItems(count: number) {
   return `${count} предметов`;
 }
 
+function saveCatalogRestore(href: string, scrollY: number, visibleLimit: number) {
+  sessionStorage.setItem(CATALOG_RESTORE_KEY, JSON.stringify({
+    href,
+    scrollY,
+    visibleLimit,
+    at: Date.now(),
+  }));
+}
+
 function makeStatFilterOptions(
   items: CorepunkCatalogDataset["items"],
   itemType: string,
@@ -170,6 +183,8 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
   const serializedSearchParams = searchParams.toString();
   const [catalogState, setCatalogState] = useState<CatalogState>(() => readCatalogState(searchParams));
   const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE);
+  const [collectionFilter, setCollectionFilter] = useState<ItemCollectionFilter>("all");
+  const { favorites, recent, favoriteSet, recentSet, toggleFavorite, markViewed } = useItemPreferences();
   const {
     category: activeCategory,
     tier: activeTier,
@@ -199,8 +214,12 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
   const activeCategoryData = categories.find((category) => category.id === activeCategory)!;
   const ActiveIcon = activeCategoryData.icon;
   const categoryCounts = useMemo(() => Object.fromEntries(
-    categories.map((category) => [category.id, dataset.items.filter((item) => item.type === category.type).length]),
-  ), [dataset.items]);
+    categories.map((category) => [category.id, dataset.items.filter((item) => (
+      item.type === category.type
+      && (collectionFilter === "all"
+        || (collectionFilter === "favorites" ? favorites.includes(item.slug) : recent.includes(item.slug)))
+    )).length]),
+  ), [collectionFilter, dataset.items, favorites, recent]);
   const weaponStatOptions = useMemo(() => makeStatFilterOptions(dataset.items, "weapon", dataset.stats, weaponStatsIgnoredInFilters), [dataset.items, dataset.stats]);
   const artifactStatOptions = useMemo(() => makeStatFilterOptions(dataset.items, "implant", dataset.stats), [dataset.items, dataset.stats]);
   const activeStatOptions = useMemo(() => (
@@ -239,9 +258,11 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
     return matchesCategory && matchesTier && matchesQuality && matchesWeaponClass && matchesProfession && matchesStats && matchesQuery;
   };
   const countItemsForFilters = (overrides: Parameters<typeof itemMatchesCurrentFilters>[1] = {}) => (
-    dataset.items.filter((item) => itemMatchesCurrentFilters(item, overrides)).length
+    dataset.items.filter((item) => (
+      itemMatchesCurrentFilters(item, overrides)
+      && (collectionFilter === "all" || (collectionFilter === "favorites" ? favoriteSet.has(item.slug) : recentSet.has(item.slug)))
+    )).length
   );
-  const activeCategoryFilterCount = countItemsForFilters();
   const weaponClassAllCount = countItemsForFilters({ weaponClass: "all" });
   const consumableProfessionAllCount = countItemsForFilters({ profession: "all" });
   const resourceProfessionAllCount = countItemsForFilters({ profession: "all" });
@@ -270,7 +291,14 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
     aliases: [item.name, item.englishName],
   })), [dataset.items, showEnglishNames]);
 
-  const visibleItems = dataset.items.filter((item) => itemMatchesCurrentFilters(item));
+  const filteredItems = dataset.items.filter((item) => itemMatchesCurrentFilters(item));
+  const visibleItems = collectionFilter === "favorites"
+    ? filteredItems.filter((item) => favoriteSet.has(item.slug))
+    : collectionFilter === "recent"
+      ? filteredItems
+        .filter((item) => recentSet.has(item.slug))
+        .sort((first, second) => recent.indexOf(first.slug) - recent.indexOf(second.slug))
+      : filteredItems;
 
   const resetFilters = () => {
     updateCatalogState({ tier: "all", quality: "all", weaponClass: "all", profession: "all", statFilters: [], query: "" });
@@ -292,15 +320,11 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
     });
   };
 
-  const rememberCatalogPosition = () => {
+  const rememberCatalogPosition = (slug: string) => {
     if (typeof window === "undefined") return;
+    markViewed(slug);
     const href = `${pathname}${serializedSearchParams ? `?${serializedSearchParams}` : ""}`;
-    sessionStorage.setItem(CATALOG_RESTORE_KEY, JSON.stringify({
-      href,
-      scrollY: window.scrollY,
-      visibleLimit,
-      at: Date.now(),
-    }));
+    saveCatalogRestore(href, window.scrollY, visibleLimit);
   };
 
   useEffect(() => {
@@ -328,6 +352,18 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
         <ItemNameLanguageToggle showEnglishNames={showEnglishNames} onChange={setShowEnglishNames} />
       </div>
 
+      <div className={styles.collectionToolbar} role="group" aria-label="Персональная подборка предметов">
+        <button type="button" className={collectionFilter === "all" ? styles.collectionActive : ""} onClick={() => setCollectionFilter("all")}>
+          <LayoutGrid size={15} /> Все предметы
+        </button>
+        <button type="button" className={collectionFilter === "favorites" ? styles.collectionActive : ""} onClick={() => setCollectionFilter("favorites")}>
+          <Star size={15} /> Избранное <small>{favorites.length}</small>
+        </button>
+        <button type="button" className={collectionFilter === "recent" ? styles.collectionActive : ""} onClick={() => setCollectionFilter("recent")}>
+          <History size={15} /> Недавние <small>{recent.length}</small>
+        </button>
+      </div>
+
       <nav className={styles.categoryNav} aria-label="Разделы базы предметов">
         {categories.map(({ id, label, icon: Icon }) => (
           <button
@@ -351,7 +387,7 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
             <span><ActiveIcon size={22} /></span>
             <div><h2>{activeCategoryData.label}</h2><p>{activeCategoryData.description}</p></div>
           </div>
-          <div className={styles.categoryCount}>{pluralItems(activeCategoryFilterCount)}</div>
+          <div className={styles.categoryCount}>{pluralItems(visibleItems.length)}</div>
         </header>
 
         <div className={styles.filtersPanel}>
@@ -468,28 +504,39 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
                     ? item.variations.find((variation) => variation.quality === item.quality) ?? item.variations[0]
                     : item.variations.find((variation) => variation.quality === activeQuality) ?? item.variations[0];
                   return (
-                    <Link className={styles.catalogCard} href={`/items/${item.slug}`} onClick={rememberCatalogPosition} data-testid={`catalog-item-${item.slug}`} key={item.slug}>
-                      <div className={styles.catalogImage}>
-                        {selectedVariation?.image && <LoadableImage src={selectedVariation.image} alt={`${showEnglishNames ? item.englishName : item.name} ${selectedVariation.quality}`} width={128} height={128} />}
-                        <span className={`${styles.qualityDot} ${styles[selectedVariation?.quality ?? item.quality]}`} />
-                      </div>
-                      <div className={styles.catalogBody}>
-                        <div className={styles.cardEyebrow}>{typeLabels[item.type] ?? item.type} · Тир {item.tier}{item.type === "weapon" && item.mastery ? ` · ${weaponClassLabels[item.mastery] ?? item.mastery}` : ""}</div>
-                        <h2>{showEnglishNames ? item.englishName : item.name}</h2>
-                        <div className={styles.itemAvailability}>
-                          {item.variations.map((variation) => <span className={styles[variation.quality]} key={variation.quality}>{qualityLabels[variation.quality] ?? variation.quality}</span>)}
+                    <article className={styles.catalogCard} data-testid={`catalog-item-${item.slug}`} key={item.slug}>
+                      <Link className={styles.catalogCardLink} href={`/items/${item.slug}`} onClick={() => rememberCatalogPosition(item.slug)}>
+                        <div className={styles.catalogImage}>
+                          {selectedVariation?.image && <LoadableImage src={selectedVariation.image} alt={`${showEnglishNames ? item.englishName : item.name} ${selectedVariation.quality}`} width={128} height={128} />}
+                          <span className={`${styles.qualityDot} ${styles[selectedVariation?.quality ?? item.quality]}`} />
                         </div>
-                        {item.stats.length > 0 && (
-                          <div className={styles.compactStats}>
-                            {item.stats.slice(0, 3).map((stat) => {
-                              const asset = dataset.stats[stat.type];
-                              return <span key={stat.type}>{asset?.downloaded && <LoadableImage src={asset.local} alt="" width={18} height={18} />}[{stat.min}–{stat.max}] {asset?.label ?? stat.type}</span>;
-                            })}
+                        <div className={styles.catalogBody}>
+                          <div className={styles.cardEyebrow}>{typeLabels[item.type] ?? item.type} · Тир {item.tier}{item.type === "weapon" && item.mastery ? ` · ${weaponClassLabels[item.mastery] ?? item.mastery}` : ""}</div>
+                          <h2>{showEnglishNames ? item.englishName : item.name}</h2>
+                          <div className={styles.itemAvailability}>
+                            {item.variations.map((variation) => <span className={styles[variation.quality]} key={variation.quality}>{qualityLabels[variation.quality] ?? variation.quality}</span>)}
                           </div>
-                        )}
-                        <div className={styles.openCard}>Открыть полную карточку <ArrowRight size={16} /></div>
-                      </div>
-                    </Link>
+                          {item.stats.length > 0 && (
+                            <div className={styles.compactStats}>
+                              {item.stats.slice(0, 3).map((stat) => {
+                                const asset = dataset.stats[stat.type];
+                                return <span key={stat.type}>{asset?.downloaded && <LoadableImage src={asset.local} alt="" width={18} height={18} />}[{stat.min}–{stat.max}] {asset?.label ?? stat.type}</span>;
+                              })}
+                            </div>
+                          )}
+                          <div className={styles.openCard}>Открыть полную карточку <ArrowRight size={16} /></div>
+                        </div>
+                      </Link>
+                      <button
+                        type="button"
+                        className={`${styles.favoriteButton} ${favoriteSet.has(item.slug) ? styles.favoriteButtonActive : ""}`}
+                        onClick={() => toggleFavorite(item.slug)}
+                        aria-label={favoriteSet.has(item.slug) ? `Убрать ${item.name} из избранного` : `Добавить ${item.name} в избранное`}
+                        title={favoriteSet.has(item.slug) ? "Убрать из избранного" : "Добавить в избранное"}
+                      >
+                        <Star size={16} fill={favoriteSet.has(item.slug) ? "currentColor" : "none"} />
+                      </button>
+                    </article>
                   );
                 })}
               </div>
@@ -503,8 +550,8 @@ export function KnowledgeCatalog({ dataset }: { dataset: CorepunkCatalogDataset 
             <div className={styles.categoryEmpty}>
               <span><ActiveIcon size={25} /></span>
               <strong>Нет предметов с выбранными фильтрами</strong>
-              <p>Измените тир, качество или поисковый запрос.</p>
-              <button type="button" onClick={resetFilters}>Сбросить фильтры</button>
+              <p>{collectionFilter === "favorites" ? "Добавьте предметы в избранное или переключитесь на полный каталог." : collectionFilter === "recent" ? "Открытые карточки предметов будут появляться здесь." : "Измените тир, качество или поисковый запрос."}</p>
+              <button type="button" onClick={() => collectionFilter === "all" ? resetFilters() : setCollectionFilter("all")}>{collectionFilter === "all" ? "Сбросить фильтры" : "Показать все предметы"}</button>
             </div>
           )}
         </div>

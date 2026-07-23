@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock3, Hammer, Minus, Plus, Search, ShieldCheck, X, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Hammer, History, LayoutGrid, Minus, Plus, Search, ShieldCheck, Star, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { LoadableImage } from "@/components/loadable-image";
@@ -9,8 +9,14 @@ import { usePortalAuth } from "@/lib/auth-store";
 import { collectiveRoleLabels, findMembership, getPortalRole, hasAbsolutePortalRights, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
 import { corepunkClasses } from "@/lib/corepunk-classes";
 import { makePortalNotification, pushPortalNotifications } from "@/lib/notification-store";
+import { useItemPreferences, type ItemCollectionFilter } from "@/lib/item-preferences";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
+import {
+  ALL_BANK_ID,
+  deductClanCraftResources,
+  getAvailableResourceAmount,
+} from "@/lib/request-reservations";
 import {
   makeRequestHistoryEntry,
   makeRequestId,
@@ -134,13 +140,15 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const { profile } = useLocalProfile();
   const { auth } = usePortalAuth();
   const { state: collectiveState } = useCollectiveStore();
-  const { state: resourceState } = useResourceStore();
+  const { state: resourceState, updateState: updateResourceState } = useResourceStore();
   const { state: requestState, updateState: updateRequestState } = useRequestStore();
+  const { favorites, recent, favoriteSet, recentSet, toggleFavorite, markViewed } = useItemPreferences();
   const [query, setQuery] = useState("");
   const [activeItemType, setActiveItemType] = useState<CraftTypeFilter>("all");
   const [activeClass, setActiveClass] = useState("all");
   const [activeTier, setActiveTier] = useState<number | "all">("all");
   const [activeQuality, setActiveQuality] = useState("all");
+  const [collectionFilter, setCollectionFilter] = useState<ItemCollectionFilter>("all");
   const [activeView, setActiveView] = useState<CraftWorkspaceView>("form");
   const [funding, setFunding] = useState<CraftFundingType>("personal");
   const [selectedItemSlug, setSelectedItemSlug] = useState("");
@@ -199,7 +207,9 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     const matchesClass = nextClass === "all" || item.mastery === nextClass;
     const matchesTier = nextTier === "all" || item.tier === nextTier;
     const matchesQuality = nextQuality === "all" || item.qualities.includes(nextQuality) || item.quality === nextQuality;
-    return matchesType && matchesQuery && matchesClass && matchesTier && matchesQuality;
+    const matchesCollection = collectionFilter === "all"
+      || (collectionFilter === "favorites" ? favoriteSet.has(item.slug) : recentSet.has(item.slug));
+    return matchesType && matchesQuery && matchesClass && matchesTier && matchesQuality && matchesCollection;
   };
   const countCraftItems = (overrides: Parameters<typeof itemMatchesFilters>[1] = {}) => (
     craftItems.filter((item) => itemMatchesFilters(item, overrides)).length
@@ -211,16 +221,18 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const tierCounts = Object.fromEntries(tierOptions.map((tier) => [tier, countCraftItems({ tier })]));
   const qualityAllCount = countCraftItems({ quality: "all" });
   const qualityCounts = Object.fromEntries(qualityOptions.map((quality) => [quality.value, countCraftItems({ quality: quality.value })]));
-  const visibleItems = craftItems.filter((item) => itemMatchesFilters(item)).slice(0, 80);
+  const visibleItems = craftItems
+    .filter((item) => itemMatchesFilters(item))
+    .sort((first, second) => collectionFilter === "recent" ? recent.indexOf(first.slug) - recent.indexOf(second.slug) : 0)
+    .slice(0, 80);
   const clanBalances = useMemo(() => {
     const total: Record<string, number> = {};
-    for (const collective of collectiveState.collectives) {
-      const balance = resourceState.balances[collective.id];
-      if (!balance) continue;
-      for (const [slug, amount] of Object.entries(balance.resources)) total[slug] = (total[slug] ?? 0) + amount;
+    const resourceSlugs = new Set(Object.values(resourceState.balances).flatMap((balance) => Object.keys(balance.resources)));
+    for (const slug of resourceSlugs) {
+      total[slug] = getAvailableResourceAmount(resourceState, requestState, collectiveState, ALL_BANK_ID, slug);
     }
     return total;
-  }, [collectiveState.collectives, resourceState.balances]);
+  }, [collectiveState, requestState, resourceState]);
   const trackedClanResources = requirementsPerCraft.filter((requirement) => requirement.type === "resource");
   const clanCoveredCraftCapacity = trackedClanResources.length > 0
     ? Math.min(...trackedClanResources.map((requirement) => Math.floor((clanBalances[requirement.slug] ?? 0) / requirement.quantity)))
@@ -243,6 +255,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
   const chooseItem = (item: CalculatorCraftItem) => {
     setSelectedItemSlug(item.slug);
     setSelectedRecipeId(item.recipes[0]?.id ?? "");
+    markViewed(item.slug);
   };
 
   const adjustQuantity = (delta: number) => {
@@ -318,6 +331,14 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
 
   const updateClanApproval = (request: CraftRequest, clanApprovalStatus: ClanCraftApprovalStatus) => {
     if (request.funding !== "clan" || !canApproveClanCraft) return;
+    if (clanApprovalStatus === "approved") {
+      const hasFreeResources = request.requirements
+        .filter((requirement) => requirement.type === "resource")
+        .every((requirement) => (
+          getAvailableResourceAmount(resourceState, requestState, collectiveState, ALL_BANK_ID, requirement.slug, request.id) >= requirement.quantity
+        ));
+      if (!hasFreeResources) return;
+    }
     updateCraftRequest(request.id, (current) => ({
       ...withRequestHistory(
         current,
@@ -338,10 +359,25 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
     );
   };
 
-  const confirmCraftExecution = (request: CraftRequest) => {
+  const confirmCraftExecution = async (request: CraftRequest) => {
     if (!request.executor || !currentActorIds.has(request.executor.id)) return;
     if (request.status !== "in-progress") return;
     if (request.funding === "clan" && request.clanApprovalStatus !== "approved") return;
+    if (request.funding === "clan") {
+      const canConsumeReservation = request.requirements
+        .filter((requirement) => requirement.type === "resource")
+        .every((requirement) => (
+          getAvailableResourceAmount(resourceState, requestState, collectiveState, ALL_BANK_ID, requirement.slug, request.id) >= requirement.quantity
+        ));
+      if (!canConsumeReservation) return;
+      let deducted = false;
+      await updateResourceState((current) => {
+        const next = deductClanCraftResources(current, collectiveState, request, currentActor);
+        deducted = Boolean(next);
+        return next ?? current;
+      });
+      if (!deducted) return;
+    }
     updateCraftRequest(request.id, (current) => ({
       ...withRequestHistory(current, "issued", "Выполнение подтверждено", currentActor),
       completedBy: currentActor,
@@ -392,6 +428,12 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                 <Search size={15} />
                 <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск предмета..." />
               </label>
+
+              <div className={styles.collectionTabs} role="group" aria-label="Персональная подборка предметов">
+                <button type="button" className={collectionFilter === "all" ? styles.collectionTabActive : ""} onClick={() => setCollectionFilter("all")}><LayoutGrid size={14} /> Все</button>
+                <button type="button" className={collectionFilter === "favorites" ? styles.collectionTabActive : ""} onClick={() => setCollectionFilter("favorites")}><Star size={14} /> Избранное <small>{favorites.length}</small></button>
+                <button type="button" className={collectionFilter === "recent" ? styles.collectionTabActive : ""} onClick={() => setCollectionFilter("recent")}><History size={14} /> Недавние <small>{recent.length}</small></button>
+              </div>
 
               <div className={styles.filterChips}>
                 <div>
@@ -460,6 +502,9 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                   <div className={styles.selectedPreview}>
                     <span>{selectedItem.image ? <LoadableImage src={selectedItem.image} alt="" width={48} height={48} /> : <Hammer size={20} />}</span>
                     <div><strong>{selectedItem.name}</strong><small>{selectedItem.englishName}</small></div>
+                    <button type="button" className={`${styles.selectedFavorite} ${favoriteSet.has(selectedItem.slug) ? styles.selectedFavoriteActive : ""}`} onClick={() => toggleFavorite(selectedItem.slug)} aria-label={favoriteSet.has(selectedItem.slug) ? "Убрать из избранного" : "Добавить в избранное"} title={favoriteSet.has(selectedItem.slug) ? "Убрать из избранного" : "Добавить в избранное"}>
+                      <Star size={15} fill={favoriteSet.has(selectedItem.slug) ? "currentColor" : "none"} />
+                    </button>
                   </div>
                   <label className={styles.field}>
                     <span>Рецепт</span>
@@ -531,6 +576,11 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
         <section className={styles.requestList}>
           <header><span>Очередь</span><h2>Заявки на крафт</h2></header>
           {activeCraftRequests.length > 0 ? activeCraftRequests.map((request) => {
+            const clanResourcesAvailable = request.funding !== "clan" || request.requirements
+              .filter((requirement) => requirement.type === "resource")
+              .every((requirement) => (
+                getAvailableResourceAmount(resourceState, requestState, collectiveState, ALL_BANK_ID, requirement.slug, request.id) >= requirement.quantity
+              ));
             const canAccept = !request.executor
               && !currentActorIds.has(request.requester.id)
               && !["completed", "rejected", "cancelled"].includes(request.status)
@@ -554,7 +604,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                     {request.funding === "clan" && <span>{clanApprovalLabels[request.clanApprovalStatus]}</span>}
                   </div>
                   {request.note && <em>{request.note}</em>}
-                  <small>Создано {formatRequestDate(request.createdAt)} · материалов {request.requirements.length}</small>
+                  <small>Создано {formatRequestDate(request.createdAt)} · материалов {request.requirements.length}{request.funding === "clan" ? clanResourcesAvailable ? " · резерв доступен" : " · не хватает свободных ресурсов" : ""}</small>
                   <div className={styles.miniRequirements}>
                     {request.requirements.slice(0, 6).map((requirement) => <span key={requirement.slug}>{requirement.name}: x{formatAmount(requirement.quantity)}</span>)}
                   </div>
@@ -563,7 +613,7 @@ export function CraftRequestsManager({ craftItems, referenceItems }: { craftItem
                   {canAccept && <button type="button" onClick={() => acceptCraftRequest(request)}><Hammer size={14} /> Взять в работу</button>}
                   {request.funding === "clan" && request.clanApprovalStatus === "pending" && canApproveClanCraft && (
                     <>
-                      <button type="button" onClick={() => updateClanApproval(request, "approved")}><CheckCircle2 size={14} /> Подтвердить ресурсы</button>
+                      <button type="button" onClick={() => updateClanApproval(request, "approved")} disabled={!clanResourcesAvailable} title={!clanResourcesAvailable ? "Часть ресурсов уже зарезервирована другими заявками" : undefined}><CheckCircle2 size={14} /> Подтвердить ресурсы</button>
                       <button type="button" className={styles.dangerButton} onClick={() => updateClanApproval(request, "rejected")}><XCircle size={14} /> Отклонить ресурсы</button>
                     </>
                   )}

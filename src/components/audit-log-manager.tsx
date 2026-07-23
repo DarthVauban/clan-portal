@@ -1,7 +1,8 @@
 "use client";
 
-import { History, Search } from "lucide-react";
+import { CalendarDays, Download, History, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CustomSelect } from "@/components/custom-select";
 import { useCollectiveStore } from "@/lib/collective-store";
 import { useResourceStore } from "@/lib/resource-store";
 import { useRequestStore } from "@/lib/request-store";
@@ -10,6 +11,7 @@ import styles from "@/app/requests/requests.module.css";
 const numberFormatter = new Intl.NumberFormat("ru-RU");
 
 type AuditTab = "all" | "resources" | "requests";
+type AuditPeriod = "all" | "today" | "7d" | "30d";
 type AuditRow = {
   id: string;
   tab: Exclude<AuditTab, "all">;
@@ -37,6 +39,8 @@ export function AuditLogManager() {
   const [tab, setTab] = useState<AuditTab>("all");
   const [collectiveId, setCollectiveId] = useState("all");
   const [query, setQuery] = useState("");
+  const [period, setPeriod] = useState<AuditPeriod>("30d");
+  const [referenceNow] = useState(() => Date.now());
 
   const rows = useMemo<AuditRow[]>(() => {
     const resourceRows = resourceState.operations.map((operation) => {
@@ -97,11 +101,44 @@ export function AuditLogManager() {
   }, [resourceState.operations, requestState.resourceRequests, requestState.craftRequests]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase("ru");
+  const periodStart = (() => {
+    if (period === "all") return 0;
+    const now = new Date(referenceNow);
+    if (period === "today") {
+      now.setHours(0, 0, 0, 0);
+      return now.getTime();
+    }
+    return referenceNow - (period === "7d" ? 7 : 30) * 24 * 60 * 60 * 1000;
+  })();
   const visibleRows = rows.filter((row) => (
     (tab === "all" || row.tab === tab)
     && (collectiveId === "all" || row.collectiveId === collectiveId)
+    && new Date(row.createdAt).getTime() >= periodStart
     && (!normalizedQuery || row.searchText.includes(normalizedQuery))
   ));
+
+  const exportVisibleRows = () => {
+    if (visibleRows.length === 0) return;
+    const escapeCell = (value: string) => `"${value.replaceAll("\"", "\"\"")}"`;
+    const lines = [
+      ["Дата", "Раздел", "Событие", "Детали", "Исполнитель", "Коллектив"].map(escapeCell).join(","),
+      ...visibleRows.map((row) => [
+        formatDate(row.createdAt),
+        row.tab === "resources" ? "Ресурсы и валюта" : "Заявки",
+        row.title,
+        row.body,
+        row.actor,
+        row.collectiveName,
+      ].map(escapeCell).join(",")),
+    ];
+    const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `portal-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className={styles.requestWorkspace}>
@@ -115,10 +152,29 @@ export function AuditLogManager() {
         <header>
           <span>Аудит</span>
           <h2>Журнал учета</h2>
-          <label className={styles.searchField}>
-            <Search size={15} />
-            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по журналу..." />
-          </label>
+          <div className={styles.auditTools}>
+            <label className={styles.searchField}>
+              <Search size={15} />
+              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по журналу..." />
+            </label>
+            <div className={styles.auditPeriod}>
+              <CalendarDays size={15} />
+              <CustomSelect
+                value={period}
+                onChange={(value) => setPeriod(value as AuditPeriod)}
+                ariaLabel="Период журнала"
+                options={[
+                  { value: "today", label: "Сегодня" },
+                  { value: "7d", label: "Последние 7 дней" },
+                  { value: "30d", label: "Последние 30 дней" },
+                  { value: "all", label: "За всё время" },
+                ]}
+              />
+            </div>
+            <button type="button" className={styles.auditExport} onClick={exportVisibleRows} disabled={visibleRows.length === 0}>
+              <Download size={15} /> Экспорт CSV
+            </button>
+          </div>
           <div className={styles.inlineTabs}>
             <button type="button" className={tab === "all" ? styles.inlineTabActive : ""} onClick={() => setTab("all")}>Все</button>
             <button type="button" className={tab === "resources" ? styles.inlineTabActive : ""} onClick={() => setTab("resources")}>Ресурсы и валюта</button>
@@ -147,8 +203,8 @@ export function AuditLogManager() {
         )) : (
           <div className={styles.emptyQueue}>
             <History size={24} />
-            <strong>Записей пока нет</strong>
-            <p>Новые операции и смены статусов будут появляться здесь автоматически.</p>
+            <strong>Записей не найдено</strong>
+            <p>{rows.length > 0 ? "Измените период, коллектив или поисковый запрос." : "Новые операции и смены статусов будут появляться здесь автоматически."}</p>
           </div>
         )}
       </section>

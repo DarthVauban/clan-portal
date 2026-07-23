@@ -3,7 +3,7 @@
 import { LoadableImage } from "@/components/loadable-image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import {
   ArrowLeft,
   Coins,
@@ -12,6 +12,7 @@ import {
   Link2,
   PackageSearch,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { KnowledgeSearch, type KnowledgeSearchItem } from "@/components/knowledge-search";
 import { ItemNameLanguageToggle } from "@/components/item-name-language-toggle";
@@ -22,6 +23,7 @@ import {
   getDirectRecipeItems,
 } from "@/lib/corepunk-item-data";
 import { modificationLabel, priceTypeLabel, professionLabel, professionLevelLabel, slotLabel } from "@/lib/corepunk-localization";
+import { useItemPreferences } from "@/lib/item-preferences";
 import { useItemNameLanguage } from "@/lib/use-item-name-language";
 import styles from "@/app/items/item-card.module.css";
 
@@ -190,6 +192,7 @@ export function CorepunkItemDetail({
   searchItems: KnowledgeSearchItem[];
 }) {
   const { showEnglishNames, setShowEnglishNames } = useItemNameLanguage();
+  const { favoriteSet, toggleFavorite, markViewed } = useItemPreferences();
   const router = useRouter();
   const item = dataset.records.find((record) => record.slug === dataset.rootSlug) as CorepunkItem;
   const variations = dataset.records
@@ -214,6 +217,10 @@ export function CorepunkItemDetail({
     router.push(href);
   };
 
+  useEffect(() => {
+    markViewed(item.slug);
+  }, [item.slug, markViewed]);
+
   return (
     <div className={styles.detailPage}>
       <div className={styles.detailTopbar}>
@@ -234,7 +241,18 @@ export function CorepunkItemDetail({
 
         <div className={styles.itemIdentity}>
           <div className={styles.itemType}>{typeLabels[item.type] ?? item.type}{item.slot ? ` · ${slotLabel(item.slot)}` : ""}</div>
-          <h1>{itemName}</h1>
+          <div className={styles.itemTitleRow}>
+            <h1>{itemName}</h1>
+            <button
+              type="button"
+              className={favoriteSet.has(item.slug) ? styles.itemFavoriteActive : ""}
+              onClick={() => toggleFavorite(item.slug)}
+              aria-label={favoriteSet.has(item.slug) ? "Убрать предмет из избранного" : "Добавить предмет в избранное"}
+            >
+              <Star size={18} fill={favoriteSet.has(item.slug) ? "currentColor" : "none"} />
+              {favoriteSet.has(item.slug) ? "В избранном" : "В избранное"}
+            </button>
+          </div>
           <div className={styles.itemTags}>
             <span className={qualityClass(selectedItem.quality)}>{qualityLabel(selectedItem.quality)}</span>
             <span>Тир {selectedItem.tier}</span>

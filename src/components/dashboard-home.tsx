@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Bell, Boxes, Crown, Database, Hammer, HandCoins, ScrollText, ShieldCheck, UsersRound } from "lucide-react";
-import { findMembership, getPlayerDirectory, getPortalRole, useCollectiveStore, type DirectoryPlayer } from "@/lib/collective-store";
+import { Activity, ArrowRight, Bell, Boxes, CheckCircle2, Clock3, Crown, Database, Hammer, HandCoins, ScrollText, ShieldCheck, UsersRound } from "lucide-react";
+import { usePortalAuth } from "@/lib/auth-store";
+import { findMembership, getPlayerDirectory, getPortalRole, hasAbsolutePortalRights, useCollectiveStore, type DirectoryPlayer } from "@/lib/collective-store";
+import { roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { useRequestStore, type CraftRequest, type ResourceRequest } from "@/lib/request-store";
 import { useResourceStore } from "@/lib/resource-store";
@@ -32,6 +34,7 @@ function pluralize(value: number, one: string, few: string, many: string) {
 
 export function DashboardHome() {
   const { profile } = useLocalProfile();
+  const { auth } = usePortalAuth();
   const { state: collectiveState } = useCollectiveStore();
   const { state: requestState } = useRequestStore();
   const { state: resourceState } = useResourceStore();
@@ -39,6 +42,13 @@ export function DashboardHome() {
   const directory = getPlayerDirectory(profile, collectiveState);
   const playerById = new Map(directory.map((player) => [player.id, player]));
   const localMembership = findMembership(collectiveState, LOCAL_PLAYER_ID);
+  const actorId = auth.discordId ? `player-${auth.discordId}` : LOCAL_PLAYER_ID;
+  const actorIds = new Set([actorId, LOCAL_PLAYER_ID]);
+  const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID) || auth.isPortalAdmin;
+  const canManageResources = absoluteRights || getPortalRole(collectiveState, LOCAL_PLAYER_ID) === "clan-leader"
+    || roleIsIn(localMembership?.member.role, ["leader", "treasurer"]);
+  const canApproveClanCraft = absoluteRights || getPortalRole(collectiveState, LOCAL_PLAYER_ID) === "clan-leader"
+    || roleIsIn(localMembership?.member.role, ["leader", "treasurer"]);
   const totalCollectives = collectiveState.collectives.length;
   const totalMembers = collectiveState.collectives.reduce((sum, collective) => sum + collective.members.length, 0);
   const occupiedCollectives = collectiveState.collectives.filter((collective) => collective.members.length > 0).length;
@@ -58,6 +68,52 @@ export function DashboardHome() {
   ))).size;
   const ancientCoins = Object.values(resourceState.balances).reduce((sum, balance) => sum + balance.ancientCoin, 0);
   const recentOperations = resourceState.operations.length;
+  const dashboardActions = [
+    ...requestState.resourceRequests.flatMap((request) => {
+      if (request.status === "issued" && actorIds.has(request.requester.id)) {
+        return [{ id: request.id, title: `Подтвердить получение: ${request.resourceName}`, meta: `${formatNumber(request.amount)} ед. · ${request.collectiveName}`, href: "/requests/my-crafting", updatedAt: request.updatedAt, icon: CheckCircle2 }];
+      }
+      if (request.status === "approved" && (canManageResources || actorIds.has(request.approver?.id ?? "") || actorIds.has(request.issuer?.id ?? ""))) {
+        return [{ id: request.id, title: `Выдать ресурсы: ${request.resourceName}`, meta: `${request.requester.name} · ${formatNumber(request.amount)} ед.`, href: "/requests/my-crafting", updatedAt: request.updatedAt, icon: HandCoins }];
+      }
+      return [];
+    }),
+    ...requestState.craftRequests.flatMap((request) => {
+      if (request.status === "issued" && actorIds.has(request.requester.id)) {
+        return [{ id: request.id, title: `Подтвердить получение: ${request.itemName}`, meta: `Крафт x${formatNumber(request.quantity)}`, href: "/requests/my-crafting", updatedAt: request.updatedAt, icon: CheckCircle2 }];
+      }
+      if (request.status === "in-progress" && actorIds.has(request.executor?.id ?? "")) {
+        return [{ id: request.id, title: `Завершить крафт: ${request.itemName}`, meta: `Заказчик ${request.requester.name}`, href: "/requests/my-crafting", updatedAt: request.updatedAt, icon: Hammer }];
+      }
+      if (request.funding === "clan" && request.clanApprovalStatus === "pending" && canApproveClanCraft) {
+        return [{ id: request.id, title: `Решение по банку: ${request.itemName}`, meta: `${request.requester.name} · крафт x${formatNumber(request.quantity)}`, href: "/requests/crafting", updatedAt: request.updatedAt, icon: ShieldCheck }];
+      }
+      return [];
+    }),
+  ].sort((first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()).slice(0, 6);
+  const recentActivity = [
+    ...resourceState.operations.map((operation) => ({
+      id: operation.id,
+      title: `${operation.delta >= 0 ? "Пополнение" : "Списание"}: ${operation.resourceName}`,
+      meta: `${operation.actor?.name ?? "Система"} · ${operation.collectiveName || operation.collectiveId}`,
+      createdAt: operation.createdAt,
+      href: "/audit-log",
+    })),
+    ...requestState.resourceRequests.flatMap((request) => request.history.slice(0, 2).map((entry) => ({
+      id: `${request.id}-${entry.id}`,
+      title: `${request.resourceName}: ${entry.label}`,
+      meta: entry.actor?.name ?? "Система",
+      createdAt: entry.createdAt,
+      href: "/audit-log",
+    }))),
+    ...requestState.craftRequests.flatMap((request) => request.history.slice(0, 2).map((entry) => ({
+      id: `${request.id}-${entry.id}`,
+      title: `${request.itemName}: ${entry.label}`,
+      meta: entry.actor?.name ?? "Система",
+      createdAt: entry.createdAt,
+      href: "/audit-log",
+    }))),
+  ].sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()).slice(0, 6);
 
   const admins = directory
     .filter((player) => getPortalRole(collectiveState, player.id) === "administrator")
@@ -174,6 +230,45 @@ export function DashboardHome() {
             <div className="stat-meta">{meta}</div>
           </article>
         ))}
+      </section>
+
+      <section className="dashboard-operations-grid">
+        <div className="surface-card action-center">
+          <div className="surface-heading">
+            <div><span className="surface-kicker">Сейчас важно</span><h2>Требует вашего действия</h2></div>
+            <span className="dashboard-count">{dashboardActions.length}</span>
+          </div>
+          <div className="dashboard-action-list">
+            {dashboardActions.length > 0 ? dashboardActions.map(({ id, title, meta, href, icon: Icon }) => (
+              <Link href={href} key={id}>
+                <span><Icon size={17} /></span>
+                <div><strong>{title}</strong><small>{meta}</small></div>
+                <ArrowRight size={15} />
+              </Link>
+            )) : (
+              <div className="dashboard-empty">
+                <CheckCircle2 size={22} />
+                <div><strong>Все спокойно</strong><small>Заявок, требующих вашей реакции, сейчас нет.</small></div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="surface-card activity-card">
+          <div className="surface-heading">
+            <div><span className="surface-kicker">Последние изменения</span><h2>Активность портала</h2></div>
+            <Activity size={19} />
+          </div>
+          <div className="dashboard-activity-list">
+            {recentActivity.length > 0 ? recentActivity.map((entry) => (
+              <Link href={entry.href} key={entry.id}>
+                <span><Clock3 size={14} /></span>
+                <div><strong>{entry.title}</strong><small>{entry.meta}</small></div>
+                <time>{new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(entry.createdAt))}</time>
+              </Link>
+            )) : <div className="dashboard-empty"><Activity size={22} /><div><strong>История пока пуста</strong><small>Здесь появятся операции и изменения заявок.</small></div></div>}
+          </div>
+        </div>
       </section>
 
       <section className="dashboard-grid">

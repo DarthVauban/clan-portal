@@ -1,6 +1,7 @@
 "use client";
 
 import Image, { type ImageProps } from "next/image";
+import { ImageOff } from "lucide-react";
 import { useState } from "react";
 
 type LoadableImageProps = ImageProps & {
@@ -15,6 +16,7 @@ export function LoadableImage({ wrapperClassName, className, onLoad, onError, sr
   return (
     <span className={`loadable-image${loaded ? " loadable-image--loaded" : ""}${failed ? " loadable-image--failed" : ""}${wrapperClassName ? ` ${wrapperClassName}` : ""}`}>
       {!loaded && <span className="loadable-image__loader" aria-hidden="true" />}
+      {failed && <span className="loadable-image__fallback" aria-hidden="true"><ImageOff size={16} /></span>}
       <Image
         {...props}
         src={src}

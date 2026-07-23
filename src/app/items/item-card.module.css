@@ -16,6 +16,10 @@
 }
 
 .catalogLayout { display: grid; gap: 16px; }
+.collectionToolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(8,10,13,.34); }
+.collectionToolbar button { min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; color: #737b81; border: 0; border-radius: 7px; background: transparent; font-size: 11px; cursor: pointer; }
+.collectionToolbar button:hover,.collectionToolbar .collectionActive { color: #e3c998; background: rgba(176,138,96,.1); box-shadow: inset 0 0 0 1px rgba(210,173,120,.2); }
+.collectionToolbar small { min-width: 18px; height: 18px; display: inline-grid; place-items: center; color: #9c7b50; border-radius: 50%; background: rgba(176,138,96,.09); font-size: 10px; }
 .knowledgeTools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 10px; }
 .itemNameToggle { min-width: 190px; display: flex; align-items: center; gap: 9px; padding: 7px 8px 7px 12px; color: #8b9298; border: 1px solid rgba(210,173,120,.2); border-radius: 11px; background: linear-gradient(145deg, rgba(176,138,96,.09), rgba(17,20,25,.96)); box-shadow: 0 13px 38px rgba(0,0,0,.12); }
 .itemNameToggle > svg { color: #c09a68; }.itemNameToggle > span { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }.itemNameToggle > div { display: flex; gap: 3px; margin-left: auto; padding: 3px; border-radius: 7px; background: rgba(3,5,7,.32); }.itemNameToggle button { min-width: 34px; min-height: 28px; padding: 0 8px; color: #626a71; border: 0; border-radius: 5px; background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; transition: .18s ease; }.itemNameToggle button:hover { color: #b9bdc0; }.itemNameToggle .languageActive { color: #f0d7ad; background: rgba(176,138,96,.18); box-shadow: inset 0 0 0 1px rgba(210,173,120,.25); }
@@ -92,6 +96,7 @@
 .catalogGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(410px, 1fr)); gap: 14px; }
 
 .catalogCard {
+  position: relative;
   min-height: 245px;
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
@@ -104,6 +109,9 @@
 }
 
 .catalogCard:hover { transform: translateY(-2px); border-color: rgba(210, 173, 120, 0.32); box-shadow: 0 20px 55px rgba(0, 0, 0, 0.25); }
+.catalogCardLink { display: contents; color: inherit; text-decoration: none; }
+.favoriteButton { position: absolute; z-index: 3; top: 10px; right: 10px; width: 34px; height: 34px; display: grid; place-items: center; color: #687077; border: 1px solid rgba(255,255,255,.09); border-radius: 8px; background: rgba(10,13,16,.9); box-shadow: 0 8px 20px rgba(0,0,0,.2); cursor: pointer; }
+.favoriteButton:hover,.favoriteButtonActive { color: #e1bf83; border-color: rgba(210,173,120,.32); background: rgba(48,39,28,.94); }
 .catalogImage { position: relative; display: grid; place-items: center; background: radial-gradient(circle, rgba(176, 138, 96, 0.12), transparent 65%), #111419; }
 .catalogImage img { width: 126px; height: 126px; object-fit: contain; filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.45)); }
 .qualityDot { position: absolute; left: 15px; bottom: 15px; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 11px currentColor; }
@@ -151,7 +159,10 @@
 .tierMark { position: absolute; right: 10px; bottom: 10px; min-width: 30px; height: 25px; display: grid; place-items: center; color: #d4b181; border: 1px solid rgba(176,138,96,.2); border-radius: 7px; background: #17130f; font: 11px var(--font-display), serif; }
 .itemIdentity { position: relative; z-index: 1; min-width: 0; }
 .itemType { color: #b18d61; font-size: 11px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
-.itemIdentity h1 { margin: 10px 0 14px; font: clamp(36px, 4vw, 54px) var(--font-display), serif; letter-spacing: -.02em; }
+.itemTitleRow { display: flex; align-items: center; gap: 14px; }
+.itemTitleRow h1 { min-width: 0; margin: 10px 0 14px; font: clamp(36px, 4vw, 54px) var(--font-display), serif; }
+.itemTitleRow button { flex: 0 0 auto; min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; color: #7b8389; border: 1px solid rgba(255,255,255,.09); border-radius: 8px; background: rgba(8,10,13,.4); font-size: 11px; cursor: pointer; }
+.itemTitleRow button:hover,.itemTitleRow .itemFavoriteActive { color: #e2c48e; border-color: rgba(210,173,120,.28); background: rgba(176,138,96,.09); }
 .itemTags { display: flex; flex-wrap: wrap; gap: 7px; }
 .itemTags span { padding: 6px 8px; color: #858c91; border: 1px solid rgba(255,255,255,.08); border-radius: 6px; background: rgba(255,255,255,.025); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
 .variationLabel { margin-top: 22px; color: #636a71; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
@@ -214,6 +225,6 @@
   .knowledgeTools { grid-template-columns: 1fr; }.itemNameToggle { min-width: 0; }
   .categoryNav { grid-template-columns: repeat(2, minmax(0,1fr)); }.categoryButton { min-height: 68px; grid-template-columns: 29px minmax(0,1fr) auto; }.categoryButton > svg { width: 29px; height: 29px; }.categoryHeader { align-items: flex-start; padding: 18px; }.categoryCount { display: none; }.filtersPanel,.catalogResults { padding-right: 16px; padding-left: 16px; }.catalogCard { grid-template-columns: 110px 1fr; }.catalogBody { padding: 20px 16px; }.catalogImage img { width: 96px; height: 96px; }.catalogBody h2 { font-size: 21px; }
   .detailTopbar > div > span:last-child { display: none; }
-  .itemHero { grid-template-columns: 1fr; justify-items: center; padding: 23px 18px; }.heroItemImage { width: 190px; height: 190px; }.itemIdentity { width: 100%; text-align: center; }.itemTags,.variationRow { justify-content: center; }.itemFacts { width: 100%; grid-template-columns: repeat(2, 1fr); }.itemFacts div { border-bottom: 1px solid rgba(255,255,255,.055); }.itemFacts div:last-child { grid-column: 1 / -1; }
+  .itemHero { grid-template-columns: 1fr; justify-items: center; padding: 23px 18px; }.heroItemImage { width: 190px; height: 190px; }.itemIdentity { width: 100%; text-align: center; }.itemTitleRow { flex-direction: column; gap: 0; }.itemTitleRow h1 { margin-bottom: 8px; }.itemTitleRow button { margin-bottom: 14px; }.itemTags,.variationRow { justify-content: center; }.itemFacts { width: 100%; grid-template-columns: repeat(2, 1fr); }.itemFacts div { border-bottom: 1px solid rgba(255,255,255,.055); }.itemFacts div:last-child { grid-column: 1 / -1; }
   .statsPanel,.modifications { grid-template-columns: 1fr; }.craftingSection,.relatedSection { padding: 18px; }.craftingHeader { display: block; }.craftingHeader > span { margin-top: 8px; }.relatedGrid { grid-template-columns: 1fr; }
 }

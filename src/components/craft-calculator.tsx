@@ -6,11 +6,14 @@ import {
   Boxes,
   Calculator,
   CheckCircle2,
+  History,
   Layers3,
+  LayoutGrid,
   Minus,
   Plus,
   Search,
   ShieldCheck,
+  Star,
   UserRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -18,6 +21,9 @@ import { collectiveRoleLabels, findMembership, getPortalRole, portalRoleLabels, 
 import { hasPortalPermission } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID } from "@/lib/profile-store";
 import { useResourceStore } from "@/lib/resource-store";
+import { useRequestStore } from "@/lib/request-store";
+import { ALL_BANK_ID, getAvailableResourceAmount } from "@/lib/request-reservations";
+import { useItemPreferences, type ItemCollectionFilter } from "@/lib/item-preferences";
 import styles from "@/app/craft-calculator/craft-calculator.module.css";
 
 export type CalculatorIngredient = {
@@ -84,9 +90,12 @@ function fallbackName(slug: string) {
 export function CraftCalculator({ craftItems, referenceItems }: { craftItems: CalculatorCraftItem[]; referenceItems: CalculatorReferenceItem[] }) {
   const { state: collectiveState } = useCollectiveStore();
   const { state: resourceState } = useResourceStore();
+  const { state: requestState } = useRequestStore();
+  const { favorites, recent, favoriteSet, recentSet, toggleFavorite, markViewed } = useItemPreferences();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<(typeof categoryOptions)[number]>("all");
   const [tier, setTier] = useState<number | "all">("all");
+  const [collectionFilter, setCollectionFilter] = useState<ItemCollectionFilter>("all");
   const [selectedItemSlug, setSelectedItemSlug] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -106,19 +115,25 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
   const selectedItem = craftItems.find((item) => item.slug === selectedItemSlug) ?? null;
   const selectedRecipe = selectedItem?.recipes.find((recipe) => recipe.id === selectedRecipeId) ?? selectedItem?.recipes[0] ?? null;
   const normalizedQuery = query.trim().toLocaleLowerCase("ru");
-  const visibleItems = craftItems.filter((item) => (category === "all" || item.type === category)
+  const filteredItems = craftItems.filter((item) => (category === "all" || item.type === category)
     && (tier === "all" || item.tier === tier)
-    && (!normalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery)))).slice(0, 80);
+    && (!normalizedQuery || [item.name, item.englishName].some((name) => name.toLocaleLowerCase("ru").includes(normalizedQuery))));
+  const visibleItems = (collectionFilter === "favorites"
+    ? filteredItems.filter((item) => favoriteSet.has(item.slug))
+    : collectionFilter === "recent"
+      ? filteredItems
+        .filter((item) => recentSet.has(item.slug))
+        .sort((first, second) => recent.indexOf(first.slug) - recent.indexOf(second.slug))
+      : filteredItems).slice(0, 80);
 
   const clanBalances = useMemo(() => {
     const total: Record<string, number> = {};
-    for (const collective of collectiveState.collectives) {
-      const balance = resourceState.balances[collective.id];
-      if (!balance) continue;
-      for (const [slug, amount] of Object.entries(balance.resources)) total[slug] = (total[slug] ?? 0) + amount;
+    const resourceSlugs = new Set(Object.values(resourceState.balances).flatMap((balance) => Object.keys(balance.resources)));
+    for (const slug of resourceSlugs) {
+      total[slug] = getAvailableResourceAmount(resourceState, requestState, collectiveState, ALL_BANK_ID, slug);
     }
     return total;
-  }, [collectiveState.collectives, resourceState.balances]);
+  }, [collectiveState, requestState, resourceState]);
 
   const resolveRequirement = (ingredient: CalculatorIngredient, multiplier: number): Requirement => {
     const reference = referenceBySlug.get(ingredient.slug);
@@ -175,6 +190,7 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
   const chooseItem = (item: CalculatorCraftItem) => {
     setSelectedItemSlug(item.slug);
     setSelectedRecipeId(item.recipes[0]?.id ?? "");
+    markViewed(item.slug);
   };
 
   return (
@@ -191,6 +207,11 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
         <section className={styles.recipeSelector}>
           <header><span>Шаг 1</span><h2>Выберите предмет</h2><p>Доступны все предметы с рецептом из базы знаний.</p></header>
           <label className={styles.searchBox}><Search size={15} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по названию..." /></label>
+          <div className={styles.collectionFilters} role="group" aria-label="Персональная подборка рецептов">
+            <button type="button" className={collectionFilter === "all" ? styles.filterActive : ""} onClick={() => setCollectionFilter("all")} title="Все рецепты"><LayoutGrid size={14} /> Все</button>
+            <button type="button" className={collectionFilter === "favorites" ? styles.filterActive : ""} onClick={() => setCollectionFilter("favorites")} title="Избранные рецепты"><Star size={14} /> Избранное <small>{favorites.length}</small></button>
+            <button type="button" className={collectionFilter === "recent" ? styles.filterActive : ""} onClick={() => setCollectionFilter("recent")} title="Недавно открытые рецепты"><History size={14} /> Недавние <small>{recent.length}</small></button>
+          </div>
           <div className={styles.filterBlock}>
             <span className={styles.filterLabel}>Тип предмета</span>
             <div className={styles.categoryFilters}>
@@ -227,6 +248,15 @@ export function CraftCalculator({ craftItems, referenceItems }: { craftItems: Ca
                 <div className={styles.selectedItem}>
                   <span>{selectedItem.image ? <LoadableImage src={selectedItem.image} alt="" width={76} height={76} /> : <Boxes size={28} />}</span>
                   <div><small>{typeLabels[selectedItem.type] ?? selectedItem.type} · Тир {selectedItem.tier}</small><h2>{selectedItem.name}</h2><p>{selectedItem.englishName}</p></div>
+                  <button
+                    type="button"
+                    className={`${styles.selectedFavorite} ${favoriteSet.has(selectedItem.slug) ? styles.selectedFavoriteActive : ""}`}
+                    onClick={() => toggleFavorite(selectedItem.slug)}
+                    aria-label={favoriteSet.has(selectedItem.slug) ? "Убрать рецепт из избранного" : "Добавить рецепт в избранное"}
+                    title={favoriteSet.has(selectedItem.slug) ? "Убрать из избранного" : "Добавить в избранное"}
+                  >
+                    <Star size={16} fill={favoriteSet.has(selectedItem.slug) ? "currentColor" : "none"} />
+                  </button>
                 </div>
                 <div className={styles.quantityControl}>
                   <span>Желаемое количество</span>

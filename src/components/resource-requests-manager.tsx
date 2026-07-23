@@ -5,11 +5,14 @@ import { useMemo, useState } from "react";
 import { LoadableImage } from "@/components/loadable-image";
 import type { ResourceCatalogItem } from "@/components/resources-manager";
 import { usePortalAuth } from "@/lib/auth-store";
-import { findMembership, getPortalRole, hasAbsolutePortalRights, useCollectiveStore } from "@/lib/collective-store";
+import { collectiveRoleLabels, findMembership, getPortalRole, hasAbsolutePortalRights, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
 import { roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { makePortalNotification, pushPortalNotifications } from "@/lib/notification-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
+import {
+  getAvailableResourceAmount,
+} from "@/lib/request-reservations";
 import {
   makeRequestHistoryEntry,
   makeRequestId,
@@ -94,6 +97,10 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const absoluteRights = hasAbsolutePortalRights(collectiveState, LOCAL_PLAYER_ID);
   const portalRole = auth.isPortalAdmin ? "administrator" : getPortalRole(collectiveState, LOCAL_PLAYER_ID);
   const clanLeadershipRights = absoluteRights || portalRole === "administrator" || portalRole === "clan-leader";
+  const canManageOwnCollective = Boolean(membership && roleIsIn(membership.member.role, resourceRequestApproverRoles));
+  const accessRoleLabel = portalRole !== "member"
+    ? portalRoleLabels[portalRole]
+    : membership ? collectiveRoleLabels[membership.member.role] : "Участник";
   const availableCollectives = absoluteRights || membership ? collectiveState.collectives : [];
   const activeBankId = selectedCollectiveId === ALL_BANK_ID || availableCollectives.some((collective) => collective.id === selectedCollectiveId)
     ? selectedCollectiveId
@@ -176,21 +183,26 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   const currentActor: RequestActor = { id: requesterId, name: requesterName };
   const currentActorIds = new Set([requesterId, LOCAL_PLAYER_ID]);
   const selectedAvailableAmount = assetKind === "currency"
+    ? getAvailableResourceAmount(resourceState, requestState, collectiveState, activeBankId, ANCIENT_COIN_SLUG)
+    : selectedResource
+      ? getAvailableResourceAmount(resourceState, requestState, collectiveState, activeBankId, selectedResource.slug)
+      : 0;
+  const selectedRawAmount = assetKind === "currency"
     ? ancientCoinAmountInBank()
     : selectedResource ? resourceAmountInBank(selectedResource.slug) : 0;
+  const selectedReservedAmount = Math.max(0, selectedRawAmount - selectedAvailableAmount);
   const canSubmit = Boolean((activeBankId === ALL_BANK_ID || activeCollective)
     && requestedAmount > 0
     && selectedAvailableAmount > 0
     && (assetKind === "currency" || selectedResource));
-  const activeResourceRequests = requestState.resourceRequests.filter((request) => activeResourceRequestStatuses.has(request.status) && !isExpiredUnconfirmedRequest(request));
+  const activeResourceRequests = requestState.resourceRequests.filter((request) => activeResourceRequestStatuses.has(request.status));
   const pendingCount = activeResourceRequests.filter((request) => request.status === "pending").length;
   const approvedCount = activeResourceRequests.filter((request) => request.status === "approved").length;
   const issuedCount = requestState.resourceRequests.filter((request) => request.status === "issued").length;
 
-  const availableAmount = (collectiveId: string, resourceSlug: string) => {
-    if (resourceSlug === ANCIENT_COIN_SLUG) return ancientCoinAmountInBank(collectiveId);
-    return resourceAmountInBank(resourceSlug, collectiveId);
-  };
+  const availableAmount = (collectiveId: string, resourceSlug: string, excludeRequestId = "") => (
+    getAvailableResourceAmount(resourceState, requestState, collectiveState, collectiveId, resourceSlug, excludeRequestId)
+  );
   const canManageRequest = (request: ResourceRequest) => {
     if (request.collectiveId === ALL_BANK_ID) return clanLeadershipRights;
     if (clanLeadershipRights) return true;
@@ -275,11 +287,11 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     }));
   };
 
-  const deductRequestResources = (request: ResourceRequest) => {
-    if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return;
+  const deductRequestResources = async (request: ResourceRequest) => {
+    if (availableAmount(request.collectiveId, request.resourceSlug, request.id) < request.amount) return false;
     const now = new Date().toISOString();
     const isCurrency = request.resourceSlug === ANCIENT_COIN_SLUG;
-    updateResourceState((current) => {
+    await updateResourceState((current) => {
       if (request.collectiveId !== ALL_BANK_ID) {
         const balance = current.balances[request.collectiveId] ?? emptyCollectiveBalance();
         const currentAmount = isCurrency ? balance.ancientCoin : balance.resources[request.resourceSlug] ?? 0;
@@ -327,9 +339,11 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
       }
       return { balances, operations: operations.slice(0, 200) };
     });
+    return true;
   };
 
   const approveRequest = (request: ResourceRequest) => {
+    if (availableAmount(request.collectiveId, request.resourceSlug, request.id) < request.amount) return;
     updateResourceRequest(request.id, (current) => ({
       ...withRequestHistory(current, "approved", "Заявка одобрена", currentActor),
       approver: currentActor,
@@ -346,7 +360,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
   };
 
   const issueRequest = (request: ResourceRequest) => {
-    if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return;
+    if (availableAmount(request.collectiveId, request.resourceSlug, request.id) < request.amount) return;
     updateResourceRequest(request.id, (current) => ({
       ...withRequestHistory(current, "issued", "Ресурсы выданы", currentActor),
       issuer: currentActor,
@@ -354,9 +368,9 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
     notifyRequester(request, "resource-request-issued", "Ресурсы выданы", "Подтвердите получение в разделе «Мои заявки».", "issued");
   };
 
-  const confirmReceipt = (request: ResourceRequest) => {
-    if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return;
-    deductRequestResources(request);
+  const confirmReceipt = async (request: ResourceRequest) => {
+    if (availableAmount(request.collectiveId, request.resourceSlug, request.id) < request.amount) return;
+    if (!(await deductRequestResources(request))) return;
     updateResourceRequest(request.id, (current) => ({
       ...withRequestHistory(current, "completed", "Получение подтверждено", currentActor),
       receiver: currentActor,
@@ -404,6 +418,14 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
         <div><small>На рассмотрении</small><strong>{pendingCount}</strong></div>
         <div><small>Одобрено</small><strong>{approvedCount}</strong></div>
         <div><small>Выдано</small><strong>{issuedCount}</strong></div>
+      </section>
+
+      <section className={styles.accessNote}>
+        <ShieldCheck size={17} />
+        <div>
+          <strong>{accessRoleLabel}</strong>
+          <span>{clanLeadershipRights ? "Можно управлять заявками по общему банку и всем коллективам." : canManageOwnCollective ? `Можно управлять заявками коллектива «${membership?.collective.name}»; остатки всех банков доступны для просмотра.` : "Можно создавать заявки и видеть доступные остатки всех коллективов; решения принимают руководители и казначеи."}</span>
+        </div>
       </section>
 
       <div className={styles.viewTabs} role="tablist" aria-label="Раздел заявок на ресурсы">
@@ -479,7 +501,9 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   >
                     <span>{resource.image && <LoadableImage src={resource.image} alt="" width={42} height={42} />}</span>
                     <div><strong>{resource.name}</strong><small>{resource.englishName} · T{resource.tier}</small></div>
-                    <em>{formatAmount(resourceAmountInBank(resource.slug))}</em>
+                    <em title={`Всего в банке: ${formatAmount(resourceAmountInBank(resource.slug))}`}>
+                      {formatAmount(getAvailableResourceAmount(resourceState, requestState, collectiveState, activeBankId, resource.slug))}
+                    </em>
                   </button>
                 ))}
               </div>
@@ -490,7 +514,7 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   <div>
                     <small>{activeBankName}</small>
                     <strong>{ANCIENT_COIN_NAME}</strong>
-                    <p>Доступно: {formatAmount(ancientCoinAmountInBank())}</p>
+                    <p>Доступно: {formatAmount(selectedAvailableAmount)}{selectedReservedAmount > 0 ? ` · в резерве ${formatAmount(selectedReservedAmount)}` : ""}</p>
                   </div>
                 </div>
               )}
@@ -501,12 +525,12 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                 {assetKind === "currency" ? (
                   <>
                     <span><LoadableImage src={ANCIENT_COIN_IMAGE} alt="" width={44} height={44} /></span>
-                    <div><strong>{ANCIENT_COIN_NAME}</strong><small>{activeBankName}: {formatAmount(selectedAvailableAmount)}</small></div>
+                    <div><strong>{ANCIENT_COIN_NAME}</strong><small>{activeBankName}: доступно {formatAmount(selectedAvailableAmount)}{selectedReservedAmount > 0 ? ` · резерв ${formatAmount(selectedReservedAmount)}` : ""}</small></div>
                   </>
                 ) : selectedResource ? (
                   <>
                     <span>{selectedResource.image && <LoadableImage src={selectedResource.image} alt="" width={44} height={44} />}</span>
-                    <div><strong>{selectedResource.name}</strong><small>{activeBankName}: {formatAmount(selectedAvailableAmount)}</small></div>
+                    <div><strong>{selectedResource.name}</strong><small>{activeBankName}: доступно {formatAmount(selectedAvailableAmount)}{selectedReservedAmount > 0 ? ` · резерв ${formatAmount(selectedReservedAmount)}` : ""}</small></div>
                   </>
                 ) : <p>Ресурс не выбран</p>}
               </div>
@@ -541,10 +565,16 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
           <header><span>Очередь</span><h2>Заявки на ресурсы</h2></header>
           {activeResourceRequests.length > 0 ? activeResourceRequests.map((request) => {
             const canManage = canManageRequest(request);
-            const bankAvailable = availableAmount(request.collectiveId, request.resourceSlug);
+            const bankAvailable = availableAmount(request.collectiveId, request.resourceSlug, request.id);
+            const rawBankAmount = request.resourceSlug === ANCIENT_COIN_SLUG
+              ? ancientCoinAmountInBank(request.collectiveId)
+              : resourceAmountInBank(request.resourceSlug, request.collectiveId);
+            const reservedAmount = Math.max(0, rawBankAmount - bankAvailable);
             const canIssue = canManage && request.status === "approved" && bankAvailable >= request.amount;
             const canConfirmReceipt = request.status === "issued" && currentActorIds.has(request.requester.id) && bankAvailable >= request.amount;
             const canCancel = currentActorIds.has(request.requester.id) || canManage;
+            const canApprove = canManage && request.status === "pending" && bankAvailable >= request.amount;
+            const overdue = isExpiredUnconfirmedRequest(request);
             return (
               <article className={styles.requestCard} data-status={request.status} key={request.id}>
                 <div className={styles.requestIcon}>{request.resourceImage && <LoadableImage src={request.resourceImage} alt="" width={52} height={52} />}</div>
@@ -555,12 +585,12 @@ export function ResourceRequestsManager({ resources }: { resources: ResourceCata
                   </div>
                   <p>{formatAmount(request.amount)} ед. · {request.collectiveName} · {request.requester.name}</p>
                   {request.purpose && <em>{request.purpose}</em>}
-                  <small>Создано {formatRequestDate(request.createdAt)} · доступно в банке {formatAmount(bankAvailable)}</small>
+                  <small>Создано {formatRequestDate(request.createdAt)} · доступно {formatAmount(bankAvailable)}{reservedAmount > 0 ? ` · зарезервировано ${formatAmount(reservedAmount)}` : ""}{overdue ? " · получение давно не подтверждено" : ""}</small>
                 </div>
                 <div className={styles.requestActions}>
                   {canManage && request.status === "pending" && (
                     <>
-                      <button type="button" onClick={() => approveRequest(request)}><CheckCircle2 size={14} /> Одобрить</button>
+                      <button type="button" onClick={() => approveRequest(request)} disabled={!canApprove} title={!canApprove ? "В банке недостаточно свободных ресурсов с учетом резервов" : undefined}><CheckCircle2 size={14} /> Одобрить</button>
                       <button type="button" className={styles.dangerButton} onClick={() => rejectRequest(request)}><XCircle size={14} /> Отклонить</button>
                     </>
                   )}

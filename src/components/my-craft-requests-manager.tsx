@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, Hammer, HandCoins, PackageCheck, RotateCcw, X, XCircle } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, Hammer, HandCoins, PackageCheck, RotateCcw, Search, ShieldCheck, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { LoadableImage } from "@/components/loadable-image";
@@ -9,6 +10,12 @@ import { makePortalNotification, pushPortalNotifications } from "@/lib/notificat
 import { roleIsIn } from "@/lib/portal-permissions";
 import { LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { emptyCollectiveBalance, makeResourceOperation, useResourceStore } from "@/lib/resource-store";
+import {
+  ALL_BANK_ID,
+  ANCIENT_COIN_SLUG,
+  deductClanCraftResources,
+  getAvailableResourceAmount,
+} from "@/lib/request-reservations";
 import {
   makeRequestHistoryEntry,
   makeRequestId,
@@ -23,8 +30,6 @@ import { usePortalAuth } from "@/lib/auth-store";
 import styles from "@/app/requests/requests.module.css";
 
 const numberFormatter = new Intl.NumberFormat("ru-RU");
-const ANCIENT_COIN_SLUG = "ancient-coin";
-const ALL_BANK_ID = "all";
 const managerRoles = ["leader", "treasurer"] as const;
 const closedStatuses = new Set<RequestStatus>(["completed", "rejected", "cancelled"]);
 const UNCONFIRMED_RESOURCE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -54,6 +59,7 @@ const craftFundingLabels = {
 type RequestTypeFilter = "all" | "resources" | "currency" | "craft";
 type ListMode = "action" | "active" | "completed";
 type RoleFilter = "all" | "customer" | "executor";
+type StatusFilter = "all" | RequestStatus;
 type CraftRole = "customer" | "executor";
 type CraftConfirmationState = { kind: "executor" | "requester"; requestId: string };
 type CancelDialogState =
@@ -76,14 +82,18 @@ function isActor(actor: RequestActor | null | undefined, actorIds: Set<string>) 
   return Boolean(actor && actorIds.has(actor.id));
 }
 
-function isExpiredUnconfirmedResourceRequest(request: ResourceRequest) {
+function isOverdueUnconfirmedResourceRequest(request: ResourceRequest) {
   return request.status === "issued" && Date.now() - new Date(request.updatedAt).getTime() > UNCONFIRMED_RESOURCE_TTL_MS;
 }
 
-function ProgressChain({ labels }: { labels: string[] }) {
+function ProgressChain({ steps }: { steps: Array<{ label: string; complete: boolean; active?: boolean }> }) {
   return (
-    <div className={styles.requestBadges}>
-      {labels.map((label) => <span key={label}>{label}</span>)}
+    <div className={styles.requestProgress} aria-label="Этапы заявки">
+      {steps.map((step) => (
+        <span className={step.complete ? styles.requestProgressComplete : step.active ? styles.requestProgressActive : ""} key={step.label}>
+          <i>{step.complete ? <CheckCircle2 size={12} /> : null}</i>{step.label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -97,6 +107,8 @@ export function MyCraftRequestsManager() {
   const [mode, setMode] = useState<ListMode>("action");
   const [typeFilter, setTypeFilter] = useState<RequestTypeFilter>("all");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [query, setQuery] = useState("");
   const [confirmation, setConfirmation] = useState<CraftConfirmationState | null>(null);
   const [cancelDialog, setCancelDialog] = useState<CancelDialogState | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -140,23 +152,15 @@ export function MyCraftRequestsManager() {
     if (notification) void pushPortalNotifications([notification]).catch(() => undefined);
   };
 
-  const availableAmount = (collectiveId: string, resourceSlug: string) => {
-    if (collectiveId === ALL_BANK_ID) {
-      return collectiveState.collectives.reduce((total, collective) => {
-        const balance = resourceState.balances[collective.id];
-        if (!balance) return total;
-        return total + (resourceSlug === ANCIENT_COIN_SLUG ? balance.ancientCoin : balance.resources[resourceSlug] ?? 0);
-      }, 0);
-    }
-    const balance = resourceState.balances[collectiveId];
-    return resourceSlug === ANCIENT_COIN_SLUG ? balance?.ancientCoin ?? 0 : balance?.resources[resourceSlug] ?? 0;
-  };
+  const availableAmount = (collectiveId: string, resourceSlug: string, excludeRequestId = "") => (
+    getAvailableResourceAmount(resourceState, state, collectiveState, collectiveId, resourceSlug, excludeRequestId)
+  );
 
-  const deductResourceRequest = (request: ResourceRequest) => {
-    if (availableAmount(request.collectiveId, request.resourceSlug) < request.amount) return false;
+  const deductResourceRequest = async (request: ResourceRequest) => {
+    if (availableAmount(request.collectiveId, request.resourceSlug, request.id) < request.amount) return false;
     const now = new Date().toISOString();
     const isCurrency = request.resourceSlug === ANCIENT_COIN_SLUG;
-    updateResourceState((current) => {
+    await updateResourceState((current) => {
       if (request.collectiveId !== ALL_BANK_ID) {
         const balance = current.balances[request.collectiveId] ?? emptyCollectiveBalance();
         const previousAmount = isCurrency ? balance.ancientCoin : balance.resources[request.resourceSlug] ?? 0;
@@ -211,6 +215,7 @@ export function MyCraftRequestsManager() {
 
   const markResourceIssued = (request: ResourceRequest) => {
     if (!canManageAny || request.status !== "approved") return;
+    if (availableAmount(request.collectiveId, request.resourceSlug, request.id) < request.amount) return;
     updateResourceRequest(request.id, (current) => ({
       ...withRequestHistory(current, "issued", "Ресурсы выданы", actor),
       issuer: actor,
@@ -218,9 +223,9 @@ export function MyCraftRequestsManager() {
     notify(request.requester, "resource-request-issued", "Ресурсы выданы", "Подтвердите получение.", "resource-request", request.id, "issued");
   };
 
-  const confirmResourceReceipt = (request: ResourceRequest) => {
+  const confirmResourceReceipt = async (request: ResourceRequest) => {
     if (!actorIds.has(request.requester.id) && !canManageAny) return;
-    if (!deductResourceRequest(request)) return;
+    if (!(await deductResourceRequest(request))) return;
     updateResourceRequest(request.id, (current) => ({
       ...withRequestHistory(current, "completed", "Получение подтверждено", actor),
       receiver: actor,
@@ -242,8 +247,21 @@ export function MyCraftRequestsManager() {
     }
   };
 
-  const confirmCraftExecution = (request: CraftRequest) => {
+  const confirmCraftExecution = async (request: CraftRequest) => {
     if (!request.executor || !actorIds.has(request.executor.id) || request.status !== "in-progress") return;
+    if (request.funding === "clan") {
+      const canConsumeReservation = request.requirements
+        .filter((requirement) => requirement.type === "resource")
+        .every((requirement) => availableAmount(ALL_BANK_ID, requirement.slug, request.id) >= requirement.quantity);
+      if (!canConsumeReservation) return;
+      let deducted = false;
+      await updateResourceState((current) => {
+        const next = deductClanCraftResources(current, collectiveState, request, actor);
+        deducted = Boolean(next);
+        return next ?? current;
+      });
+      if (!deducted) return;
+    }
     updateCraftRequest(request.id, (current) => ({
       ...withRequestHistory(current, "issued", "Исполнитель подтвердил выполнение", actor),
       completedBy: actor,
@@ -345,7 +363,6 @@ export function MyCraftRequestsManager() {
     if (mode === "completed") return closedStatuses.has(request.status)
       ? [{ id: request.id, sortAt: request.updatedAt, kind: isCurrency ? "currency" : "resource", request }]
       : [];
-    if (isExpiredUnconfirmedResourceRequest(request)) return [];
     if (mode === "action") {
       return (owns && request.status === "issued") || (responsible && request.status === "approved")
         ? [{ id: request.id, sortAt: request.updatedAt, kind: isCurrency ? "currency" : "resource", request }]
@@ -381,17 +398,24 @@ export function MyCraftRequestsManager() {
   });
 
   const actionCount = state.resourceRequests.filter((request) => (
-    !isExpiredUnconfirmedResourceRequest(request)
-    && (
     (actorIds.has(request.requester.id) && request.status === "issued")
     || ((isActor(request.approver, actorIds) || isActor(request.issuer, actorIds) || canManageAny) && request.status === "approved")
-    )
   )).length + state.craftRequests.filter((request) => (
     !request.requesterHidden
     && ((actorIds.has(request.requester.id) && request.status === "issued") || (isActor(request.executor, actorIds) && request.status === "in-progress"))
   )).length;
 
-  const visibleRequests = [...resourceEntries, ...craftEntries].sort((first, second) => new Date(second.sortAt).getTime() - new Date(first.sortAt).getTime());
+  const normalizedQuery = query.trim().toLocaleLowerCase("ru");
+  const visibleRequests = [...resourceEntries, ...craftEntries]
+    .filter((entry) => {
+      if (statusFilter !== "all" && entry.request.status !== statusFilter) return false;
+      if (!normalizedQuery) return true;
+      const searchText = entry.kind === "craft"
+        ? `${entry.request.itemName} ${entry.request.recipeName} ${entry.request.requester.name} ${entry.request.executor?.name ?? ""} ${entry.request.note}`
+        : `${entry.request.resourceName} ${entry.request.collectiveName} ${entry.request.requester.name} ${entry.request.purpose}`;
+      return searchText.toLocaleLowerCase("ru").includes(normalizedQuery);
+    })
+    .sort((first, second) => new Date(second.sortAt).getTime() - new Date(first.sortAt).getTime());
 
   return (
     <div className={styles.requestWorkspace}>
@@ -399,6 +423,14 @@ export function MyCraftRequestsManager() {
         <div><small>Требуют действия</small><strong>{actionCount}</strong></div>
         <div><small>Ресурсы и валюта</small><strong>{state.resourceRequests.filter((request) => actorIds.has(request.requester.id)).length}</strong></div>
         <div><small>Крафт</small><strong>{craftCustomerRequests.length + craftExecutorRequests.length}</strong></div>
+      </section>
+
+      <section className={styles.accessNote}>
+        <ShieldCheck size={17} />
+        <div>
+          <strong>{canManageAny ? "Режим ответственного" : "Личный рабочий список"}</strong>
+          <span>{canManageAny ? "Показаны ваши заявки и заявки, за которые вы отвечаете." : "Показаны только заявки, где вы заказчик или исполнитель."}</span>
+        </div>
       </section>
 
       <section className={styles.requestList}>
@@ -414,6 +446,10 @@ export function MyCraftRequestsManager() {
               <button type="button" className={mode === "completed" ? styles.myRequestModeActive : ""} onClick={() => setMode("completed")}>История</button>
             </div>
             <div className={styles.myRequestFilters}>
+              <label className={styles.myRequestSearch}>
+                <span>Поиск</span>
+                <div><Search size={14} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Предмет, ресурс или игрок..." /></div>
+              </label>
               <label>
                 <span>Тип</span>
                 <CustomSelect
@@ -438,6 +474,24 @@ export function MyCraftRequestsManager() {
                     { value: "all", label: "Все роли" },
                     { value: "customer", label: "Я заказчик" },
                     { value: "executor", label: "Я исполнитель / ответственный" },
+                  ]}
+                />
+              </label>
+              <label>
+                <span>Статус</span>
+                <CustomSelect
+                  value={statusFilter}
+                  onChange={(nextValue) => setStatusFilter(nextValue as StatusFilter)}
+                  ariaLabel="Статус заявки"
+                  options={[
+                    { value: "all", label: "Все статусы" },
+                    { value: "pending", label: "На рассмотрении" },
+                    { value: "approved", label: "Одобрено" },
+                    { value: "in-progress", label: "В работе" },
+                    { value: "issued", label: "Ожидает получения" },
+                    { value: "completed", label: "Завершено" },
+                    { value: "rejected", label: "Отклонено" },
+                    { value: "cancelled", label: "Отменено" },
                   ]}
                 />
               </label>
@@ -475,7 +529,15 @@ export function MyCraftRequestsManager() {
           <div className={styles.emptyQueue}>
             {typeFilter === "craft" ? <PackageCheck size={24} /> : <HandCoins size={24} />}
             <strong>Заявок пока нет</strong>
-            <p>Заявки появятся здесь после создания, принятия в работу или смены статуса.</p>
+            <p>{query || statusFilter !== "all" ? "По текущему поиску и фильтрам ничего не найдено." : "Заявки появятся здесь после создания, принятия в работу или смены статуса."}</p>
+            {(query || statusFilter !== "all") ? (
+              <button type="button" onClick={() => { setQuery(""); setStatusFilter("all"); }}>Сбросить поиск</button>
+            ) : (
+              <div className={styles.emptyActions}>
+                <Link href="/requests/resources">Запросить ресурсы</Link>
+                <Link href="/requests/crafting">Заказать крафт</Link>
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -580,8 +642,13 @@ function ResourceRequestCard({
         </div>
         <p>{formatAmount(request.amount)} ед. · {request.collectiveName} · {request.requester.name}</p>
         {request.purpose && <em>{request.purpose}</em>}
-        <ProgressChain labels={["Создано", request.approver ? "Одобрено" : "Ожидает", request.issuer ? "Выдано" : "Выдача", request.receiver ? "Получено" : "Получение"]} />
-        <small>Создано {formatRequestDate(request.createdAt)}{request.issuer ? ` · Выдающий: ${request.issuer.name}` : ""}</small>
+        <ProgressChain steps={[
+          { label: "Создано", complete: true },
+          { label: "Одобрено", complete: Boolean(request.approver), active: request.status === "pending" },
+          { label: "Выдано", complete: Boolean(request.issuer), active: request.status === "approved" },
+          { label: "Получено", complete: Boolean(request.receiver), active: request.status === "issued" },
+        ]} />
+        <small>Создано {formatRequestDate(request.createdAt)}{request.issuer ? ` · Выдающий: ${request.issuer.name}` : ""}{isOverdueUnconfirmedResourceRequest(request) ? " · требуется напоминание о получении" : ""}</small>
         {request.history.length > 0 && (
           <div className={styles.miniRequirements}>
             {request.history.slice(0, 4).map((entry) => <span key={entry.id}>{entry.label}: {entry.actor?.name ?? "Система"}</span>)}
@@ -629,7 +696,12 @@ function CraftRequestCard({
           <span>Заказчик: <strong>{request.requester.name}</strong></span>
           <span>Исполнитель: <strong>{request.executor?.name ?? "Не назначен"}</strong></span>
         </div>
-        <ProgressChain labels={["Создано", request.executor ? "В работе" : "Ожидает", request.completedBy ? "Выполнено" : "Выполнение", request.receiver ? "Получено" : "Получение"]} />
+        <ProgressChain steps={[
+          { label: "Создано", complete: true },
+          { label: "В работе", complete: Boolean(request.executor), active: request.status === "pending" || request.status === "approved" },
+          { label: "Выполнено", complete: Boolean(request.completedBy), active: request.status === "in-progress" },
+          { label: "Получено", complete: Boolean(request.receiver), active: request.status === "issued" },
+        ]} />
         <div className={styles.requestBadges}>
           <span>{craftFundingLabels[request.funding]}</span>
           {request.cancelReason && <span>{request.cancelReason}</span>}

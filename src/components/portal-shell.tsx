@@ -23,6 +23,9 @@ import {
   UserRound,
   UserPlus,
   UsersRound,
+  Volume2,
+  VolumeX,
+  WifiOff,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -113,7 +116,7 @@ function NotificationItem({ notification, interactive, onRead }: { notification:
     <>
       <strong>{notification.title}</strong>
       {notification.body && <span>{notification.body}</span>}
-      <small>{formatNotificationDate(notification.createdAt)}</small>
+      <small>{notification.actor?.name ? `${notification.actor.name} · ` : ""}{formatNotificationDate(notification.createdAt)}</small>
     </>
   );
 
@@ -134,15 +137,26 @@ function NotificationItem({ notification, interactive, onRead }: { notification:
 
 function NotificationMenu({ collectiveAccess }: { collectiveAccess: boolean }) {
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const previousUnreadIds = useRef<Set<string> | null>(null);
   const { notifications } = useNotificationStore();
   const unreadCount = notifications.filter((notification) => !notification.readAt).length;
-  const visibleNotifications = notifications.slice(0, 7);
+  const visibleNotifications = notifications
+    .filter((notification) => filter === "all" || !notification.readAt)
+    .slice(0, 12);
   const markRead = (id: string) => {
     void markPortalNotificationsRead([id]).catch(() => undefined);
     setOpen(false);
   };
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("clan-portal:notification-sound");
+    if (stored !== "off") return;
+    const timeout = window.setTimeout(() => setSoundEnabled(false), 0);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -162,11 +176,19 @@ function NotificationMenu({ collectiveAccess }: { collectiveAccess: boolean }) {
     }
     const hasNewUnread = [...unreadIds].some((id) => !previousUnreadIds.current?.has(id));
     previousUnreadIds.current = unreadIds;
-    if (!hasNewUnread) return;
+    if (!hasNewUnread || !soundEnabled) return;
     const audio = new Audio("/sounds/notification.mp3");
     audio.volume = 0.55;
     void audio.play().catch(() => undefined);
-  }, [notifications]);
+  }, [notifications, soundEnabled]);
+
+  const toggleSound = () => {
+    setSoundEnabled((current) => {
+      const next = !current;
+      window.localStorage.setItem("clan-portal:notification-sound", next ? "on" : "off");
+      return next;
+    });
+  };
 
   return (
     <div className="notification-menu" ref={menuRef}>
@@ -178,14 +200,23 @@ function NotificationMenu({ collectiveAccess }: { collectiveAccess: boolean }) {
         <section className="notification-dropdown">
           <header>
             <strong>Уведомления</strong>
-            <button type="button" onClick={() => void markAllPortalNotificationsRead().catch(() => undefined)} disabled={unreadCount === 0}>
-              <CheckCheck size={14} /> Прочитать все
-            </button>
+            <div>
+              <button type="button" className="notification-sound" onClick={toggleSound} aria-label={soundEnabled ? "Отключить звук уведомлений" : "Включить звук уведомлений"} title={soundEnabled ? "Отключить звук" : "Включить звук"}>
+                {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              </button>
+              <button type="button" onClick={() => void markAllPortalNotificationsRead().catch(() => undefined)} disabled={unreadCount === 0}>
+                <CheckCheck size={14} /> Прочитать все
+              </button>
+            </div>
           </header>
-          <div>
+          <div className="notification-filters" role="tablist" aria-label="Фильтр уведомлений">
+            <button type="button" className={filter === "all" ? "notification-filter--active" : ""} onClick={() => setFilter("all")}>Все</button>
+            <button type="button" className={filter === "unread" ? "notification-filter--active" : ""} onClick={() => setFilter("unread")}>Непрочитанные <span>{unreadCount}</span></button>
+          </div>
+          <div className="notification-list">
             {visibleNotifications.length > 0 ? visibleNotifications.map((notification) => (
               <NotificationItem notification={notification} interactive={collectiveAccess} onRead={markRead} key={notification.id} />
-            )) : <p>Новых уведомлений нет</p>}
+            )) : <p>{filter === "unread" ? "Все уведомления прочитаны" : "Уведомлений пока нет"}</p>}
           </div>
         </section>
       )}
@@ -243,6 +274,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [membershipRequestCount, setMembershipRequestCount] = useState(0);
+  const [liveConnection, setLiveConnection] = useState<"connecting" | "online" | "offline">("connecting");
   const [seenRequestCounts, setSeenRequestCounts] = useState<SeenRequestCounts>(() => readSeenRequestCounts());
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
@@ -425,8 +457,14 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (auth.stage === "anonymous") return;
-    if (typeof EventSource === "undefined") return;
+    if (typeof EventSource === "undefined") {
+      return;
+    }
     const events = new EventSource("/api/portal/events");
+    const handleOpen = () => setLiveConnection("online");
+    const handleError = () => setLiveConnection(navigator.onLine ? "connecting" : "offline");
+    const handleOffline = () => setLiveConnection("offline");
+    const handleOnline = () => setLiveConnection("connecting");
     const applyPortalState = (event: MessageEvent<string>) => {
       try {
         const payload = JSON.parse(event.data) as { auth?: unknown; collectiveState?: unknown };
@@ -437,9 +475,17 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         // Ignore malformed stream payloads; the EventSource connection will keep listening.
       }
     };
+    events.addEventListener("open", handleOpen);
+    events.addEventListener("error", handleError);
     events.addEventListener("portal-state", applyPortalState);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
     return () => {
+      events.removeEventListener("open", handleOpen);
+      events.removeEventListener("error", handleError);
       events.removeEventListener("portal-state", applyPortalState);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
       events.close();
     };
   }, [auth.stage, loadMembershipRequestCount]);
@@ -610,6 +656,15 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
         <main className="main-content">
           {pendingRoute && <div className="route-loader" role="status">Открываем раздел</div>}
+          {liveConnection !== "online" && (
+            <div className="connection-banner" data-state={liveConnection} role="status">
+              <WifiOff size={16} />
+              <div>
+                <strong>{liveConnection === "offline" ? "Нет соединения с порталом" : "Восстанавливаем обновления в реальном времени"}</strong>
+                <span>{liveConnection === "offline" ? "Показаны последние сохранённые данные. Изменения лучше вносить после восстановления связи." : "Данные на экране доступны, соединение будет восстановлено автоматически."}</span>
+              </div>
+            </div>
+          )}
           {revoked ? <AccessDenied revoked /> : blockedUsersRestrictedRoute ? <AccessDenied /> : pendingRestrictedRoute ? <AccessDenied pendingApproval /> : children}
         </main>
       </div>

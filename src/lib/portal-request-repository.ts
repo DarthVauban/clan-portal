@@ -439,6 +439,7 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
             status_history = EXCLUDED.status_history,
             status = EXCLUDED.status,
             updated_at = EXCLUDED.updated_at
+          WHERE portal_resource_requests.updated_at <= EXCLUDED.updated_at
         `,
         [
           request.id,
@@ -506,6 +507,7 @@ export async function savePortalRequestState(session: PortalSession, rawState: u
             requester_hidden = EXCLUDED.requester_hidden,
             status = EXCLUDED.status,
             updated_at = EXCLUDED.updated_at
+          WHERE portal_craft_requests.updated_at <= EXCLUDED.updated_at
         `,
         [
           request.id,
