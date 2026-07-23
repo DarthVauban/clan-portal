@@ -1,4 +1,4 @@
-import { LazyMyCraftRequestsManager } from "@/components/lazy-client-components";
+import { MyCraftRequestsManager } from "@/components/my-craft-requests-manager";
 
 export default function MyCraftRequestsPage() {
   return (
@@ -10,7 +10,7 @@ export default function MyCraftRequestsPage() {
           <p>Личный список заявок на ресурсы, валюту и крафт, где требуется ваше действие или хранится история.</p>
         </div>
       </section>
-      <LazyMyCraftRequestsManager />
+      <MyCraftRequestsManager />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LazyCorepunkItemDetail } from "@/components/lazy-client-components";
+import { CorepunkItemDetail } from "@/components/corepunk-item-detail";
 import { getBaseItem, getItemDetailDataset, getKnowledgeSearchItems } from "@/lib/corepunk-item-repository";
 
 export const dynamic = "force-dynamic";
@@ -15,5 +15,5 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ slu
   const { slug } = await params;
   const [dataset, searchItems] = await Promise.all([getItemDetailDataset(slug), getKnowledgeSearchItems()]);
   if (!dataset) notFound();
-  return <LazyCorepunkItemDetail dataset={dataset} searchItems={searchItems} />;
+  return <CorepunkItemDetail dataset={dataset} searchItems={searchItems} />;
 }

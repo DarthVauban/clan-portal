@@ -1,4 +1,4 @@
-import { LazyBlockedUsersManager } from "@/components/lazy-client-components";
+import { BlockedUsersManager } from "@/components/blocked-users-manager";
 
 export default function BlockedUsersPage() {
   return (
@@ -10,7 +10,7 @@ export default function BlockedUsersPage() {
           <p>Управляйте Discord ID, которым запрещён вход в портал после удаления с блокировкой.</p>
         </div>
       </section>
-      <LazyBlockedUsersManager />
+      <BlockedUsersManager />
     </div>
   );
 }

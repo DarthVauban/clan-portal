@@ -1,6 +1,5 @@
 import { Database } from "lucide-react";
-import { Suspense } from "react";
-import { LazyKnowledgeCatalog } from "@/components/lazy-client-components";
+import { KnowledgeCatalog } from "@/components/knowledge-catalog";
 import { getCatalogDataset, getItemDatabaseCounts } from "@/lib/corepunk-item-repository";
 import styles from "./item-card.module.css";
 
@@ -18,9 +17,7 @@ export default async function ItemsPage() {
         </div>
         <div className={styles.importBadge}><Database size={15} /> Импортировано: {itemDatabaseCounts.uniqueBaseItems} предмет</div>
       </section>
-      <Suspense fallback={null}>
-        <LazyKnowledgeCatalog dataset={catalogDataset} />
-      </Suspense>
+      <KnowledgeCatalog dataset={catalogDataset} />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import {
+  CraftCalculator,
   type CalculatorCraftItem,
   type CalculatorIngredient,
   type CalculatorReferenceItem,
 } from "@/components/craft-calculator";
-import { LazyCraftCalculator } from "@/components/lazy-client-components";
 import { getAllItems, getBaseItemSlugs, getItemImageMap } from "@/lib/corepunk-item-repository";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export default async function CraftCalculatorPage() {
           <p>Выберите предмет, вариант рецепта и количество. Калькулятор разложит крафт на итоговые материалы, а для управляющих ролей сопоставит результат с общим банком клана.</p>
         </div>
       </section>
-      <LazyCraftCalculator craftItems={craftItems} referenceItems={referenceItems} />
+      <CraftCalculator craftItems={craftItems} referenceItems={referenceItems} />
     </div>
   );
 }

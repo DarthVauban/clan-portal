@@ -1,4 +1,4 @@
-import { LazyCollectivesManager } from "@/components/lazy-client-components";
+import { CollectivesManager } from "@/components/collectives-manager";
 
 export default function CollectivesPage() {
   return (
@@ -10,7 +10,7 @@ export default function CollectivesPage() {
           <p>Управляйте игровыми составами, ролями и переводами участников внутри единого клана.</p>
         </div>
       </section>
-      <LazyCollectivesManager />
+      <CollectivesManager />
     </div>
   );
 }

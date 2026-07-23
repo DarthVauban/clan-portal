@@ -1,5 +1,5 @@
 import type { CalculatorCraftItem, CalculatorIngredient, CalculatorReferenceItem } from "@/components/craft-calculator";
-import { LazyCraftRequestsManager } from "@/components/lazy-client-components";
+import { CraftRequestsManager } from "@/components/craft-requests-manager";
 import { getAllItems, getBaseItemSlugs, getItemImageMap } from "@/lib/corepunk-item-repository";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +62,7 @@ export default async function CraftRequestsPage() {
           <p>Заявки связывают нужный предмет, рецепт, количество и материалы, чтобы крафтеры и лидеры видели очередь работ.</p>
         </div>
       </section>
-      <LazyCraftRequestsManager craftItems={craftItems} referenceItems={referenceItems} />
+      <CraftRequestsManager craftItems={craftItems} referenceItems={referenceItems} />
     </div>
   );
 }

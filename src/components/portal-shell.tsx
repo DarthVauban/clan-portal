@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -27,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AuthOnboarding } from "@/components/auth-onboarding";
 import { LoadableImage } from "@/components/loadable-image";
 import { applyCollectiveServerState, findMembership, getPortalRole, hasAbsolutePortalRights, isPlayerRevoked, portalRoleLabels, useCollectiveStore } from "@/lib/collective-store";
 import { applyPortalAuthState, usePortalAuth } from "@/lib/auth-store";
@@ -34,11 +34,6 @@ import { DEFAULT_PORTAL_NAME, normalizePortalName } from "@/lib/portal-branding"
 import { markAllPortalNotificationsRead, markPortalNotificationsRead, useNotificationStore, type PortalNotification } from "@/lib/notification-store";
 import { hasCompletedRegistration, LOCAL_PLAYER_ID, useLocalProfile } from "@/lib/profile-store";
 import { useRequestStore } from "@/lib/request-store";
-
-const AuthOnboarding = dynamic(
-  () => import("@/components/auth-onboarding").then((module) => module.AuthOnboarding),
-  { loading: () => null },
-);
 
 const primaryNavigation = [
   { href: "/", label: "Обзор", icon: Home },

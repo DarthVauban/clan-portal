@@ -127,31 +127,6 @@ button { color: inherit; }
   animation: route-progress 1.05s ease-in-out infinite;
 }
 
-.section-loader {
-  min-height: 280px;
-  display: grid;
-  place-items: center;
-  color: #8b9298;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(255,255,255,.012);
-}
-.section-loader span {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-}
-.section-loader span::before {
-  content: "";
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(210,173,120,.18);
-  border-top-color: #d2ad78;
-  border-radius: 50%;
-  animation: loader-spin .72s linear infinite;
-}
-
 @keyframes image-shimmer {
   from { background-position: 120% 0; }
   to { background-position: -120% 0; }

@@ -1,5 +1,5 @@
+import { ResourceRequestsManager } from "@/components/resource-requests-manager";
 import type { ResourceCatalogItem } from "@/components/resources-manager";
-import { LazyResourceRequestsManager } from "@/components/lazy-client-components";
 import { getCatalogDataset } from "@/lib/corepunk-item-repository";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export default async function ResourceRequestsPage() {
           <p>Игроки подают заявки на материалы из банка коллектива, а ответственные роли подтверждают и фиксируют выдачу.</p>
         </div>
       </section>
-      <LazyResourceRequestsManager resources={resources} />
+      <ResourceRequestsManager resources={resources} />
     </div>
   );
 }

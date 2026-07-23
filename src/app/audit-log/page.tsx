@@ -1,4 +1,4 @@
-import { LazyAuditLogManager } from "@/components/lazy-client-components";
+import { AuditLogManager } from "@/components/audit-log-manager";
 
 export default function AuditLogPage() {
   return (
@@ -10,7 +10,7 @@ export default function AuditLogPage() {
           <p>Единая история операций с ресурсами, валютой и заявками с указанием исполнителей и изменений баланса.</p>
         </div>
       </section>
-      <LazyAuditLogManager />
+      <AuditLogManager />
     </div>
   );
 }
