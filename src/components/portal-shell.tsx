@@ -15,6 +15,7 @@ import {
   LockKeyhole,
   LogOut,
   Menu,
+  Newspaper,
   PencilLine,
   ScrollText,
   ShieldCheck,
@@ -58,6 +59,10 @@ const utilityNavigation = [
   { href: "/blocked-users", label: "Заблокированные", icon: ShieldX, absoluteOnly: true },
 ];
 
+const informationNavigation = [
+  { href: "/patch-notes", label: "Патчноуты", icon: Newspaper },
+];
+
 function NavLink({ href, label, icon: Icon, onNavigate, locked = false, badgeCount, badgeFresh }: {
   href: string;
   label: string;
@@ -99,7 +104,7 @@ function AccessDenied({ revoked = false, pendingApproval = false }: { revoked?: 
         {revoked
           ? "Профиль игрока был удалён администратором или лидером клана."
           : pendingApproval
-            ? "До принятия в коллектив доступны только главная страница и раздел заявки на вступление."
+            ? "До принятия в коллектив доступны главная страница, заявка на вступление и патчноуты."
             : "Этот раздел доступен только игрокам, состоящим в одном из коллективов, а также администрации клана."}
       </p>
       {!revoked && <Link href={pendingApproval ? "/requests/membership" : "/collectives"}>{pendingApproval ? "Перейти к заявке" : "Перейти к коллективам"}</Link>}
@@ -292,7 +297,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
   const collectiveAccess = absoluteRights || Boolean(membership);
   const canRenamePortal = absoluteRights && auth.stage === "registered";
-  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership");
+  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership") || pathname.startsWith("/patch-notes");
   const pendingRestrictedRoute = !collectiveAccess && !pendingAllowedRoute;
   const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
   const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
@@ -601,6 +606,11 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                 />
               );
             })}
+          </div>
+
+          <div className="nav-group">
+            <div className="nav-group-label">Информация</div>
+            {informationNavigation.map((item) => <NavLink key={item.href} {...item} onNavigate={closeMenu} />)}
           </div>
 
           {visibleUtilityNavigation.length > 0 && (
