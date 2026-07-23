@@ -1,0 +1,3188 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#090b0d" />
+  <meta
+    name="description"
+    content="Интерактивный патчноут Squirt Squad Portal за 23-24 июля 2026 года."
+  />
+  <title>Squirt Squad Portal | Обновление 23-24 июля 2026</title>
+  <style>
+    :root {
+      --ink: #090b0d;
+      --ink-soft: #101318;
+      --panel: #15191f;
+      --panel-raised: #1b2027;
+      --line: rgba(255, 255, 255, 0.08);
+      --paper: #f3f1eb;
+      --silver: #aeb4b0;
+      --muted: #7d858b;
+      --bronze: #b08a60;
+      --bronze-bright: #d2ad78;
+      --green: #7fa38b;
+      --green-bright: #91d5aa;
+      --red: #c65b51;
+      --blue: #79a8c7;
+      --content: 1180px;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(210, 173, 120, 0.46) rgba(5, 7, 9, 0.42);
+    }
+
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: rgba(5, 7, 9, 0.42);
+    }
+
+    *::-webkit-scrollbar-thumb {
+      border: 2px solid rgba(5, 7, 9, 0.42);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(210, 173, 120, 0.68), rgba(101, 64, 34, 0.72));
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--ink);
+    }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      color: var(--paper);
+      background:
+        radial-gradient(circle at 86% -10%, rgba(176, 138, 96, 0.12), transparent 31rem),
+        linear-gradient(180deg, #0a0c0f 0, var(--ink) 36rem);
+      font-family: Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .reading-progress {
+      position: fixed;
+      inset: 0 auto auto 0;
+      z-index: 100;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--bronze), #f1d39b, var(--green-bright));
+      box-shadow: 0 0 18px rgba(210, 173, 120, 0.46);
+    }
+
+    .release-bar {
+      position: sticky;
+      top: 0;
+      z-index: 80;
+      min-height: 64px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9, 11, 13, 0.9);
+      backdrop-filter: blur(18px);
+    }
+
+    .release-bar__inner {
+      width: min(var(--content), calc(100% - 40px));
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 0 auto;
+    }
+
+    .release-brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .release-brand img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+    }
+
+    .release-brand strong,
+    .release-brand span {
+      display: block;
+    }
+
+    .release-brand strong {
+      color: #f0e8dc;
+      font-size: 13px;
+    }
+
+    .release-brand span {
+      margin-top: 2px;
+      color: #788086;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .release-bar nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .release-bar nav a {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      color: #7f878c;
+      border-radius: 7px;
+      font-size: 10px;
+      transition: color 0.16s ease, background 0.16s ease;
+    }
+
+    .release-bar nav a:hover,
+    .release-bar nav a[data-active="true"] {
+      color: #efd29b;
+      background: rgba(176, 138, 96, 0.09);
+    }
+
+    .hero {
+      min-height: min(790px, calc(100vh - 64px));
+      display: grid;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero__inner {
+      width: min(var(--content), calc(100% - 40px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(430px, 0.96fr);
+      align-items: center;
+      gap: clamp(42px, 7vw, 92px);
+      margin: 0 auto;
+      padding: 70px 0 82px;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--bronze-bright);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 22px;
+      height: 1px;
+      background: var(--bronze-bright);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 22px 0 20px;
+      color: #f5f0e8;
+      font-size: clamp(43px, 5.2vw, 72px);
+      line-height: 0.98;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .hero__copy > p {
+      max-width: 650px;
+      margin-bottom: 0;
+      color: #929a9f;
+      font-size: 15px;
+      line-height: 1.72;
+    }
+
+    .hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 30px;
+    }
+
+    .button {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 15px;
+      border: 1px solid rgba(210, 173, 120, 0.22);
+      border-radius: 7px;
+      background: rgba(176, 138, 96, 0.08);
+      color: #e9cb95;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+    }
+
+    .button:hover {
+      border-color: rgba(210, 173, 120, 0.42);
+      background: rgba(176, 138, 96, 0.14);
+      transform: translateY(-1px);
+    }
+
+    .button--ghost {
+      color: #a5acb0;
+      border-color: var(--line);
+      background: rgba(255, 255, 255, 0.018);
+    }
+
+    .release-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 17px 26px;
+      margin-top: 34px;
+      padding-top: 21px;
+      border-top: 1px solid var(--line);
+    }
+
+    .release-facts div {
+      min-width: 96px;
+    }
+
+    .release-facts strong,
+    .release-facts span {
+      display: block;
+    }
+
+    .release-facts strong {
+      color: #e4ded4;
+      font-size: 21px;
+      font-weight: 500;
+    }
+
+    .release-facts span {
+      margin-top: 4px;
+      color: #667077;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .hero-console {
+      overflow: hidden;
+      border: 1px solid rgba(210, 173, 120, 0.16);
+      border-radius: var(--radius);
+      background: rgba(14, 17, 21, 0.88);
+      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.35);
+    }
+
+    .console-top {
+      min-height: 47px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 15px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(176, 138, 96, 0.035);
+    }
+
+    .console-top span {
+      color: #b8a07a;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .status-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #8ebc9c;
+      font-size: 9px;
+    }
+
+    .status-live::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green-bright);
+      box-shadow: 0 0 0 4px rgba(145, 213, 170, 0.08);
+    }
+
+    .counter-story {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 18px;
+      padding: 26px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .counter-cell {
+      min-width: 0;
+    }
+
+    .counter-cell small,
+    .counter-cell span {
+      display: block;
+    }
+
+    .counter-cell small {
+      color: #687178;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .counter-cell strong {
+      display: block;
+      margin: 8px 0 4px;
+      font-size: 46px;
+      line-height: 1;
+      font-weight: 500;
+    }
+
+    .counter-cell--before strong {
+      color: #d37b73;
+    }
+
+    .counter-cell--after strong {
+      color: #a6dbb6;
+    }
+
+    .counter-cell span {
+      color: #727b81;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .counter-arrow {
+      color: #806f5a;
+      font-size: 22px;
+    }
+
+    .console-list {
+      display: grid;
+    }
+
+    .console-list article {
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .console-list article:last-child {
+      border-bottom: 0;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(210, 173, 120, 0.14);
+      border-radius: 7px;
+      color: #d2ad78;
+      background: rgba(176, 138, 96, 0.055);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .console-list strong,
+    .console-list small {
+      display: block;
+    }
+
+    .console-list strong {
+      color: #d8d7d1;
+      font-size: 10px;
+    }
+
+    .console-list small {
+      margin-top: 3px;
+      color: #667077;
+      font-size: 9px;
+    }
+
+    .queue-state {
+      color: #c99e60;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .content {
+      width: min(var(--content), calc(100% - 40px));
+      margin: 0 auto;
+      padding: 78px 0 100px;
+    }
+
+    .overview {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: 70px;
+      padding-bottom: 74px;
+    }
+
+    .overview h2 {
+      max-width: 430px;
+      margin: 14px 0 0;
+      color: #f0ebe3;
+      font-size: clamp(31px, 4vw, 49px);
+      line-height: 1.05;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .overview__text p {
+      color: #8b9398;
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .overview__text p:last-child {
+      margin-bottom: 0;
+    }
+
+    .release-timeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin: 0 0 82px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .release-timeline a {
+      min-width: 0;
+      min-height: 116px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 18px 15px;
+      border-right: 1px solid var(--line);
+      transition: background 0.16s ease;
+    }
+
+    .release-timeline a:last-child {
+      border-right: 0;
+    }
+
+    .release-timeline a:hover {
+      background: rgba(176, 138, 96, 0.04);
+    }
+
+    .release-timeline small,
+    .release-timeline span {
+      display: block;
+    }
+
+    .release-timeline small {
+      color: var(--bronze);
+      font: 700 9px Consolas, monospace;
+    }
+
+    .release-timeline strong {
+      margin-top: 8px;
+      color: #d8d6cf;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .release-timeline span {
+      margin-top: 7px;
+      color: #5f6970;
+      font-size: 9px;
+    }
+
+    .release-block {
+      scroll-margin-top: 82px;
+      display: grid;
+      grid-template-columns: minmax(250px, 0.68fr) minmax(0, 1.32fr);
+      gap: clamp(35px, 6vw, 76px);
+      padding: 74px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .release-block__copy {
+      position: sticky;
+      top: 90px;
+      align-self: start;
+    }
+
+    .release-index {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--bronze-bright);
+      font: 700 9px Consolas, monospace;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .release-index i {
+      width: 19px;
+      height: 19px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(210, 173, 120, 0.2);
+      border-radius: 50%;
+      font-style: normal;
+    }
+
+    .release-block h2 {
+      margin: 17px 0 14px;
+      color: #eee9e1;
+      font-size: clamp(26px, 3.1vw, 40px);
+      line-height: 1.08;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .release-block__copy > p {
+      margin-bottom: 18px;
+      color: #8a9297;
+      font-size: 13px;
+      line-height: 1.72;
+    }
+
+    .fact-list {
+      display: grid;
+      gap: 10px;
+      margin: 24px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .fact-list li {
+      position: relative;
+      padding-left: 18px;
+      color: #929a9f;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .fact-list li::before {
+      content: "";
+      position: absolute;
+      top: 7px;
+      left: 0;
+      width: 7px;
+      height: 7px;
+      border: 1px solid rgba(145, 213, 170, 0.6);
+      border-radius: 50%;
+      background: rgba(145, 213, 170, 0.12);
+    }
+
+    .demo-stack {
+      min-width: 0;
+      display: grid;
+      gap: 14px;
+    }
+
+    .demo-frame {
+      position: relative;
+      min-width: 0;
+      overflow: visible;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 9rem),
+        rgba(13, 16, 20, 0.8);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.16);
+    }
+
+    .demo-frame__head {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 15px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .demo-frame__head strong {
+      color: #c9c8c2;
+      font-size: 11px;
+    }
+
+    .demo-frame__head span {
+      color: #616a70;
+      font-size: 9px;
+    }
+
+    .demo-body {
+      padding: 16px;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(4, 6, 8, 0.32);
+    }
+
+    .segmented button {
+      min-width: 90px;
+      min-height: 31px;
+      padding: 0 10px;
+      color: #6f787e;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .segmented button[data-active="true"] {
+      color: #ebd0a2;
+      background: rgba(176, 138, 96, 0.13);
+      box-shadow: inset 0 0 0 1px rgba(210, 173, 120, 0.18);
+    }
+
+    .membership-demo {
+      display: grid;
+      grid-template-columns: 224px minmax(0, 1fr);
+      min-height: 350px;
+    }
+
+    .membership-sidebar {
+      padding: 16px 11px;
+      border-right: 1px solid var(--line);
+      background: rgba(8, 10, 13, 0.42);
+    }
+
+    .mini-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 3px 8px 19px;
+    }
+
+    .mini-brand img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+
+    .mini-brand strong,
+    .mini-brand small {
+      display: block;
+    }
+
+    .mini-brand strong {
+      font-size: 11px;
+    }
+
+    .mini-brand small {
+      margin-top: 2px;
+      color: #637078;
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .nav-caption {
+      padding: 0 9px 7px;
+      color: #61717d;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .mini-nav-row {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 7px;
+      padding: 0 9px;
+      color: #78838a;
+      border-radius: 7px;
+      font-size: 9px;
+    }
+
+    .mini-nav-row--active {
+      color: #ead6b2;
+      border: 1px solid rgba(210, 173, 120, 0.14);
+      background: rgba(176, 138, 96, 0.09);
+    }
+
+    .nav-glyph {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      color: #a8895f;
+      font-size: 11px;
+    }
+
+    .nav-badge {
+      min-width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #1b1d1f;
+      color: #d9ddd8;
+      font-size: 9px;
+    }
+
+    .nav-badge[data-state="wrong"] {
+      color: #e8998f;
+      background: rgba(198, 91, 81, 0.13);
+    }
+
+    .nav-badge[data-state="correct"] {
+      color: #a9dbb7;
+      background: rgba(127, 163, 139, 0.14);
+    }
+
+    .membership-list {
+      min-width: 0;
+      padding: 16px;
+    }
+
+    .membership-list__title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding-bottom: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .membership-list__title strong {
+      color: #ddd9d2;
+      font-size: 13px;
+    }
+
+    .membership-list__title span {
+      color: #6b757b;
+      font-size: 9px;
+    }
+
+    .applicant-row {
+      min-height: 70px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .applicant-row strong,
+    .applicant-row small {
+      display: block;
+    }
+
+    .applicant-row strong {
+      color: #d7d6d0;
+      font-size: 10px;
+    }
+
+    .applicant-row small {
+      margin-top: 4px;
+      color: #626c72;
+      font-size: 8px;
+    }
+
+    .applicant-row em {
+      color: #bb965e;
+      font-size: 8px;
+      font-style: normal;
+    }
+
+    .explain-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 12px 14px;
+      color: #778188;
+      border-top: 1px solid var(--line);
+      background: rgba(176, 138, 96, 0.025);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .explain-line strong {
+      color: #bfa77f;
+    }
+
+    .registration-demo {
+      display: grid;
+      grid-template-columns: 0.92fr 1.08fr;
+      gap: 0;
+    }
+
+    .registration-form,
+    .approval-preview {
+      min-width: 0;
+      padding: 20px;
+    }
+
+    .registration-form {
+      border-right: 1px solid var(--line);
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 13px;
+    }
+
+    .field > span {
+      color: #927252;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .search-input {
+      width: 100%;
+      height: 42px;
+      padding: 0 12px;
+      color: #d9d9d6;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      outline: 0;
+      background: rgba(5, 7, 9, 0.46);
+      font-size: 11px;
+    }
+
+    .field input:focus,
+    .search-input:focus {
+      border-color: rgba(210, 173, 120, 0.35);
+      box-shadow: 0 0 0 3px rgba(176, 138, 96, 0.06);
+    }
+
+    .custom-select {
+      position: relative;
+      width: 100%;
+    }
+
+    .custom-select__trigger {
+      width: 100%;
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 11px 0 12px;
+      color: #d9d9d6;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      outline: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.008)),
+        rgba(5, 7, 9, 0.46);
+      font-size: 11px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .custom-select__trigger:hover,
+    .custom-select[data-open="true"] .custom-select__trigger {
+      color: #f0dfbd;
+      border-color: rgba(210, 173, 120, 0.28);
+      background:
+        linear-gradient(180deg, rgba(176, 138, 96, 0.09), rgba(176, 138, 96, 0.025)),
+        rgba(5, 7, 9, 0.56);
+      box-shadow: 0 0 0 3px rgba(176, 138, 96, 0.045);
+    }
+
+    .select-chevron {
+      color: #777f84;
+      font-size: 11px;
+      transition: transform 0.16s ease;
+    }
+
+    .custom-select[data-open="true"] .select-chevron {
+      color: var(--bronze-bright);
+      transform: rotate(180deg);
+    }
+
+    .custom-select__menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 20;
+      width: 100%;
+      max-height: 220px;
+      display: none;
+      gap: 4px;
+      overflow-y: auto;
+      padding: 6px;
+      border: 1px solid rgba(210, 173, 120, 0.18);
+      border-radius: 8px;
+      background: rgba(13, 16, 20, 0.99);
+      box-shadow: 0 18px 52px rgba(0, 0, 0, 0.44);
+    }
+
+    .custom-select[data-open="true"] .custom-select__menu {
+      display: grid;
+    }
+
+    .custom-select__menu button {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 9px;
+      color: #aab0b4;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      font-size: 10px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .custom-select__menu button:hover,
+    .custom-select__menu button[data-selected="true"] {
+      color: #efddb8;
+      border-color: rgba(210, 173, 120, 0.18);
+      background: rgba(176, 138, 96, 0.085);
+    }
+
+    .custom-select__menu button span:last-child {
+      color: var(--bronze-bright);
+    }
+
+    .approval-preview > span {
+      color: #6d777d;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .approval-card {
+      margin-top: 13px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(5, 7, 9, 0.26);
+    }
+
+    .approval-card__identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .approval-card strong,
+    .approval-card small,
+    .approval-card p {
+      display: block;
+    }
+
+    .approval-card strong {
+      color: #ddd9d1;
+      font-size: 11px;
+    }
+
+    .approval-card small {
+      margin-top: 3px;
+      color: #687178;
+      font-size: 9px;
+    }
+
+    .approval-card p {
+      margin: 13px 0 0;
+      color: #a5aaab;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .approval-card p b {
+      color: #e0bd84;
+      font-weight: 500;
+    }
+
+    .approval-card__actions {
+      display: flex;
+      gap: 7px;
+      margin-top: 15px;
+    }
+
+    .mini-button {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 10px;
+      color: #d4b77f;
+      border: 1px solid rgba(210, 173, 120, 0.18);
+      border-radius: 6px;
+      background: rgba(176, 138, 96, 0.07);
+      font-size: 9px;
+      cursor: pointer;
+    }
+
+    .mini-button:disabled {
+      color: #5d6469;
+      border-color: var(--line);
+      background: transparent;
+      cursor: not-allowed;
+    }
+
+    .select-comparison {
+      display: grid;
+      grid-template-columns: 1fr 36px 1fr;
+      align-items: start;
+      gap: 14px;
+      padding: 18px;
+    }
+
+    .comparison-side {
+      min-width: 0;
+    }
+
+    .comparison-side > small {
+      display: block;
+      margin-bottom: 9px;
+      color: #69737a;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .native-select-ghost {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 11px;
+      color: #d9d9d6;
+      border: 1px solid #405061;
+      background: #0e1115;
+      font-size: 11px;
+    }
+
+    .native-options {
+      margin-top: 1px;
+      padding: 6px 0;
+      color: white;
+      background: #a6a6a6;
+      font-size: 10px;
+    }
+
+    .native-options span {
+      display: block;
+      min-height: 26px;
+      padding: 6px 10px;
+    }
+
+    .native-options span:first-child {
+      background: #2375d8;
+    }
+
+    .comparison-arrow {
+      padding-top: 50px;
+      color: #8e7658;
+      text-align: center;
+    }
+
+    .capability-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--line);
+    }
+
+    .capability-strip div {
+      min-height: 72px;
+      display: grid;
+      place-items: center;
+      padding: 11px;
+      color: #848c91;
+      border-right: 1px solid var(--line);
+      font-size: 9px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .capability-strip div:last-child {
+      border-right: 0;
+    }
+
+    .loading-demo {
+      padding: 18px;
+    }
+
+    .loading-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .loading-track {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(5, 7, 9, 0.28);
+    }
+
+    .loading-track > header {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .loading-track > header strong {
+      color: #c8c7c1;
+      font-size: 10px;
+    }
+
+    .loading-track > header span {
+      color: #667078;
+      font-size: 8px;
+    }
+
+    .flow {
+      display: grid;
+      gap: 8px;
+      padding: 13px;
+    }
+
+    .flow-step {
+      min-height: 37px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      color: #788188;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 9px;
+    }
+
+    .flow-step:last-child {
+      border-bottom: 0;
+    }
+
+    .flow-step i {
+      width: 17px;
+      height: 17px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #485158;
+      border-radius: 50%;
+      color: #687178;
+      font-size: 8px;
+      font-style: normal;
+    }
+
+    .flow-step span {
+      color: #5f686e;
+      font-size: 8px;
+    }
+
+    .flow-step[data-state="active"] {
+      color: #e0c18d;
+    }
+
+    .flow-step[data-state="active"] i {
+      border-color: rgba(210, 173, 120, 0.45);
+      background: rgba(176, 138, 96, 0.13);
+    }
+
+    .flow-step[data-state="done"] {
+      color: #a7cbb2;
+    }
+
+    .flow-step[data-state="done"] i {
+      color: #a7d2b3;
+      border-color: rgba(145, 213, 170, 0.38);
+      background: rgba(127, 163, 139, 0.12);
+    }
+
+    .loading-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-top: 13px;
+      padding-top: 13px;
+      border-top: 1px solid var(--line);
+    }
+
+    .loading-footer p {
+      margin: 0;
+      color: #717b81;
+      font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .feature-demo {
+      min-width: 0;
+      overflow: visible;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(13, 16, 20, 0.78);
+    }
+
+    .feature-demo--wide {
+      grid-column: 1 / -1;
+    }
+
+    .feature-demo > header {
+      min-height: 53px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 0 15px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .feature-demo > header strong,
+    .feature-demo > header span {
+      display: block;
+    }
+
+    .feature-demo > header strong {
+      color: #d4d0c9;
+      font-size: 11px;
+    }
+
+    .feature-demo > header span {
+      margin-top: 3px;
+      color: #626c72;
+      font-size: 8px;
+    }
+
+    .count-pill {
+      min-width: 25px;
+      height: 25px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #e0c38e;
+      background: rgba(176, 138, 96, 0.11);
+      font-size: 9px;
+    }
+
+    .action-list,
+    .activity-list {
+      display: grid;
+    }
+
+    .action-row,
+    .activity-row {
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .action-row:last-child,
+    .activity-row:last-child {
+      border-bottom: 0;
+    }
+
+    .action-row strong,
+    .action-row small,
+    .activity-row strong,
+    .activity-row small {
+      display: block;
+    }
+
+    .action-row strong,
+    .activity-row strong {
+      color: #d3d3ce;
+      font-size: 10px;
+    }
+
+    .action-row small,
+    .activity-row small {
+      margin-top: 4px;
+      color: #626c72;
+      font-size: 8px;
+    }
+
+    .action-row button {
+      min-height: 29px;
+      padding: 0 8px;
+      color: #d1b47f;
+      border: 1px solid rgba(210, 173, 120, 0.16);
+      border-radius: 6px;
+      background: rgba(176, 138, 96, 0.06);
+      font-size: 8px;
+      cursor: pointer;
+    }
+
+    .action-icon {
+      width: 29px;
+      height: 29px;
+      display: grid;
+      place-items: center;
+      color: #bf995f;
+      border-radius: 7px;
+      background: rgba(176, 138, 96, 0.07);
+      font-size: 11px;
+    }
+
+    .dashboard-empty {
+      min-height: 124px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 8px;
+      padding: 18px;
+      color: #7fa38b;
+      text-align: center;
+    }
+
+    .dashboard-empty strong {
+      color: #b8cfbf;
+      font-size: 11px;
+    }
+
+    .dashboard-empty small {
+      color: #69736f;
+      font-size: 8px;
+    }
+
+    .request-tools {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(120px, 0.55fr));
+      gap: 8px;
+      padding: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .request-tools .custom-select__trigger,
+    .request-tools .search-input {
+      min-height: 37px;
+      height: 37px;
+      font-size: 9px;
+    }
+
+    .request-card {
+      margin: 13px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(5, 7, 9, 0.25);
+    }
+
+    .request-card__top {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .item-art {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid rgba(210, 173, 120, 0.15);
+      border-radius: 7px;
+      background: #10151a;
+    }
+
+    .item-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .request-card strong,
+    .request-card small {
+      display: block;
+    }
+
+    .request-card strong {
+      color: #dedbd4;
+      font-size: 11px;
+    }
+
+    .request-card small {
+      margin-top: 4px;
+      color: #697279;
+      font-size: 8px;
+    }
+
+    .status-label {
+      color: #d4aa69;
+      font-size: 8px;
+      white-space: nowrap;
+    }
+
+    .progress-chain {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+      margin-top: 14px;
+    }
+
+    .progress-chain span {
+      min-height: 36px;
+      display: grid;
+      place-items: center;
+      padding: 4px;
+      color: #5f686e;
+      border: 1px solid rgba(255, 255, 255, 0.055);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.01);
+      font-size: 8px;
+      text-align: center;
+    }
+
+    .progress-chain span[data-state="done"] {
+      color: #a4c9af;
+      border-color: rgba(127, 163, 139, 0.18);
+      background: rgba(127, 163, 139, 0.055);
+    }
+
+    .progress-chain span[data-state="active"] {
+      color: #e0bd84;
+      border-color: rgba(210, 173, 120, 0.2);
+      background: rgba(176, 138, 96, 0.07);
+    }
+
+    .bank-demo {
+      padding: 15px;
+    }
+
+    .bank-resource {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .bank-resource .item-art {
+      width: 46px;
+      height: 46px;
+    }
+
+    .bank-resource strong,
+    .bank-resource small {
+      display: block;
+    }
+
+    .bank-resource strong {
+      color: #dedbd4;
+      font-size: 11px;
+    }
+
+    .bank-resource small {
+      margin-top: 4px;
+      color: #687178;
+      font-size: 8px;
+    }
+
+    .bank-total {
+      text-align: right;
+    }
+
+    .bank-total strong {
+      color: #eee1ca;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .bank-total small {
+      color: #a88457;
+    }
+
+    .bank-meter {
+      height: 7px;
+      display: flex;
+      overflow: hidden;
+      margin: 15px 0 10px;
+      border-radius: 999px;
+      background: #20262b;
+    }
+
+    .bank-meter span:first-child {
+      width: 33.333%;
+      background: var(--green);
+    }
+
+    .bank-meter span:last-child {
+      width: 66.667%;
+      background: var(--bronze);
+    }
+
+    .bank-legend {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      color: #707a80;
+      font-size: 8px;
+    }
+
+    .bank-legend b {
+      color: #c9c6bf;
+      font-weight: 500;
+    }
+
+    .bank-warning {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 10px 11px;
+      color: #8b7772;
+      border: 1px solid rgba(198, 91, 81, 0.15);
+      border-radius: 7px;
+      background: rgba(131, 50, 43, 0.055);
+      font-size: 9px;
+    }
+
+    .collection-tabs,
+    .notification-tabs,
+    .audit-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .collection-tabs button,
+    .notification-tabs button,
+    .audit-tabs button {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 9px;
+      color: #6f777d;
+      border: 1px solid rgba(255, 255, 255, 0.065);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.015);
+      font-size: 9px;
+      cursor: pointer;
+    }
+
+    .collection-tabs button[data-active="true"],
+    .notification-tabs button[data-active="true"],
+    .audit-tabs button[data-active="true"] {
+      color: #e1c58f;
+      border-color: rgba(210, 173, 120, 0.22);
+      background: rgba(176, 138, 96, 0.075);
+    }
+
+    .item-collection {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 13px;
+    }
+
+    .collection-item {
+      position: relative;
+      min-width: 0;
+      min-height: 112px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 7px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(5, 7, 9, 0.25);
+    }
+
+    .collection-item[data-hidden="true"] {
+      display: none;
+    }
+
+    .collection-item img {
+      width: 45px;
+      height: 45px;
+      object-fit: contain;
+    }
+
+    .collection-item strong {
+      max-width: 100%;
+      overflow: hidden;
+      color: #cfd0cb;
+      font-size: 8px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .favorite-button {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      color: #596168;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(13, 16, 20, 0.8);
+      cursor: pointer;
+    }
+
+    .favorite-button[data-favorite="true"] {
+      color: #e1b96f;
+      border-color: rgba(210, 173, 120, 0.25);
+      background: rgba(176, 138, 96, 0.09);
+    }
+
+    .notification-toolbar {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .notification-toolbar strong {
+      color: #d3d1cb;
+      font-size: 11px;
+    }
+
+    .icon-button {
+      min-width: 31px;
+      height: 31px;
+      display: inline-grid;
+      place-items: center;
+      padding: 0 8px;
+      color: #9f8b6f;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.015);
+      font-size: 9px;
+      cursor: pointer;
+    }
+
+    .notification-list {
+      min-height: 184px;
+    }
+
+    .notification-row {
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 0 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .notification-row[data-hidden="true"] {
+      display: none;
+    }
+
+    .notification-row i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: transparent;
+    }
+
+    .notification-row[data-unread="true"] i {
+      background: var(--bronze-bright);
+      box-shadow: 0 0 0 4px rgba(210, 173, 120, 0.06);
+    }
+
+    .notification-row strong,
+    .notification-row span,
+    .notification-row small {
+      display: block;
+    }
+
+    .notification-row strong {
+      color: #d1d0ca;
+      font-size: 9px;
+    }
+
+    .notification-row span {
+      margin-top: 3px;
+      color: #687178;
+      font-size: 8px;
+    }
+
+    .notification-row small {
+      color: #596269;
+      font-size: 8px;
+      white-space: nowrap;
+    }
+
+    .audit-tools {
+      display: grid;
+      grid-template-columns: minmax(170px, 1fr) 150px auto;
+      gap: 8px;
+      padding: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .audit-tools .search-input,
+    .audit-tools .custom-select__trigger {
+      min-height: 36px;
+      height: 36px;
+      font-size: 9px;
+    }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+
+    .audit-table th,
+    .audit-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+      text-align: left;
+    }
+
+    .audit-table th {
+      color: #657078;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .audit-table td {
+      color: #8e969b;
+    }
+
+    .audit-table td strong {
+      color: #d2d1cc;
+      font-size: 9px;
+    }
+
+    .state-showcase {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .state-item {
+      min-height: 150px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 10px;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      text-align: center;
+    }
+
+    .state-item:last-child {
+      border-right: 0;
+    }
+
+    .state-item i {
+      width: 35px;
+      height: 35px;
+      display: grid;
+      place-items: center;
+      color: #ab8b61;
+      border: 1px dashed rgba(210, 173, 120, 0.2);
+      border-radius: 7px;
+      font-size: 14px;
+      font-style: normal;
+    }
+
+    .state-item strong {
+      color: #cccac4;
+      font-size: 10px;
+    }
+
+    .state-item small {
+      max-width: 170px;
+      color: #687178;
+      font-size: 8px;
+      line-height: 1.5;
+    }
+
+    .access-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      margin-top: 14px;
+      padding: 12px 14px;
+      color: #7c858b;
+      border: 1px solid rgba(210, 173, 120, 0.12);
+      border-radius: 7px;
+      background: rgba(176, 138, 96, 0.035);
+    }
+
+    .access-note i {
+      color: var(--bronze-bright);
+      font-size: 14px;
+      font-style: normal;
+    }
+
+    .access-note strong,
+    .access-note span {
+      display: block;
+    }
+
+    .access-note strong {
+      color: #c7ac82;
+      font-size: 10px;
+    }
+
+    .access-note span {
+      margin-top: 3px;
+      font-size: 9px;
+      line-height: 1.45;
+    }
+
+    .commit-block {
+      padding-top: 82px;
+      border-top: 1px solid var(--line);
+    }
+
+    .commit-block__head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 30px;
+      margin-bottom: 26px;
+    }
+
+    .commit-block h2 {
+      margin: 14px 0 0;
+      color: #eee9e1;
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .commit-block__head p {
+      max-width: 430px;
+      margin: 0;
+      color: #7b8489;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .commit-list {
+      border-top: 1px solid var(--line);
+    }
+
+    .commit-row {
+      min-height: 74px;
+      display: grid;
+      grid-template-columns: 94px minmax(0, 1fr) 160px;
+      align-items: center;
+      gap: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .commit-row code {
+      color: #d5ae75;
+      font: 10px Consolas, monospace;
+    }
+
+    .commit-row strong,
+    .commit-row small {
+      display: block;
+    }
+
+    .commit-row strong {
+      color: #cecdc7;
+      font-size: 11px;
+    }
+
+    .commit-row small {
+      margin-top: 4px;
+      color: #626c72;
+      font-size: 9px;
+    }
+
+    .commit-row time {
+      color: #697279;
+      font-size: 9px;
+      text-align: right;
+    }
+
+    .release-footer {
+      margin-top: 84px;
+      padding: 30px 0 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .release-footer__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 25px;
+    }
+
+    .release-footer strong,
+    .release-footer span {
+      display: block;
+    }
+
+    .release-footer strong {
+      color: #d9d5cd;
+      font-size: 12px;
+    }
+
+    .release-footer span {
+      margin-top: 5px;
+      color: #657078;
+      font-size: 9px;
+    }
+
+    .release-footer a {
+      color: #d6b679;
+      font-size: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 120;
+      max-width: min(360px, calc(100% - 36px));
+      padding: 12px 14px;
+      color: #c8d5ca;
+      border: 1px solid rgba(145, 213, 170, 0.2);
+      border-radius: 7px;
+      background: rgba(14, 19, 17, 0.96);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+      font-size: 10px;
+      line-height: 1.5;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .toast[data-visible="true"] {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1060px) {
+      .release-bar nav a:nth-child(n + 4) {
+        display: none;
+      }
+
+      .hero__inner {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-console {
+        width: min(680px, 100%);
+      }
+
+      .release-timeline {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .release-timeline a:nth-child(3) {
+        border-right: 0;
+      }
+
+      .release-timeline a:nth-child(-n + 3) {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .release-block {
+        grid-template-columns: 1fr;
+      }
+
+      .release-block__copy {
+        position: static;
+        max-width: 680px;
+      }
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-demo--wide {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .release-bar__inner,
+      .hero__inner,
+      .content {
+        width: min(100% - 28px, var(--content));
+      }
+
+      .release-bar nav {
+        display: none;
+      }
+
+      .hero {
+        min-height: auto;
+      }
+
+      .hero__inner {
+        padding: 54px 0 64px;
+      }
+
+      h1 {
+        font-size: 43px;
+      }
+
+      .counter-story,
+      .overview,
+      .registration-demo,
+      .select-comparison,
+      .loading-columns {
+        grid-template-columns: 1fr;
+      }
+
+      .counter-arrow,
+      .comparison-arrow {
+        padding: 0;
+        transform: rotate(90deg);
+      }
+
+      .overview {
+        gap: 28px;
+      }
+
+      .release-timeline {
+        grid-template-columns: 1fr;
+      }
+
+      .release-timeline a {
+        min-height: 82px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .release-timeline a:last-child {
+        border-bottom: 0;
+      }
+
+      .membership-demo {
+        grid-template-columns: 1fr;
+      }
+
+      .membership-sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .registration-form {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .capability-strip,
+      .state-showcase {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .capability-strip div:nth-child(2),
+      .state-item:nth-child(2) {
+        border-right: 0;
+      }
+
+      .capability-strip div:nth-child(-n + 2),
+      .state-item:nth-child(-n + 2) {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .request-tools,
+      .audit-tools {
+        grid-template-columns: 1fr;
+      }
+
+      .item-collection {
+        grid-template-columns: 1fr;
+      }
+
+      .progress-chain {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .audit-table th:nth-child(3),
+      .audit-table td:nth-child(3) {
+        display: none;
+      }
+
+      .commit-block__head,
+      .release-footer__inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .commit-row {
+        grid-template-columns: 82px minmax(0, 1fr);
+        gap: 12px;
+        padding: 13px 0;
+      }
+
+      .commit-row time {
+        grid-column: 2;
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 37px;
+      }
+
+      .hero__actions,
+      .hero__actions .button {
+        width: 100%;
+      }
+
+      .counter-story {
+        padding: 22px 16px;
+      }
+
+      .release-facts {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .release-block {
+        padding: 58px 0;
+      }
+
+      .capability-strip,
+      .state-showcase {
+        grid-template-columns: 1fr;
+      }
+
+      .capability-strip div,
+      .state-item {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .capability-strip div:last-child,
+      .state-item:last-child {
+        border-bottom: 0;
+      }
+
+      .applicant-row {
+        grid-template-columns: 34px minmax(0, 1fr);
+      }
+
+      .applicant-row em {
+        grid-column: 2;
+      }
+
+      .bank-resource {
+        grid-template-columns: 46px minmax(0, 1fr);
+      }
+
+      .bank-total {
+        grid-column: 2;
+        text-align: left;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="reading-progress" aria-hidden="true"></div>
+
+  <header class="release-bar">
+    <div class="release-bar__inner">
+      <a class="release-brand" href="#top" aria-label="В начало страницы">
+        <img src="./clan-logo.png" alt="" width="38" height="38" />
+        <span>
+          <strong>Squirt Squad Portal</strong>
+          <span>Patch notes · 23-24.07.2026</span>
+        </span>
+      </a>
+      <nav aria-label="Навигация по патчноуту">
+        <a href="#counter">Счётчик</a>
+        <a href="#registration">Регистрация</a>
+        <a href="#selects">Select-меню</a>
+        <a href="#loading">Загрузка</a>
+        <a href="#ux-pack">UX-пакет</a>
+        <a href="#commits">Коммиты</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="release-title">
+      <div class="hero__inner">
+        <div class="hero__copy">
+          <div class="eyebrow">Обновление портала · 5 релизов</div>
+          <h1 id="release-title">Точнее, быстрее и заметно удобнее</h1>
+          <p>
+            Полный обзор изменений, внесённых после исправления ошибочного счётчика заявок
+            на вступление. Все примеры ниже воспроизводят реальные сценарии нового интерфейса.
+          </p>
+          <div class="hero__actions">
+            <a class="button" href="#counter">Смотреть изменения <span aria-hidden="true">↓</span></a>
+            <a class="button button--ghost" href="#ux-pack">Открыть интерактивные демо</a>
+          </div>
+          <div class="release-facts" aria-label="Статистика обновления">
+            <div><strong>5</strong><span>коммитов</span></div>
+            <div><strong>40</strong><span>файлов</span></div>
+            <div><strong>1450</strong><span>добавлений</span></div>
+            <div><strong>307</strong><span>удалений</span></div>
+          </div>
+        </div>
+
+        <div class="hero-console" aria-label="Ключевое исправление релиза">
+          <div class="console-top">
+            <span>Заявки на вступление</span>
+            <i class="status-live">Данные синхронизированы</i>
+          </div>
+          <div class="counter-story">
+            <div class="counter-cell counter-cell--before">
+              <small>Было в сайдбаре</small>
+              <strong>11</strong>
+              <span>Включая уже распределённых игроков</span>
+            </div>
+            <span class="counter-arrow" aria-hidden="true">→</span>
+            <div class="counter-cell counter-cell--after">
+              <small>Стало</small>
+              <strong>3</strong>
+              <span>Только заявки, которые реально ждут решения</span>
+            </div>
+          </div>
+          <div class="console-list">
+            <article>
+              <span class="avatar">R</span>
+              <div><strong>Roodi</strong><small>Взрывной медик · Squirt Spark</small></div>
+              <span class="queue-state">Ожидает</span>
+            </article>
+            <article>
+              <span class="avatar">T</span>
+              <div><strong>Tenguu</strong><small>Рейнджер · Squirt Squad</small></div>
+              <span class="queue-state">Ожидает</span>
+            </article>
+            <article>
+              <span class="avatar">A</span>
+              <div><strong>Alejandro</strong><small>Легионер · Squirt Stud</small></div>
+              <span class="queue-state">Ожидает</span>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="content">
+      <section class="overview" aria-labelledby="overview-title">
+        <div>
+          <div class="eyebrow">Что вошло в обновление</div>
+          <h2 id="overview-title">От локального бага до большого UX-пакета</h2>
+        </div>
+        <div class="overview__text">
+          <p>
+            Работа началась с несоответствия между цифрой в сайдбаре и реальной очередью.
+            После исправления были последовательно улучшены регистрация, все выпадающие
+            списки и загрузка разделов.
+          </p>
+          <p>
+            Финальный пакет объединил портал вокруг ежедневных задач: добавил центр действий,
+            защитил ресурсы от двойного расходования, усилил «Мои заявки», журнал, уведомления
+            и персональную работу с базой предметов.
+          </p>
+        </div>
+      </section>
+
+      <div class="release-timeline" aria-label="Хронология релизов">
+        <a href="#counter"><small>0a33c36</small><strong>Точный счётчик заявок</strong><span>23 июля · 22:38</span></a>
+        <a href="#registration"><small>4637fc2</small><strong>Коллектив при регистрации</strong><span>23 июля · 22:52</span></a>
+        <a href="#selects"><small>aa3e37a</small><strong>Кастомные select-меню</strong><span>23 июля · 23:07</span></a>
+        <a href="#loading"><small>91bbf6e</small><strong>Исправление загрузки</strong><span>23 июля · 23:23</span></a>
+        <a href="#ux-pack"><small>57d2465</small><strong>Workflow и dashboard UX</strong><span>24 июля · 00:22</span></a>
+      </div>
+
+      <section class="release-block" id="counter" data-nav-section>
+        <div class="release-block__copy">
+          <span class="release-index"><i>01</i> Исправление · 0a33c36</span>
+          <h2>Счётчик заявок теперь показывает реальную очередь</h2>
+          <p>
+            В расчёт больше не попадают игроки, которые уже состоят в коллективе.
+            Фильтрация выполняется и на сервере, и при подготовке числа для сайдбара.
+          </p>
+          <ul class="fact-list">
+            <li>Считаются только заявки со статусом ожидания.</li>
+            <li>Уже распределённые участники исключаются из выдачи.</li>
+            <li>Число в навигации совпадает с количеством карточек в очереди.</li>
+          </ul>
+        </div>
+
+        <div class="demo-stack">
+          <div class="demo-frame">
+            <div class="demo-frame__head">
+              <strong>Сравнение состояния</strong>
+              <div class="segmented" data-counter-tabs>
+                <button type="button" data-mode="before">До</button>
+                <button type="button" data-mode="after" data-active="true">После</button>
+              </div>
+            </div>
+            <div class="membership-demo">
+              <aside class="membership-sidebar">
+                <div class="mini-brand">
+                  <img src="./clan-logo.png" alt="" width="32" height="32" />
+                  <div><strong>Squirt Squad</strong><small>Corepunk</small></div>
+                </div>
+                <div class="nav-caption">Заявки</div>
+                <div class="mini-nav-row mini-nav-row--active">
+                  <span class="nav-glyph">+</span>
+                  <span>На вступление</span>
+                  <span class="nav-badge" data-counter-badge data-state="correct">3</span>
+                </div>
+                <div class="mini-nav-row">
+                  <span class="nav-glyph">R</span>
+                  <span>На получение ресурсов</span>
+                </div>
+                <div class="mini-nav-row">
+                  <span class="nav-glyph">C</span>
+                  <span>На крафт предметов</span>
+                </div>
+              </aside>
+              <div class="membership-list">
+                <div class="membership-list__title">
+                  <strong>Заявки на вступление</strong>
+                  <span data-list-caption>3 ожидают распределения</span>
+                </div>
+                <div class="applicant-row">
+                  <span class="avatar">R</span>
+                  <div><strong>Roodi</strong><small>Discord: Roodi</small></div>
+                  <em>Ожидает</em>
+                </div>
+                <div class="applicant-row">
+                  <span class="avatar">T</span>
+                  <div><strong>Tenguu</strong><small>Discord: Tenguu</small></div>
+                  <em>Ожидает</em>
+                </div>
+                <div class="applicant-row">
+                  <span class="avatar">A</span>
+                  <div><strong>Alejandro</strong><small>Discord: Alejandro</small></div>
+                  <em>Ожидает</em>
+                </div>
+              </div>
+            </div>
+            <div class="explain-line" data-counter-explanation>
+              <span aria-hidden="true">✓</span>
+              <span><strong>После:</strong> цифра 3 формируется из тех же трёх нераспределённых заявок, которые показаны в списке.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="release-block" id="registration" data-nav-section>
+        <div class="release-block__copy">
+          <span class="release-index"><i>02</i> Новая возможность · 4637fc2</span>
+          <h2>Новый игрок сразу указывает свой коллектив</h2>
+          <p>
+            В регистрационной форме появился обязательный выбор из уже созданных
+            коллективов. Вместимость видна прямо в списке, а выбор сохраняется в заявке.
+          </p>
+          <ul class="fact-list">
+            <li>Поле требуется, если в системе уже есть коллективы.</li>
+            <li>В заявке администратора отображается заявленный коллектив.</li>
+            <li>Доступный заявленный коллектив автоматически предлагается при принятии.</li>
+          </ul>
+        </div>
+
+        <div class="demo-frame">
+          <div class="demo-frame__head">
+            <strong>Живой сценарий регистрации</strong>
+            <span>Выберите коллектив и посмотрите заявку справа</span>
+          </div>
+          <div class="registration-demo">
+            <div class="registration-form">
+              <label class="field">
+                <span>Имя на портале</span>
+                <input type="text" value="Gabriel" aria-label="Имя на портале" />
+              </label>
+              <label class="field">
+                <span>Основной персонаж</span>
+                <input type="text" value="Alejandro" aria-label="Основной персонаж" />
+              </label>
+              <label class="field">
+                <span>Коллектив</span>
+                <span class="custom-select" data-select data-value="squirt-stud">
+                  <button class="custom-select__trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                    <span data-select-label>Squirt Stud · 5/24</span>
+                    <span class="select-chevron" aria-hidden="true">⌄</span>
+                  </button>
+                  <span class="custom-select__menu" role="listbox">
+                    <button type="button" data-value="squirt-spark" data-label="Squirt Spark · 5/24"><span>Squirt Spark · 5/24</span><span></span></button>
+                    <button type="button" data-value="squirt-squad" data-label="Squirt Squad · 4/24"><span>Squirt Squad · 4/24</span><span></span></button>
+                    <button type="button" data-value="squirt-squid" data-label="Squirt Squid · 3/24"><span>Squirt Squid · 3/24</span><span></span></button>
+                    <button type="button" data-value="squirt-stud" data-label="Squirt Stud · 5/24" data-selected="true"><span>Squirt Stud · 5/24</span><span>✓</span></button>
+                    <button type="button" data-value="squirt-swad" data-label="Squirt Swad · 3/24"><span>Squirt Swad · 3/24</span><span></span></button>
+                  </span>
+                </span>
+              </label>
+              <button class="button" type="button" data-registration-submit>Отправить заявку</button>
+            </div>
+            <div class="approval-preview">
+              <span>Предпросмотр заявки на вступление</span>
+              <article class="approval-card">
+                <div class="approval-card__identity">
+                  <span class="avatar">G</span>
+                  <div><strong>Gabriel</strong><small>Alejandro · Легионер</small></div>
+                </div>
+                <p>Discord: Alejandro</p>
+                <p>Заявленный коллектив: <b data-requested-collective>Squirt Stud</b></p>
+                <div class="approval-card__actions">
+                  <button class="mini-button" type="button">Принять</button>
+                  <button class="mini-button" type="button">Отклонить</button>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="release-block" id="selects" data-nav-section>
+        <div class="release-block__copy">
+          <span class="release-index"><i>03</i> Интерфейс · aa3e37a</span>
+          <h2>Все системные select заменены на компоненты портала</h2>
+          <p>
+            Серые системные меню браузера полностью убраны из интерфейса. Новые списки
+            одинаково выглядят в регистрации, коллективах, заявках и рабочих фильтрах.
+          </p>
+          <ul class="fact-list">
+            <li>Поддержаны компактный и обычный размеры.</li>
+            <li>Работают стрелки, Enter, пробел и Escape.</li>
+            <li>Клик вне списка закрывает меню, выбранный пункт отмечается.</li>
+          </ul>
+        </div>
+
+        <div class="demo-frame">
+          <div class="demo-frame__head">
+            <strong>Визуальная замена</strong>
+            <span>Новый вариант интерактивен</span>
+          </div>
+          <div class="select-comparison">
+            <div class="comparison-side">
+              <small>До · системное меню</small>
+              <div class="native-select-ghost"><span>Выберите коллектив</span><span>▼</span></div>
+              <div class="native-options" aria-hidden="true">
+                <span>Выберите коллектив</span>
+                <span>Squirt Spark · 5/24</span>
+                <span>Squirt Squad · 4/24</span>
+                <span>Squirt Stud · 5/24</span>
+              </div>
+            </div>
+            <div class="comparison-arrow" aria-hidden="true">→</div>
+            <div class="comparison-side">
+              <small>После · компонент портала</small>
+              <span class="custom-select" data-select data-value="all">
+                <button class="custom-select__trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span data-select-label>Все статусы</span>
+                  <span class="select-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <span class="custom-select__menu" role="listbox">
+                  <button type="button" data-value="all" data-label="Все статусы" data-selected="true"><span>Все статусы</span><span>✓</span></button>
+                  <button type="button" data-value="pending" data-label="На рассмотрении"><span>На рассмотрении</span><span></span></button>
+                  <button type="button" data-value="approved" data-label="Одобрено"><span>Одобрено</span><span></span></button>
+                  <button type="button" data-value="progress" data-label="В работе"><span>В работе</span><span></span></button>
+                  <button type="button" data-value="completed" data-label="Завершено"><span>Завершено</span><span></span></button>
+                </span>
+              </span>
+            </div>
+          </div>
+          <div class="capability-strip">
+            <div>Единый тёмный стиль</div>
+            <div>Управление с клавиатуры</div>
+            <div>Выбранный пункт отмечен</div>
+            <div>Закрытие по клику снаружи</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="release-block" id="loading" data-nav-section>
+        <div class="release-block__copy">
+          <span class="release-index"><i>04</i> Исправление · 91bbf6e</span>
+          <h2>Разделы больше не застревают на экране загрузки</h2>
+          <p>
+            Удалена дополнительная прослойка ленивых клиентских обёрток. Страницы
+            подключают рабочие компоненты напрямую, поэтому лишнее состояние ожидания
+            больше не может заблокировать отображение раздела.
+          </p>
+          <ul class="fact-list">
+            <li>Прямое подключение экранов каталога, ресурсов и заявок.</li>
+            <li>Убран общий компонент, который мог удерживать заглушку.</li>
+            <li>Переходы сохранили видимый индикатор открытия раздела.</li>
+          </ul>
+        </div>
+
+        <div class="demo-frame">
+          <div class="demo-frame__head">
+            <strong>Схема загрузки раздела</strong>
+            <span>Без искусственных замеров скорости</span>
+          </div>
+          <div class="loading-demo">
+            <div class="loading-columns" data-loading-demo>
+              <section class="loading-track" data-flow="before">
+                <header><strong>Раньше</strong><span>Дополнительная обёртка</span></header>
+                <div class="flow">
+                  <div class="flow-step" data-step><i>1</i><b>Маршрут открыт</b><span>готово</span></div>
+                  <div class="flow-step" data-step><i>2</i><b>Lazy-обёртка</b><span>ожидание</span></div>
+                  <div class="flow-step" data-step><i>3</i><b>Компонент раздела</b><span>не показан</span></div>
+                  <div class="flow-step" data-step><i>4</i><b>Данные на экране</b><span>не показаны</span></div>
+                </div>
+              </section>
+              <section class="loading-track" data-flow="after">
+                <header><strong>Теперь</strong><span>Прямое подключение</span></header>
+                <div class="flow">
+                  <div class="flow-step" data-step><i>1</i><b>Маршрут открыт</b><span>готово</span></div>
+                  <div class="flow-step" data-step><i>2</i><b>Компонент раздела</b><span>подключён</span></div>
+                  <div class="flow-step" data-step><i>3</i><b>Состояние загружено</b><span>готово</span></div>
+                  <div class="flow-step" data-step><i>4</i><b>Раздел отображён</b><span>готово</span></div>
+                </div>
+              </section>
+            </div>
+            <div class="loading-footer">
+              <p>Демонстрация показывает изменение архитектуры загрузки, а не синтетический тест производительности.</p>
+              <button class="mini-button" type="button" data-run-loading>Запустить схему</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="release-block" id="ux-pack" data-nav-section>
+        <div class="release-block__copy">
+          <span class="release-index"><i>05</i> Большой пакет · 57d2465</span>
+          <h2>Рабочие сценарии портала собраны в единую систему</h2>
+          <p>
+            Финальное обновление затронуло дашборд, заявки, банк, каталог, уведомления,
+            журнал и состояния ошибок. Ниже можно попробовать ключевые изменения.
+          </p>
+          <ul class="fact-list">
+            <li>Дашборд показывает персональные действия и свежую активность.</li>
+            <li>Активные заявки резервируют ресурсы и валюту.</li>
+            <li>«Мои заявки» получили поиск, статусы и наглядные этапы.</li>
+            <li>Давно не подтверждённые получения не исчезают, а получают пометку.</li>
+            <li>Избранное и недавние работают в каталоге, калькуляторе и крафте.</li>
+            <li>Персональные подборки сохраняются на текущем устройстве.</li>
+            <li>Журнал экспортируется, уведомления фильтруются, ошибки объясняются.</li>
+          </ul>
+        </div>
+
+        <div class="feature-grid">
+          <section class="feature-demo">
+            <header>
+              <div><strong>Требует вашего действия</strong><span>Персональный центр задач</span></div>
+              <b class="count-pill" data-action-count>2</b>
+            </header>
+            <div class="action-list" data-action-list>
+              <article class="action-row">
+                <span class="action-icon">R</span>
+                <div><strong>Подтвердить получение: Железная руда</strong><small>42 ед. · Squirt Squad</small></div>
+                <button type="button" data-complete-action>Готово</button>
+              </article>
+              <article class="action-row">
+                <span class="action-icon">C</span>
+                <div><strong>Завершить крафт: Ironwood Shield</strong><small>Заказчик Gabriel</small></div>
+                <button type="button" data-complete-action>Готово</button>
+              </article>
+            </div>
+          </section>
+
+          <section class="feature-demo">
+            <header>
+              <div><strong>Активность портала</strong><span>Операции и изменения заявок</span></div>
+              <b class="count-pill">3</b>
+            </header>
+            <div class="activity-list" data-activity-list>
+              <article class="activity-row">
+                <span class="action-icon">+</span>
+                <div><strong>Пополнение: Железная руда</strong><small>RedAugenblick · Squirt Squad</small></div>
+                <small>23:54</small>
+              </article>
+              <article class="activity-row">
+                <span class="action-icon">C</span>
+                <div><strong>Ironwood Shield: Взято в работу</strong><small>Tenguu</small></div>
+                <small>23:48</small>
+              </article>
+              <article class="activity-row">
+                <span class="action-icon">R</span>
+                <div><strong>Древняя монета: Заявка одобрена</strong><small>Roodi</small></div>
+                <small>23:37</small>
+              </article>
+            </div>
+          </section>
+
+          <section class="feature-demo feature-demo--wide">
+            <header>
+              <div><strong>Мои заявки</strong><span>Поиск, фильтры и видимый жизненный цикл</span></div>
+              <span>Личный рабочий список</span>
+            </header>
+            <div class="request-tools">
+              <input class="search-input" type="search" placeholder="Предмет, ресурс или игрок..." data-request-search />
+              <span class="custom-select" data-select data-value="all" data-request-type-select>
+                <button class="custom-select__trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span data-select-label>Все типы</span><span class="select-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <span class="custom-select__menu" role="listbox">
+                  <button type="button" data-value="all" data-label="Все типы" data-selected="true"><span>Все типы</span><span>✓</span></button>
+                  <button type="button" data-value="resource" data-label="Ресурсы"><span>Ресурсы</span><span></span></button>
+                  <button type="button" data-value="craft" data-label="Крафт"><span>Крафт</span><span></span></button>
+                </span>
+              </span>
+              <span class="custom-select" data-select data-value="all" data-request-status-select>
+                <button class="custom-select__trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span data-select-label>Все статусы</span><span class="select-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <span class="custom-select__menu" role="listbox">
+                  <button type="button" data-value="all" data-label="Все статусы" data-selected="true"><span>Все статусы</span><span>✓</span></button>
+                  <button type="button" data-value="progress" data-label="В работе"><span>В работе</span><span></span></button>
+                  <button type="button" data-value="issued" data-label="Ожидает получения"><span>Ожидает получения</span><span></span></button>
+                </span>
+              </span>
+            </div>
+            <article class="request-card" data-request-card data-type="craft" data-status="progress" data-search="ironwood shield gabriel tenguu">
+              <div class="request-card__top">
+                <span class="item-art"><img src="./game-assets/items/weapon/weapon-ironwood-shield.png" alt="" width="42" height="42" /></span>
+                <div><strong>Ironwood Shield × 1</strong><small>Заказчик Gabriel · Исполнитель Tenguu</small></div>
+                <span class="status-label">В работе</span>
+              </div>
+              <div class="progress-chain">
+                <span data-state="done">Создано</span>
+                <span data-state="done">В работе</span>
+                <span data-state="active">Выполнение</span>
+                <span>Получение</span>
+              </div>
+            </article>
+            <article class="request-card" data-request-card data-type="resource" data-status="issued" data-search="железная руда roodi squirt squad">
+              <div class="request-card__top">
+                <span class="item-art"><img src="./game-assets/items/resource/iron-ore.png" alt="" width="42" height="42" /></span>
+                <div><strong>Железная руда × 42</strong><small>Squirt Squad · Roodi</small></div>
+                <span class="status-label">Ожидает получения</span>
+              </div>
+              <div class="progress-chain">
+                <span data-state="done">Создано</span>
+                <span data-state="done">Одобрено</span>
+                <span data-state="done">Выдано</span>
+                <span data-state="active">Получение</span>
+              </div>
+            </article>
+            <div class="explain-line" data-request-empty hidden>
+              <span aria-hidden="true">i</span>
+              <span><strong>Ничего не найдено.</strong> Измените запрос или сбросьте фильтры.</span>
+            </div>
+          </section>
+
+          <section class="feature-demo">
+            <header>
+              <div><strong>Резерв банка</strong><span>Защита от двойного расходования</span></div>
+              <span>Демо-сценарий</span>
+            </header>
+            <div class="bank-demo">
+              <div class="bank-resource">
+                <span class="item-art"><img src="./game-assets/items/resource/iron-ore.png" alt="" width="46" height="46" /></span>
+                <div><strong>Железная руда</strong><small>Суммарный банк всех коллективов</small></div>
+                <div class="bank-total"><strong>120</strong><small>В резерве 80</small></div>
+              </div>
+              <div class="bank-meter" aria-label="Свободно 40, зарезервировано 80"><span></span><span></span></div>
+              <div class="bank-legend"><span>Свободно <b>40</b></span><span>Зарезервировано <b>80</b></span></div>
+              <div class="bank-warning">
+                <span>Новая заявка на 50 ед. недоступна</span>
+                <button class="mini-button" type="button" disabled>Подтвердить ресурсы</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="feature-demo">
+            <header>
+              <div><strong>Предметы</strong><span>Избранное и недавние</span></div>
+              <span data-favorite-caption>Избранное: 1</span>
+            </header>
+            <div class="collection-tabs" data-collection-tabs>
+              <button type="button" data-filter="all" data-active="true">Все</button>
+              <button type="button" data-filter="favorites">★ Избранное <span data-favorite-count>1</span></button>
+              <button type="button" data-filter="recent">Недавние <span>2</span></button>
+            </div>
+            <div class="item-collection">
+              <article class="collection-item" data-item data-recent="true">
+                <button class="favorite-button" type="button" data-favorite="true" aria-label="Убрать из избранного">★</button>
+                <img src="./game-assets/items/weapon/weapon-ironwood-shield.png" alt="" width="45" height="45" />
+                <strong>Ironwood Shield</strong>
+              </article>
+              <article class="collection-item" data-item data-recent="true">
+                <button class="favorite-button" type="button" data-favorite="false" aria-label="Добавить в избранное">★</button>
+                <img src="./game-assets/items/resource/strong-thread.png" alt="" width="45" height="45" />
+                <strong>Крепкая нить</strong>
+              </article>
+              <article class="collection-item" data-item data-recent="false">
+                <button class="favorite-button" type="button" data-favorite="false" aria-label="Добавить в избранное">★</button>
+                <img src="./game-assets/items/resource/titanium-nugget.png" alt="" width="45" height="45" />
+                <strong>Титановый самородок</strong>
+              </article>
+            </div>
+          </section>
+
+          <section class="feature-demo">
+            <header>
+              <div><strong>Уведомления</strong><span>Фильтр и управление звуком</span></div>
+              <span class="count-pill" data-unread-count>2</span>
+            </header>
+            <div class="notification-toolbar">
+              <strong>Последние события</strong>
+              <div>
+                <button class="icon-button" type="button" data-sound-toggle aria-pressed="true">Звук: вкл</button>
+                <button class="icon-button" type="button" data-new-notification>Проверить</button>
+              </div>
+            </div>
+            <div class="notification-tabs" data-notification-tabs>
+              <button type="button" data-filter="all" data-active="true">Все</button>
+              <button type="button" data-filter="unread">Непрочитанные</button>
+            </div>
+            <div class="notification-list">
+              <article class="notification-row" data-notification data-unread="true">
+                <i></i><div><strong>Заявка взята в работу</strong><span>Tenguu · Ironwood Shield</span></div><small>сейчас</small>
+              </article>
+              <article class="notification-row" data-notification data-unread="true">
+                <i></i><div><strong>Ресурсы выданы</strong><span>Roodi · подтвердите получение</span></div><small>5 мин</small>
+              </article>
+              <article class="notification-row" data-notification data-unread="false">
+                <i></i><div><strong>Роль в коллективе изменена</strong><span>RedAugenblick · Казначей</span></div><small>вчера</small>
+              </article>
+            </div>
+          </section>
+
+          <section class="feature-demo feature-demo--wide">
+            <header>
+              <div><strong>Журнал учёта</strong><span>Период, поиск и экспорт текущей выборки</span></div>
+              <span>3 записи в демо</span>
+            </header>
+            <div class="audit-tools">
+              <input class="search-input" type="search" placeholder="Поиск по журналу..." aria-label="Поиск по журналу" />
+              <span class="custom-select" data-select data-value="30d">
+                <button class="custom-select__trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span data-select-label>Последние 30 дней</span><span class="select-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <span class="custom-select__menu" role="listbox">
+                  <button type="button" data-value="today" data-label="Сегодня"><span>Сегодня</span><span></span></button>
+                  <button type="button" data-value="7d" data-label="Последние 7 дней"><span>Последние 7 дней</span><span></span></button>
+                  <button type="button" data-value="30d" data-label="Последние 30 дней" data-selected="true"><span>Последние 30 дней</span><span>✓</span></button>
+                  <button type="button" data-value="all" data-label="За всё время"><span>За всё время</span><span></span></button>
+                </span>
+              </span>
+              <button class="mini-button" type="button" data-export-csv>Экспорт CSV</button>
+            </div>
+            <div class="audit-tabs">
+              <button type="button" data-active="true">Все</button>
+              <button type="button">Ресурсы и валюта</button>
+              <button type="button">Заявки</button>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="audit-table">
+                <thead><tr><th>Событие</th><th>Исполнитель</th><th>Коллектив</th><th>Дата</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Пополнение: Железная руда +42</strong></td><td>RedAugenblick</td><td>Squirt Squad</td><td>23.07 · 23:54</td></tr>
+                  <tr><td><strong>Крафт взят в работу</strong></td><td>Tenguu</td><td>Общий банк</td><td>23.07 · 23:48</td></tr>
+                  <tr><td><strong>Выдача древней монеты одобрена</strong></td><td>Roodi</td><td>Squirt Spark</td><td>23.07 · 23:37</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="feature-demo feature-demo--wide">
+            <header>
+              <div><strong>Понятные состояния</strong><span>Связь, изображения, пустые выборки и права</span></div>
+              <span>Без немых экранов</span>
+            </header>
+            <div class="state-showcase">
+              <div class="state-item"><i>≋</i><strong>Связь восстанавливается</strong><small>Портал показывает последние данные и объясняет, что произойдёт дальше.</small></div>
+              <div class="state-item"><i>×</i><strong>Изображение недоступно</strong><small>Вместо пустой области отображается аккуратная заглушка.</small></div>
+              <div class="state-item"><i>0</i><strong>Ничего не найдено</strong><small>Пустая выборка предлагает изменить фильтры или перейти к созданию заявки.</small></div>
+            </div>
+            <div class="access-note">
+              <i>✓</i>
+              <div><strong>Прозрачный баланс клана</strong><span>Балансы всех коллективов доступны для просмотра. Изменять активы могут руководитель и казначей своего состава.</span></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="commit-block" id="commits" data-nav-section aria-labelledby="commits-title">
+        <div class="commit-block__head">
+          <div>
+            <div class="eyebrow">Точная история</div>
+            <h2 id="commits-title">Все изменения в main</h2>
+          </div>
+          <p>
+            В патчноут включены только изменения от первого исправления счётчика
+            до финального UX-пакета включительно.
+          </p>
+        </div>
+        <div class="commit-list">
+          <article class="commit-row"><code>0a33c36</code><div><strong>Fix membership request badge count</strong><small>Счётчик учитывает только нераспределённые заявки.</small></div><time datetime="2026-07-23T22:38:13+03:00">23.07.2026 · 22:38</time></article>
+          <article class="commit-row"><code>4637fc2</code><div><strong>Add requested collective to registration applications</strong><small>Коллектив выбирается при регистрации и виден в заявке.</small></div><time datetime="2026-07-23T22:52:31+03:00">23.07.2026 · 22:52</time></article>
+          <article class="commit-row"><code>aa3e37a</code><div><strong>Replace native selects with custom portal dropdowns</strong><small>Все выпадающие списки приведены к дизайну портала.</small></div><time datetime="2026-07-23T23:07:58+03:00">23.07.2026 · 23:07</time></article>
+          <article class="commit-row"><code>91bbf6e</code><div><strong>Remove lazy section wrappers to fix stuck loading</strong><small>Убрана прослойка, из-за которой разделы могли не открыться.</small></div><time datetime="2026-07-23T23:23:53+03:00">23.07.2026 · 23:23</time></article>
+          <article class="commit-row"><code>57d2465</code><div><strong>Improve portal workflows and dashboard UX</strong><small>Дашборд, резервы, заявки, каталог, журнал и состояния интерфейса.</small></div><time datetime="2026-07-24T00:22:32+03:00">24.07.2026 · 00:22</time></article>
+        </div>
+      </section>
+
+      <footer class="release-footer">
+        <div class="release-footer__inner">
+          <div><strong>Squirt Squad Portal · Patch notes</strong><span>Фактические изменения main за 23-24 июля 2026 года.</span></div>
+          <a href="#top">Вернуться в начало ↑</a>
+        </div>
+      </footer>
+    </div>
+  </main>
+
+  <div class="toast" role="status" aria-live="polite" data-toast></div>
+  <audio src="./sounds/notification.mp3" preload="auto" data-notification-audio></audio>
+
+  <script>
+    (() => {
+      const toast = document.querySelector("[data-toast]");
+      let toastTimer = 0;
+
+      const showToast = (message) => {
+        window.clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.dataset.visible = "true";
+        toastTimer = window.setTimeout(() => {
+          toast.dataset.visible = "false";
+        }, 2600);
+      };
+
+      const updateReadingProgress = () => {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        const value = max > 0 ? Math.min(100, Math.max(0, window.scrollY / max * 100)) : 0;
+        document.querySelector(".reading-progress").style.width = value + "%";
+      };
+      window.addEventListener("scroll", updateReadingProgress, { passive: true });
+      updateReadingProgress();
+
+      const navLinks = [...document.querySelectorAll(".release-bar nav a")];
+      const observedSections = [...document.querySelectorAll("[data-nav-section]")];
+      const sectionObserver = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        navLinks.forEach((link) => {
+          link.dataset.active = String(link.getAttribute("href") === "#" + visible.target.id);
+        });
+      }, { rootMargin: "-20% 0px -62% 0px", threshold: [0.05, 0.2, 0.45] });
+      observedSections.forEach((section) => sectionObserver.observe(section));
+
+      const closeSelects = (except) => {
+        document.querySelectorAll("[data-select][data-open='true']").forEach((select) => {
+          if (select === except) return;
+          select.dataset.open = "false";
+          select.querySelector(".custom-select__trigger").setAttribute("aria-expanded", "false");
+        });
+      };
+
+      document.querySelectorAll("[data-select]").forEach((select) => {
+        const trigger = select.querySelector(".custom-select__trigger");
+        const options = [...select.querySelectorAll(".custom-select__menu button")];
+
+        const choose = (option) => {
+          select.dataset.value = option.dataset.value || "";
+          select.querySelector("[data-select-label]").textContent = option.dataset.label || option.textContent.trim();
+          options.forEach((candidate) => {
+            const selected = candidate === option;
+            candidate.dataset.selected = String(selected);
+            candidate.querySelector("span:last-child").textContent = selected ? "✓" : "";
+          });
+          select.dataset.open = "false";
+          trigger.setAttribute("aria-expanded", "false");
+          select.dispatchEvent(new CustomEvent("selectchange", { detail: { value: select.dataset.value } }));
+          trigger.focus();
+        };
+
+        trigger.addEventListener("click", () => {
+          const next = select.dataset.open !== "true";
+          closeSelects(select);
+          select.dataset.open = String(next);
+          trigger.setAttribute("aria-expanded", String(next));
+        });
+
+        trigger.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            select.dataset.open = "false";
+            trigger.setAttribute("aria-expanded", "false");
+            return;
+          }
+          if (!["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) return;
+          event.preventDefault();
+          if (select.dataset.open !== "true") {
+            closeSelects(select);
+            select.dataset.open = "true";
+            trigger.setAttribute("aria-expanded", "true");
+            return;
+          }
+          const selectedIndex = Math.max(0, options.findIndex((option) => option.dataset.selected === "true"));
+          const direction = event.key === "ArrowUp" ? -1 : 1;
+          if (event.key === "Enter" || event.key === " ") {
+            choose(options[selectedIndex]);
+            return;
+          }
+          choose(options[(selectedIndex + direction + options.length) % options.length]);
+        });
+
+        options.forEach((option) => option.addEventListener("click", () => choose(option)));
+      });
+
+      document.addEventListener("pointerdown", (event) => {
+        if (event.target.closest("[data-select]")) return;
+        closeSelects();
+      });
+
+      const counterTabs = document.querySelector("[data-counter-tabs]");
+      counterTabs.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-mode]");
+        if (!button) return;
+        const after = button.dataset.mode === "after";
+        counterTabs.querySelectorAll("button").forEach((item) => {
+          item.dataset.active = String(item === button);
+        });
+        const badge = document.querySelector("[data-counter-badge]");
+        badge.textContent = after ? "3" : "11";
+        badge.dataset.state = after ? "correct" : "wrong";
+        document.querySelector("[data-list-caption]").textContent = "3 ожидают распределения";
+        document.querySelector("[data-counter-explanation]").innerHTML = after
+          ? '<span aria-hidden="true">✓</span><span><strong>После:</strong> цифра 3 формируется из тех же трёх нераспределённых заявок, которые показаны в списке.</span>'
+          : '<span aria-hidden="true">!</span><span><strong>До:</strong> в бейдж попадали ещё 8 игроков, уже состоящих в коллективах, хотя в очереди их не было.</span>';
+      });
+
+      const registrationSelect = document.querySelector("#registration [data-select]");
+      const updateRequestedCollective = () => {
+        const label = registrationSelect.querySelector("[data-select-label]").textContent;
+        document.querySelector("[data-requested-collective]").textContent = label.split(" · ")[0];
+      };
+      registrationSelect.addEventListener("selectchange", updateRequestedCollective);
+      document.querySelector("[data-registration-submit]").addEventListener("click", () => {
+        updateRequestedCollective();
+        showToast("Заявка сформирована. Выбранный коллектив виден ответственному.");
+      });
+
+      const runLoading = document.querySelector("[data-run-loading]");
+      runLoading.addEventListener("click", () => {
+        const before = [...document.querySelectorAll("[data-flow='before'] [data-step]")];
+        const after = [...document.querySelectorAll("[data-flow='after'] [data-step]")];
+        [...before, ...after].forEach((step) => {
+          delete step.dataset.state;
+        });
+        before[0].dataset.state = "done";
+        before[1].dataset.state = "active";
+        after[0].dataset.state = "active";
+        after.forEach((step, index) => {
+          window.setTimeout(() => {
+            if (index > 0) after[index - 1].dataset.state = "done";
+            step.dataset.state = index === after.length - 1 ? "done" : "active";
+          }, index * 420);
+        });
+        window.setTimeout(() => {
+          showToast("Новый поток дошёл до отображения раздела без дополнительной lazy-обёртки.");
+        }, 1500);
+      });
+
+      document.querySelectorAll("[data-complete-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const row = button.closest(".action-row");
+          const title = row.querySelector("strong").textContent;
+          row.remove();
+          const count = document.querySelector("[data-action-count]");
+          count.textContent = String(document.querySelectorAll("[data-complete-action]").length);
+          if (Number(count.textContent) === 0) {
+            document.querySelector("[data-action-list]").innerHTML = '<div class="dashboard-empty"><span aria-hidden="true">✓</span><strong>Всё спокойно</strong><small>Заявок, требующих вашей реакции, сейчас нет.</small></div>';
+          }
+          showToast("Действие выполнено: " + title);
+        });
+      });
+
+      const requestCards = [...document.querySelectorAll("[data-request-card]")];
+      const requestSearch = document.querySelector("[data-request-search]");
+      const requestTypeSelect = document.querySelector("[data-request-type-select]");
+      const requestStatusSelect = document.querySelector("[data-request-status-select]");
+      const requestEmpty = document.querySelector("[data-request-empty]");
+
+      const filterRequests = () => {
+        const query = requestSearch.value.trim().toLocaleLowerCase("ru");
+        const type = requestTypeSelect.dataset.value;
+        const status = requestStatusSelect.dataset.value;
+        let visibleCount = 0;
+        requestCards.forEach((card) => {
+          const visible = (!query || card.dataset.search.includes(query))
+            && (type === "all" || card.dataset.type === type)
+            && (status === "all" || card.dataset.status === status);
+          card.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+        requestEmpty.hidden = visibleCount !== 0;
+      };
+      requestSearch.addEventListener("input", filterRequests);
+      requestTypeSelect.addEventListener("selectchange", filterRequests);
+      requestStatusSelect.addEventListener("selectchange", filterRequests);
+
+      let collectionFilter = "all";
+      const collectionTabs = document.querySelector("[data-collection-tabs]");
+      const updateCollection = () => {
+        const items = [...document.querySelectorAll("[data-item]")];
+        items.forEach((item) => {
+          const isFavorite = item.querySelector("[data-favorite]").dataset.favorite === "true";
+          const visible = collectionFilter === "all"
+            || (collectionFilter === "favorites" && isFavorite)
+            || (collectionFilter === "recent" && item.dataset.recent === "true");
+          item.dataset.hidden = String(!visible);
+        });
+        const favoriteCount = items.filter((item) => item.querySelector("[data-favorite]").dataset.favorite === "true").length;
+        document.querySelector("[data-favorite-count]").textContent = String(favoriteCount);
+        document.querySelector("[data-favorite-caption]").textContent = "Избранное: " + favoriteCount;
+      };
+      collectionTabs.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-filter]");
+        if (!button) return;
+        collectionFilter = button.dataset.filter;
+        collectionTabs.querySelectorAll("button").forEach((item) => {
+          item.dataset.active = String(item === button);
+        });
+        updateCollection();
+      });
+      document.querySelectorAll("[data-favorite]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const next = button.dataset.favorite !== "true";
+          button.dataset.favorite = String(next);
+          button.setAttribute("aria-label", next ? "Убрать из избранного" : "Добавить в избранное");
+          updateCollection();
+        });
+      });
+
+      const notificationTabs = document.querySelector("[data-notification-tabs]");
+      let notificationFilter = "all";
+      const updateNotifications = () => {
+        document.querySelectorAll("[data-notification]").forEach((row) => {
+          row.dataset.hidden = String(notificationFilter === "unread" && row.dataset.unread !== "true");
+        });
+        const unread = document.querySelectorAll("[data-notification][data-unread='true']").length;
+        document.querySelector("[data-unread-count]").textContent = String(unread);
+      };
+      notificationTabs.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-filter]");
+        if (!button) return;
+        notificationFilter = button.dataset.filter;
+        notificationTabs.querySelectorAll("button").forEach((item) => {
+          item.dataset.active = String(item === button);
+        });
+        updateNotifications();
+      });
+
+      const soundToggle = document.querySelector("[data-sound-toggle]");
+      const audio = document.querySelector("[data-notification-audio]");
+      let soundEnabled = true;
+      soundToggle.addEventListener("click", () => {
+        soundEnabled = !soundEnabled;
+        soundToggle.textContent = soundEnabled ? "Звук: вкл" : "Звук: выкл";
+        soundToggle.setAttribute("aria-pressed", String(soundEnabled));
+        showToast(soundEnabled ? "Звук уведомлений включён." : "Звук уведомлений отключён.");
+      });
+      document.querySelector("[data-new-notification]").addEventListener("click", () => {
+        if (soundEnabled) {
+          audio.currentTime = 0;
+          audio.volume = 0.55;
+          audio.play().catch(() => undefined);
+        }
+        showToast(soundEnabled ? "Новое уведомление: звук воспроизведён." : "Новое уведомление: звук отключён.");
+      });
+
+      document.querySelector("[data-export-csv]").addEventListener("click", () => {
+        const rows = [
+          ["Дата", "Событие", "Исполнитель", "Коллектив"],
+          ["23.07.2026 23:54", "Пополнение: Железная руда +42", "RedAugenblick", "Squirt Squad"],
+          ["23.07.2026 23:48", "Крафт взят в работу", "Tenguu", "Общий банк"],
+          ["23.07.2026 23:37", "Выдача древней монеты одобрена", "Roodi", "Squirt Spark"]
+        ];
+        const csv = "\uFEFF" + rows.map((row) => row.map((cell) => '"' + cell.replaceAll('"', '""') + '"').join(",")).join("\r\n");
+        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "portal-audit-demo-2026-07-24.csv";
+        anchor.click();
+        URL.revokeObjectURL(url);
+        showToast("CSV с текущей демонстрационной выборкой подготовлен.");
+      });
+    })();
+  </script>
+</body>
+</html>
