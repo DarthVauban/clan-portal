@@ -148,6 +148,8 @@ export type LocalizedRewardItem = QuestRewardItem & {
   description: string;
   quality: string;
   tier: number;
+  image: string;
+  fallbackImage: string;
 };
 
 export type LocalizedRewardGroup = Omit<QuestRewardGroup, "items"> & {

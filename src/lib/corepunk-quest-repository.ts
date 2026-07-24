@@ -19,6 +19,7 @@ import type {
 const dataset = sourceJson as unknown as CorepunkQuestDataset;
 const translations = (translationJson as { translations: Record<string, string> }).translations;
 const questBySlug = new Map(dataset.quests.map((quest) => [quest.slug, quest]));
+const questAssetBase = "https://d2fwno52vggyhx.cloudfront.net";
 
 function translate(value: string | null | undefined) {
   if (!value) return "";
@@ -31,6 +32,13 @@ function humanizeSlug(slug: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function rewardAssetSlug(slug: string) {
+  return slug
+    .replace(/^br(?=implant-)/, "")
+    .replace(/^m(?=(?:implant|weapon)-)/, "")
+    .replace(/^implant-implant-/, "implant-");
 }
 
 function npcName(slug: string) {
@@ -78,6 +86,8 @@ const unlockMap = buildUnlockMap();
 function localizeRewardItem(item: QuestRewardItem): LocalizedRewardItem {
   const related = dataset.items[item.item];
   const nameEn = related?.name ?? humanizeSlug(item.item);
+  const assetType = related?.type ?? item.type;
+  const assetSlug = rewardAssetSlug(related?.slug ?? item.item);
   return {
     ...item,
     nameEn,
@@ -85,6 +95,8 @@ function localizeRewardItem(item: QuestRewardItem): LocalizedRewardItem {
     description: translate(related?.description ?? ""),
     quality: related?.quality ?? "common",
     tier: related?.tier ?? 0,
+    image: `/game-assets/items/${assetType}/${assetSlug}.png`,
+    fallbackImage: `${questAssetBase}/items/${assetType}/${assetSlug}.png`,
   };
 }
 
@@ -154,8 +166,4 @@ export function getQuestCatalog(): QuestCatalog {
 export function getQuestBySlug(slug: string) {
   const quest = questBySlug.get(slug);
   return quest ? localizeQuest(quest) : null;
-}
-
-export function getQuestSourceUpdatedAt() {
-  return dataset.source.scrapedAt;
 }

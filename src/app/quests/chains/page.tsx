@@ -35,11 +35,6 @@ export default function QuestChainsPage() {
       </section>
 
       <QuestChainExplorer chains={catalog.chains} locations={catalog.locations} />
-
-      <p className={styles.sourceNote}>
-        Данные импортированы из <a href="https://corepunk.help/quests/chains" target="_blank" rel="noreferrer">Corepunk Help</a>.
-        Названия, цели и описания переведены и адаптированы для портала; английские оригиналы сохранены рядом для точного поиска.
-      </p>
     </div>
   );
 }

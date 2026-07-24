@@ -12,11 +12,12 @@ import {
   Search,
   UserRound,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LocalizedQuestChain, LocalizedQuestChainNode } from "@/lib/corepunk-quest-data";
 import styles from "@/app/quests/quests.module.css";
 
 type SortMode = "size" | "level" | "name";
+const SELECTED_CHAIN_STORAGE_KEY = "clan-portal:selected-quest-chain";
 
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase("ru");
@@ -71,6 +72,16 @@ export function QuestChainExplorer({ chains, locations }: { chains: LocalizedQue
   const [selectedRoot, setSelectedRoot] = useState(chains[0]?.rootSlug ?? "");
   const [expandAll, setExpandAll] = useState(false);
   const indexedChains = useMemo(() => new Map(chains.map((chain) => [chain.rootSlug, chainSearchText(chain)])), [chains]);
+  useEffect(() => {
+    try {
+      const storedRoot = window.localStorage.getItem(SELECTED_CHAIN_STORAGE_KEY);
+      if (storedRoot && chains.some((chain) => chain.rootSlug === storedRoot)) {
+        setSelectedRoot(storedRoot);
+      }
+    } catch {
+      // Storage can be unavailable in restricted browser contexts.
+    }
+  }, [chains]);
   const filteredChains = useMemo(() => {
     const normalizedQuery = normalize(query);
     return chains
@@ -133,6 +144,11 @@ export function QuestChainExplorer({ chains, locations }: { chains: LocalizedQue
                   onClick={() => {
                     setSelectedRoot(chain.rootSlug);
                     setExpandAll(false);
+                    try {
+                      window.localStorage.setItem(SELECTED_CHAIN_STORAGE_KEY, chain.rootSlug);
+                    } catch {
+                      // The active selection still works when storage is unavailable.
+                    }
                   }}
                 >
                   <span className={styles.chainIndex}>{String(index + 1).padStart(2, "0")}</span>

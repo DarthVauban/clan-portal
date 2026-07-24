@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "d2fwno52vggyhx.cloudfront.net",
+        pathname: "/items/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

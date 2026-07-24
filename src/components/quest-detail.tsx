@@ -5,17 +5,15 @@ import {
   CheckCircle2,
   CircleDot,
   Coins,
-  ExternalLink,
   Gift,
   MapPin,
   MessageSquareQuote,
-  Package,
-  ScrollText,
   Sparkles,
   Star,
   UserCheck,
   UserRound,
 } from "lucide-react";
+import { QuestRewardImage } from "@/components/quest-reward-image";
 import { QuestSectionNav } from "@/components/quest-section-nav";
 import type { LocalizedQuest, LocalizedRewardItem } from "@/lib/corepunk-quest-data";
 import styles from "@/app/quests/quests.module.css";
@@ -47,7 +45,9 @@ const rewardTypeLabels: Record<string, string> = {
 function RewardItem({ item }: { item: LocalizedRewardItem }) {
   const content = (
     <>
-      <span className={styles.rewardItemIcon}><Package size={17} /></span>
+      <span className={styles.rewardItemIcon}>
+        <QuestRewardImage image={item.image} fallbackImage={item.fallbackImage} alt="" />
+      </span>
       <span className={styles.rewardItemCopy}>
         <strong>{item.name}</strong>
         {item.name !== item.nameEn && <small>{item.nameEn}</small>}
@@ -89,10 +89,9 @@ function QuestLinks({ title, empty, links, direction }: {
   );
 }
 
-export function QuestDetail({ quest, sourceUpdatedAt }: { quest: LocalizedQuest; sourceUpdatedAt: string }) {
+export function QuestDetail({ quest }: { quest: LocalizedQuest }) {
   const rewardCount = (quest.rewards?.items.length ?? 0)
     + (quest.rewards?.itemGroups.reduce((total, group) => total + group.items.length, 0) ?? 0);
-  const sourceDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(sourceUpdatedAt));
 
   return (
     <div className="page-stack">
@@ -149,7 +148,7 @@ export function QuestDetail({ quest, sourceUpdatedAt }: { quest: LocalizedQuest;
                   </li>
                 ))}
               </ol>
-            ) : <p className={styles.emptyCopy}>У источника пока нет подробного списка целей.</p>}
+            ) : <p className={styles.emptyCopy}>Подробный список целей пока не заполнен.</p>}
           </section>
 
           {quest.voice && (
@@ -186,7 +185,7 @@ export function QuestDetail({ quest, sourceUpdatedAt }: { quest: LocalizedQuest;
             ))}
 
             {!quest.rewards || (!rewardCount && !quest.rewards.gold && !quest.rewards.xp)
-              ? <p className={styles.emptyCopy}>Информация о наградах у источника пока не заполнена.</p>
+              ? <p className={styles.emptyCopy}>Информация о наградах пока не заполнена.</p>
               : null}
           </section>
         </main>
@@ -204,17 +203,6 @@ export function QuestDetail({ quest, sourceUpdatedAt }: { quest: LocalizedQuest;
             links={quest.unlocks}
             direction="forward"
           />
-          <section className={styles.sourceCard}>
-            <ScrollText size={17} />
-            <div>
-              <span>Источник данных</span>
-              <strong>Corepunk Help</strong>
-              <small>Снимок обновлён {sourceDate}</small>
-            </div>
-            <Link href={`https://corepunk.help/quests/${quest.slug}`} target="_blank" rel="noreferrer" aria-label="Открыть страницу-источник">
-              <ExternalLink size={15} />
-            </Link>
-          </section>
         </aside>
       </div>
     </div>
