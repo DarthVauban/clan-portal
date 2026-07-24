@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "scrape:test-item": "node scripts/scrape-corepunk-item.mjs implant-arcane-buster-t3",
     "scrape:items": "node scripts/scrape-corepunk-items.mjs",
-    "translate:items": "node scripts/translate-corepunk-items.mjs"
+    "translate:items": "node scripts/translate-corepunk-items.mjs",
+    "scrape:quest-chains": "node scripts/scrape-corepunk-quest-chains.mjs",
+    "translate:quest-chains": "node scripts/translate-corepunk-quest-chains.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

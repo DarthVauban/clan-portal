@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
   Bell,
+  BookOpenCheck,
   Calculator,
   CheckCheck,
   Check,
@@ -60,6 +61,7 @@ const utilityNavigation = [
 ];
 
 const informationNavigation = [
+  { href: "/quests", label: "Квесты", icon: BookOpenCheck },
   { href: "/patch-notes", label: "Патчноуты", icon: Newspaper },
 ];
 
@@ -104,7 +106,7 @@ function AccessDenied({ revoked = false, pendingApproval = false }: { revoked?: 
         {revoked
           ? "Профиль игрока был удалён администратором или лидером клана."
           : pendingApproval
-            ? "До принятия в коллектив доступны главная страница, заявка на вступление и патчноуты."
+            ? "До принятия в коллектив доступны главная страница, заявка на вступление, квесты и патчноуты."
             : "Этот раздел доступен только игрокам, состоящим в одном из коллективов, а также администрации клана."}
       </p>
       {!revoked && <Link href={pendingApproval ? "/requests/membership" : "/collectives"}>{pendingApproval ? "Перейти к заявке" : "Перейти к коллективам"}</Link>}
@@ -297,7 +299,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
   const collectiveAccess = absoluteRights || Boolean(membership);
   const canRenamePortal = absoluteRights && auth.stage === "registered";
-  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership") || pathname.startsWith("/patch-notes");
+  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership") || pathname.startsWith("/quests") || pathname.startsWith("/patch-notes");
   const pendingRestrictedRoute = !collectiveAccess && !pendingAllowedRoute;
   const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
   const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
