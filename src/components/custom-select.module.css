@@ -76,12 +76,8 @@
 }
 
 .menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 120;
-  width: max(100%, 210px);
-  max-height: min(280px, 54vh);
+  position: fixed;
+  z-index: 1000;
   display: grid;
   gap: 4px;
   overflow-y: auto;
@@ -93,6 +89,14 @@
     rgba(13,16,20,.98);
   box-shadow: 0 18px 52px rgba(0,0,0,.44);
   backdrop-filter: blur(18px);
+}
+
+.menu[data-placement="top"] {
+  transform-origin: bottom center;
+}
+
+.menu[data-placement="bottom"] {
+  transform-origin: top center;
 }
 
 .option {
@@ -149,9 +153,13 @@
   font-size: 10px;
 }
 
-.compact .option {
+.menuCompact .option {
   min-height: 30px;
   font-size: 10px;
+}
+
+.menuRegular .option {
+  min-height: 34px;
 }
 
 .regular .trigger {
