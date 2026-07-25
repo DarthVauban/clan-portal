@@ -78,8 +78,11 @@ type MaterialEntry = BuilderReferenceItem & {
 
 type BuilderSection = "gear" | "talents" | "mastery" | "materials";
 
-const DRAFT_KEY = "clan-portal:character-builder-draft:v2";
-const LEGACY_DRAFT_KEY = "clan-portal:character-builder-draft:v1";
+const DRAFT_KEY = "clan-portal:character-builder-draft:v3";
+const LEGACY_DRAFT_KEYS = [
+  "clan-portal:character-builder-draft:v2",
+  "clan-portal:character-builder-draft:v1",
+];
 
 const slotMeta: Record<BuilderSlotId, { label: string; shortLabel: string; type: BuilderEquipmentItem["type"] }> = {
   "weapon-primary": { label: "Оружие", shortLabel: "Оружие", type: "weapon" },
@@ -106,7 +109,7 @@ const recipeByQuality: Record<BuilderQuality, "regular" | "upgraded" | "overcloc
   epic: "overclocked",
 };
 
-const secondaryStatOptions = ["health", "mana", "armor", "mr", "wd", "sp", "as", "hasp", "pcc", "mcc", "ppen", "mpen"];
+const secondaryStatOptions = [...new Set(builderStatGroups.flatMap((group) => [...group.stats]))];
 
 const sections: Array<{ id: BuilderSection; label: string; icon: typeof Swords }> = [
   { id: "gear", label: "Экипировка", icon: Swords },
@@ -123,6 +126,54 @@ function formatNumber(value: number) {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function getStatImage(dataset: CharacterBuilderDataset, stat: string) {
+  return dataset.stats[stat]?.image || `/game-assets/stats/${stat}.png`;
+}
+
+function getSecondaryStatLimit(item: BuilderEquipmentItem | null, quality: BuilderQuality) {
+  if (!item || item.type !== "implant") return 0;
+  if (item.tier >= 3) return 3;
+  if (quality === "epic") return 5;
+  if (quality === "rare") return 4;
+  return 3;
+}
+
+function createPrimaryStatValues(item: BuilderEquipmentItem, quality: BuilderQuality, roll = 100) {
+  const variation = getVariation(item, quality);
+  return Object.fromEntries((variation?.stats ?? []).map((stat) => [
+    stat.type,
+    Math.round((stat.min + (stat.max - stat.min) * (roll / 100)) * 1000) / 1000,
+  ]));
+}
+
+function getDiamondCount(value: number, minimum: number, maximum: number) {
+  if (value <= 0) return 0;
+  const safeMaximum = maximum > minimum ? maximum : Math.max(1, value);
+  const progress = maximum > minimum
+    ? (value - minimum) / (safeMaximum - minimum)
+    : value / safeMaximum;
+  return clamp(Math.ceil(progress * 5), 1, 5);
+}
+
+function StatDiamonds({
+  value,
+  minimum = 0,
+  maximum = 100,
+}: {
+  value: number;
+  minimum?: number;
+  maximum?: number;
+}) {
+  const filled = getDiamondCount(value, minimum, maximum);
+  return (
+    <span className={styles.statDiamonds} aria-label={`Заполнено отметок: ${filled} из 5`}>
+      {Array.from({ length: 5 }, (_, index) => (
+        <i key={index} className={index < filled ? styles.statDiamondFilled : ""} />
+      ))}
+    </span>
+  );
 }
 
 type MasteryGridNode = BuilderMasteryNode & {
@@ -694,11 +745,52 @@ function StatValue({
   return (
     <div className={styles.statRow}>
       <span className={styles.statIdentity}>
-        {asset?.image ? <LoadableImage src={asset.image} alt="" width={22} height={22} /> : <Zap size={18} />}
-        <span>{asset?.label || fallbackStatLabels[stat] || stat.toUpperCase()}</span>
+        <LoadableImage src={getStatImage(dataset, stat)} alt="" width={22} height={22} />
+        <span>{fallbackStatLabels[stat] || asset?.label || stat.toUpperCase()}</span>
       </span>
       <strong>{formatNumber(value)}</strong>
     </div>
+  );
+}
+
+function StatValueEditor({
+  dataset,
+  stat,
+  value,
+  minimum = 0,
+  maximum = 100,
+  onChange,
+}: {
+  dataset: CharacterBuilderDataset;
+  stat: string;
+  value: number;
+  minimum?: number;
+  maximum?: number;
+  onChange: (value: number) => void;
+}) {
+  const asset = dataset.stats[stat];
+  return (
+    <label className={styles.statValueEditor}>
+      <span className={styles.statEditorIdentity}>
+        <LoadableImage src={getStatImage(dataset, stat)} alt="" width={25} height={25} />
+        <span>
+          <strong>{fallbackStatLabels[stat] || asset?.label || stat.toUpperCase()}</strong>
+          {maximum > minimum && <small>Ориентир предмета: {formatNumber(minimum)}–{formatNumber(maximum)}</small>}
+        </span>
+      </span>
+      <StatDiamonds value={value} minimum={minimum} maximum={maximum} />
+      <span className={styles.statNumberInput}>
+        <input
+          type="number"
+          min={0}
+          max={1_000_000}
+          step="any"
+          value={Number.isFinite(value) ? value : 0}
+          onChange={(event) => onChange(clamp(Number(event.target.value) || 0, 0, 1_000_000))}
+          aria-label={`Значение: ${fallbackStatLabels[stat] || asset?.label || stat}`}
+        />
+      </span>
+    </label>
   );
 }
 
@@ -854,7 +946,9 @@ export function CharacterBuilder({
     if (initialBuild?.buildData) return initialBuild.buildData;
     if (!readOnly && typeof window !== "undefined") {
       try {
-        const draft = window.localStorage.getItem(DRAFT_KEY) ?? window.localStorage.getItem(LEGACY_DRAFT_KEY);
+        const draft = window.localStorage.getItem(DRAFT_KEY)
+          ?? LEGACY_DRAFT_KEYS.map((key) => window.localStorage.getItem(key)).find(Boolean)
+          ?? null;
         const normalized = draft ? normalizeCharacterBuildState(JSON.parse(draft)) : null;
         if (normalized) return normalized;
       } catch {
@@ -870,6 +964,7 @@ export function CharacterBuilder({
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerTier, setPickerTier] = useState("all");
   const [pickerQuality, setPickerQuality] = useState<BuilderQuality>("epic");
+  const [activeStatGroup, setActiveStatGroup] = useState<(typeof builderStatGroups)[number]["id"]>("physical");
   const [showSaved, setShowSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -885,7 +980,7 @@ export function CharacterBuilder({
   useEffect(() => {
     if (readOnly) return;
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
-    window.localStorage.removeItem(LEGACY_DRAFT_KEY);
+    LEGACY_DRAFT_KEYS.forEach((key) => window.localStorage.removeItem(key));
   }, [readOnly, state]);
 
   useEffect(() => {
@@ -1000,10 +1095,13 @@ export function CharacterBuilder({
       const item = equipmentMap.get(selection.itemSlug);
       const variation = item ? getVariation(item, selection.quality) : null;
       for (const stat of variation?.stats ?? []) {
-        const value = stat.min + (stat.max - stat.min) * (selection.roll / 100);
+        const value = selection.primaryStatValues[stat.type]
+          ?? stat.min + (stat.max - stat.min) * (selection.roll / 100);
         values[stat.type] = (values[stat.type] ?? 0) + value;
       }
-      for (const secondary of selection.secondaryStats) values[secondary] = (values[secondary] ?? 0) + 3;
+      for (const secondary of selection.secondaryStats) {
+        values[secondary] = (values[secondary] ?? 0) + (selection.secondaryStatValues[secondary] ?? 0);
+      }
     }
     for (const archetype of builderArchetypes) {
       const ranks = archetype.nodes.reduce((sum, node) => sum + (state.talentRanks[node.id] ?? 0), 0);
@@ -1017,6 +1115,24 @@ export function CharacterBuilder({
   const masteryAllocation = getMasteryAllocation(state.masteryRanks);
   const masteryLevelPoints = getMasteryLevelPoints(state.masteryRanks);
   const pickerSelection = pickerSlot ? getSelection(state, pickerSlot) : null;
+  const pickerItem = pickerSelection ? equipmentMap.get(pickerSelection.itemSlug) ?? null : null;
+  const pickerVariation = pickerItem && pickerSelection ? getVariation(pickerItem, pickerSelection.quality) : null;
+  const pickerSecondaryLimit = getSecondaryStatLimit(pickerItem, pickerSelection?.quality ?? pickerQuality);
+  const activeStats = builderStatGroups.find((group) => group.id === activeStatGroup)?.stats ?? builderStatGroups[0].stats;
+  const statRanges = useMemo(() => {
+    const ranges: Record<string, { minimum: number; maximum: number }> = {};
+    for (const item of dataset.equipment) {
+      for (const variation of item.variations) {
+        for (const stat of variation.stats) {
+          const current = ranges[stat.type];
+          ranges[stat.type] = current
+            ? { minimum: Math.min(current.minimum, stat.min), maximum: Math.max(current.maximum, stat.max) }
+            : { minimum: stat.min, maximum: stat.max };
+        }
+      }
+    }
+    return ranges;
+  }, [dataset.equipment]);
 
   const updateSelection = (slotId: BuilderSlotId, selection: BuilderItemSelection | null) => {
     setState((current) => {
@@ -1264,7 +1380,12 @@ export function CharacterBuilder({
         <span className={styles.slotText}>
           <small>{slotMeta[slotId].label}</small>
           <strong>{item?.name || "Выбрать предмет"}</strong>
-          {selection && <em>{qualityLabels[selection.quality]} · {selection.roll}% характеристик</em>}
+          {selection && (
+            <em>
+              {qualityLabels[selection.quality]}
+              {item?.type === "implant" ? ` · ${selection.secondaryStats.length} доп. хар.` : ""}
+            </em>
+          )}
         </span>
         {!readOnly && <ChevronRight size={18} />}
       </button>
@@ -1468,17 +1589,33 @@ export function CharacterBuilder({
                   <p>Оружейный комплект {state.activeSet === "one" ? "I" : "II"} + общий набор артефактов.</p>
                 </div>
               </div>
-              <div className={styles.statsGroups}>
-                {builderStatGroups.map((group) => {
-                  const visibleStats = group.stats.filter((stat) => Math.abs(stats[stat] ?? 0) > 0.01);
-                  if (visibleStats.length === 0) return null;
-                  return (
-                    <div className={styles.statGroup} key={group.id}>
-                      <h3>{group.label}</h3>
-                      {visibleStats.map((stat) => <StatValue key={stat} stat={stat} value={stats[stat] ?? 0} dataset={dataset} />)}
-                    </div>
-                  );
-                })}
+              <div className={styles.statsOverview}>
+                {(["health", "mana", "armor", "wd"] as const).map((stat) => (
+                  <StatValue key={stat} stat={stat} value={stats[stat] ?? 0} dataset={dataset} />
+                ))}
+              </div>
+              <div className={styles.statGroupTabs} role="tablist" aria-label="Группы характеристик">
+                {builderStatGroups.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeStatGroup === group.id}
+                    className={activeStatGroup === group.id ? styles.statGroupTabActive : ""}
+                    onClick={() => setActiveStatGroup(group.id)}
+                  >
+                    <LoadableImage src={getStatImage(dataset, group.icon)} alt="" width={21} height={21} />
+                    <span>{group.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className={styles.statsGroups} role="tabpanel">
+                <div className={styles.statGroup}>
+                  <h3>{builderStatGroups.find((group) => group.id === activeStatGroup)?.label}</h3>
+                  {activeStats.map((stat) => (
+                    <StatValue key={stat} stat={stat} value={stats[stat] ?? 0} dataset={dataset} />
+                  ))}
+                </div>
               </div>
             </aside>
           </section>
@@ -1900,7 +2037,7 @@ export function CharacterBuilder({
 
       {pickerSlot && !readOnly && (
         <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setPickerSlot(null)}>
-          <section className={styles.pickerModal} role="dialog" aria-modal="true" aria-label={`Выбор: ${slotMeta[pickerSlot].label}`} onMouseDown={(event) => event.stopPropagation()}>
+          <section className={`${styles.pickerModal}${pickerSelection ? ` ${styles.pickerModalEditing}` : ""}`} role="dialog" aria-modal="true" aria-label={`Выбор: ${slotMeta[pickerSlot].label}`} onMouseDown={(event) => event.stopPropagation()}>
             <header className={styles.modalHeader}>
               <div><span className={styles.eyebrow}>Выбор экипировки</span><h2>{slotMeta[pickerSlot].label}</h2></div>
               <button type="button" onClick={() => setPickerSlot(null)} aria-label="Закрыть"><X size={22} /></button>
@@ -1912,7 +2049,22 @@ export function CharacterBuilder({
               </label>
               <CustomSelect
                 value={pickerQuality}
-                onChange={(value) => setPickerQuality(value as BuilderQuality)}
+                onChange={(value) => {
+                  const quality = value as BuilderQuality;
+                  setPickerQuality(quality);
+                  if (!pickerSelection || !pickerItem) return;
+                  const secondaryLimit = getSecondaryStatLimit(pickerItem, quality);
+                  const secondaryStats = pickerSelection.secondaryStats.slice(0, secondaryLimit);
+                  updateSelection(pickerSlot, {
+                    ...pickerSelection,
+                    quality,
+                    secondaryStats,
+                    primaryStatValues: createPrimaryStatValues(pickerItem, quality, pickerSelection.roll),
+                    secondaryStatValues: Object.fromEntries(
+                      secondaryStats.map((stat) => [stat, pickerSelection.secondaryStatValues[stat] ?? 0]),
+                    ),
+                  });
+                }}
                 options={builderQualities.map((quality) => ({ value: quality, label: qualityLabels[quality] }))}
                 ariaLabel="Качество предмета"
                 startIcon={<Gem size={16} />}
@@ -1956,6 +2108,10 @@ export function CharacterBuilder({
                         quality: pickerQuality,
                         roll: equipped ? pickerSelection?.roll ?? 100 : 100,
                         secondaryStats: equipped ? pickerSelection?.secondaryStats ?? [] : [],
+                        primaryStatValues: equipped
+                          ? pickerSelection?.primaryStatValues ?? createPrimaryStatValues(item, pickerQuality)
+                          : createPrimaryStatValues(item, pickerQuality),
+                        secondaryStatValues: equipped ? pickerSelection?.secondaryStatValues ?? {} : {},
                       });
                     }}
                   >
@@ -1973,58 +2129,115 @@ export function CharacterBuilder({
             </div>
             {pickerSelection && (
               <>
-                {slotMeta[pickerSlot].type === "implant" && (
-                  <div className={styles.secondaryStatPicker}>
-                    <div>
-                      <strong>Дополнительные характеристики</strong>
-                      <span>Выберите до трёх бонусов для артефакта</span>
+                <div className={styles.pickerStatWorkspace}>
+                  <section className={styles.primaryStatEditor}>
+                    <div className={styles.statEditorHeading}>
+                      <div>
+                        <span>Основные характеристики</span>
+                        <strong>Значения предмета</strong>
+                      </div>
+                      <small>Введите фактические значения с предмета — они сразу попадут в живой расчёт.</small>
                     </div>
-                    <div>
-                      {secondaryStatOptions.map((stat) => {
-                        const selection = getSelection(state, pickerSlot);
-                        const selected = selection?.secondaryStats.includes(stat) ?? false;
-                        const asset = dataset.stats[stat];
-                        return (
-                          <button
-                            type="button"
-                            className={selected ? styles.secondaryStatActive : ""}
-                            key={stat}
-                            onClick={() => {
-                              if (!selection) return;
-                              const secondaryStats = selected
-                                ? selection.secondaryStats.filter((entry) => entry !== stat)
-                                : selection.secondaryStats.length < 3
-                                  ? [...selection.secondaryStats, stat]
-                                  : selection.secondaryStats;
-                              updateSelection(pickerSlot, { ...selection, secondaryStats });
-                            }}
-                          >
-                            {asset?.image ? <LoadableImage src={asset.image} alt="" width={20} height={20} /> : <Zap size={16} />}
-                            {asset?.label || fallbackStatLabels[stat] || stat.toUpperCase()}
-                            {selected && <Check size={15} />}
-                          </button>
-                        );
-                      })}
+                    <div className={styles.statEditorGrid}>
+                      {(pickerVariation?.stats ?? []).map((stat) => (
+                        <StatValueEditor
+                          key={stat.type}
+                          dataset={dataset}
+                          stat={stat.type}
+                          value={pickerSelection.primaryStatValues[stat.type]
+                            ?? stat.min + (stat.max - stat.min) * (pickerSelection.roll / 100)}
+                          minimum={stat.min}
+                          maximum={stat.max}
+                          onChange={(value) => updateSelection(pickerSlot, {
+                            ...pickerSelection,
+                            primaryStatValues: { ...pickerSelection.primaryStatValues, [stat.type]: value },
+                          })}
+                        />
+                      ))}
+                      {(pickerVariation?.stats.length ?? 0) === 0 && (
+                        <div className={styles.statEditorEmpty}>У выбранной версии предмета нет основных характеристик.</div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  </section>
+
+                  {slotMeta[pickerSlot].type === "implant" && (
+                    <section className={styles.secondaryStatEditor}>
+                      <div className={styles.statEditorHeading}>
+                        <div>
+                          <span>Дополнительные характеристики</span>
+                          <strong>{pickerSelection.secondaryStats.length} / {pickerSecondaryLimit}</strong>
+                        </div>
+                        <small>
+                          {pickerItem?.tier === 3
+                            ? "Артефакты 3-го тира всегда получают не более трёх дополнительных характеристик."
+                            : `${qualityLabels[pickerSelection.quality]} артефакт ${pickerItem?.tier ?? "—"}-го тира: доступно до ${pickerSecondaryLimit}.`}
+                        </small>
+                      </div>
+                      <div className={styles.secondaryStatGroups}>
+                        {builderStatGroups.map((group) => {
+                          const primaryStats = new Set((pickerVariation?.stats ?? []).map((stat) => stat.type));
+                          const options = group.stats.filter((stat) => secondaryStatOptions.includes(stat) && !primaryStats.has(stat));
+                          if (options.length === 0) return null;
+                          return (
+                            <div key={group.id} className={styles.secondaryStatGroup}>
+                              <strong>{group.label}</strong>
+                              <div>
+                                {options.map((stat) => {
+                                  const selected = pickerSelection.secondaryStats.includes(stat);
+                                  const disabled = !selected && pickerSelection.secondaryStats.length >= pickerSecondaryLimit;
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled={disabled}
+                                      className={selected ? styles.secondaryStatActive : ""}
+                                      key={stat}
+                                      onClick={() => {
+                                        const secondaryStats = selected
+                                          ? pickerSelection.secondaryStats.filter((entry) => entry !== stat)
+                                          : [...pickerSelection.secondaryStats, stat].slice(0, pickerSecondaryLimit);
+                                        const secondaryStatValues = { ...pickerSelection.secondaryStatValues };
+                                        if (selected) delete secondaryStatValues[stat];
+                                        else secondaryStatValues[stat] = 0;
+                                        updateSelection(pickerSlot, { ...pickerSelection, secondaryStats, secondaryStatValues });
+                                      }}
+                                    >
+                                      <LoadableImage src={getStatImage(dataset, stat)} alt="" width={20} height={20} />
+                                      <span>{fallbackStatLabels[stat] || dataset.stats[stat]?.label || stat.toUpperCase()}</span>
+                                      {selected && <Check size={15} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {pickerSelection.secondaryStats.length > 0 && (
+                        <div className={styles.selectedSecondaryStats}>
+                          {pickerSelection.secondaryStats.map((stat) => (
+                            <StatValueEditor
+                              key={stat}
+                              dataset={dataset}
+                              stat={stat}
+                              value={pickerSelection.secondaryStatValues[stat] ?? 0}
+                              minimum={statRanges[stat]?.minimum ?? 0}
+                              maximum={statRanges[stat]?.maximum ?? 100}
+                              onChange={(value) => updateSelection(pickerSlot, {
+                                ...pickerSelection,
+                                secondaryStatValues: { ...pickerSelection.secondaryStatValues, [stat]: value },
+                              })}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </div>
                 <footer className={styles.pickerInspector}>
-                  <div>
-                    <span>Качество характеристик</span>
-                    <strong>{pickerSelection.roll}%</strong>
+                  <div className={styles.pickerInspectorSummary}>
+                    <StatDiamonds value={5} minimum={0} maximum={5} />
+                    <span>Все значения сохраняются вместе с билдом и доступны по общей ссылке.</span>
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={pickerSelection.roll}
-                    onChange={(event) => {
-                      const selection = getSelection(state, pickerSlot);
-                      if (selection) updateSelection(pickerSlot, { ...selection, roll: Number(event.target.value) });
-                    }}
-                    aria-label="Процент характеристик предмета"
-                  />
                   <button className={styles.primaryButton} type="button" onClick={() => setPickerSlot(null)}>
                     <Check size={17} /> Готово
                   </button>

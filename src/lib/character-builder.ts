@@ -1,4 +1,4 @@
-export const CHARACTER_BUILD_SCHEMA_VERSION = 2;
+export const CHARACTER_BUILD_SCHEMA_VERSION = 3;
 
 export const builderSetIds = ["one", "two"] as const;
 export type BuilderSetId = (typeof builderSetIds)[number];
@@ -98,6 +98,8 @@ export type BuilderItemSelection = {
   quality: BuilderQuality;
   roll: number;
   secondaryStats: string[];
+  primaryStatValues: Record<string, number>;
+  secondaryStatValues: Record<string, number>;
 };
 
 export type BuilderEquipmentSet = Record<BuilderWeaponSlotId, BuilderItemSelection | null>;
@@ -165,6 +167,23 @@ function boundedInteger(value: unknown, minimum: number, maximum: number, fallba
   return Number.isFinite(number) ? Math.min(maximum, Math.max(minimum, Math.round(number))) : fallback;
 }
 
+function normalizeStatValueMap(value: unknown) {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, rawValue]) => {
+        const stat = boundedString(key, 40);
+        const number = Number(rawValue);
+        const safeValue = Number.isFinite(number)
+          ? Math.min(1_000_000, Math.max(0, Math.round(number * 1000) / 1000))
+          : null;
+        return [stat, safeValue] as const;
+      })
+      .filter((entry): entry is [string, number] => Boolean(entry[0]) && entry[1] !== null)
+      .slice(0, 80),
+  );
+}
+
 function normalizeSelection(value: unknown): BuilderItemSelection | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Partial<BuilderItemSelection>;
@@ -181,6 +200,8 @@ function normalizeSelection(value: unknown): BuilderItemSelection | null {
     quality,
     roll: boundedInteger(candidate.roll, 0, 100, 100),
     secondaryStats,
+    primaryStatValues: normalizeStatValueMap(candidate.primaryStatValues),
+    secondaryStatValues: normalizeStatValueMap(candidate.secondaryStatValues),
   };
 }
 

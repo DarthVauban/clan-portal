@@ -514,12 +514,67 @@
 
 .statsPanel {
   align-self: start;
+  overflow: hidden;
+}
+
+.statsOverview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 20px;
+  padding: 10px;
+  border: 1px solid rgba(217, 167, 95, 0.14);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 0 0, rgba(217, 167, 95, 0.08), transparent 46%),
+    rgba(6, 10, 14, 0.42);
+}
+
+.statsOverview .statRow {
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.statGroupTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.statGroupTabs button {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 8px 5px;
+  border: 1px solid rgba(151, 164, 181, 0.13);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.018);
+  color: #84909d;
+  cursor: pointer;
+  font: 750 11px/1.25 inherit;
+  text-align: center;
+  transition: 150ms ease;
+}
+
+.statGroupTabs button:hover,
+.statGroupTabActive {
+  border-color: rgba(217, 167, 95, 0.36) !important;
+  background: rgba(217, 167, 95, 0.08) !important;
+  color: #edc17e !important;
+}
+
+.statGroupTabs img {
+  object-fit: contain;
 }
 
 .statsGroups {
   display: grid;
-  gap: 18px;
-  margin-top: 20px;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(151, 164, 181, 0.12);
 }
 
 .statGroup {
@@ -552,12 +607,19 @@
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
   color: #aab5c0;
   font-size: 13px;
 }
 
 .statIdentity img {
+  flex: 0 0 auto;
   object-fit: contain;
+}
+
+.statIdentity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .statRow strong {
@@ -686,7 +748,7 @@
 
 .archetypeCard em {
   color: var(--archetype-accent);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 800;
   letter-spacing: 0.035em;
@@ -874,7 +936,7 @@
 .selectedTalentHeader p {
   margin: 0;
   color: var(--archetype-accent);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.35;
   text-transform: uppercase;
@@ -1131,7 +1193,7 @@
   margin-top: 11px;
   padding-top: 10px;
   border-top: 1px solid rgba(151, 164, 181, 0.12);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .progressionScale span {
@@ -2127,14 +2189,19 @@
 
 .pickerModal {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-  width: min(1120px, 100%);
-  max-height: min(880px, calc(100vh - 48px));
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  width: min(1220px, 100%);
+  height: min(930px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
   overflow: hidden;
   border: 1px solid rgba(217, 167, 95, 0.24);
   border-radius: 18px;
   background: #11161d;
   box-shadow: 0 32px 90px rgba(0, 0, 0, 0.55);
+}
+
+.pickerModalEditing {
+  grid-template-rows: auto auto auto minmax(150px, 0.8fr) minmax(240px, 1.2fr) auto;
 }
 
 .modalHeader {
@@ -2270,92 +2337,258 @@
 }
 
 .pickerInspector {
-  display: grid;
-  grid-template-columns: 170px minmax(200px, 1fr) auto;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 18px;
   padding: 14px 22px;
   border-top: 1px solid var(--builder-border);
   background: #0d1218;
 }
 
-.pickerInspector > div {
+.pickerInspectorSummary {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  gap: 13px;
   color: #8b97a4;
   font-size: 12px;
 }
 
-.pickerInspector strong {
-  color: #efc37c;
-  font-size: 18px;
-}
-
-.pickerInspector input[type="range"] {
-  accent-color: #d9a75f;
-}
-
-.secondaryStatPicker {
+.pickerStatWorkspace {
   display: grid;
-  grid-template-columns: 210px 1fr;
-  gap: 16px;
-  padding: 14px 22px;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(440px, 1.6fr);
+  min-height: 0;
+  overflow: hidden;
   border-top: 1px solid var(--builder-border);
-  background: rgba(217, 167, 95, 0.025);
+  background: #0d1218;
 }
 
-.secondaryStatPicker > div:first-child {
-  display: grid;
-  align-content: center;
-  gap: 4px;
+.primaryStatEditor,
+.secondaryStatEditor {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 17px 20px;
 }
 
-.secondaryStatPicker > div:first-child strong {
-  color: #e2e8ed;
-  font-size: 13px;
+.secondaryStatEditor {
+  border-left: 1px solid var(--builder-border);
+  background: linear-gradient(135deg, rgba(217, 167, 95, 0.035), transparent 54%);
 }
 
-.secondaryStatPicker > div:first-child span {
-  color: #7d8996;
+.statEditorHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.statEditorHeading > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statEditorHeading > div > span {
+  color: #8693a0;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statEditorHeading > div > strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(217, 167, 95, 0.25);
+  border-radius: 999px;
+  background: rgba(217, 167, 95, 0.08);
+  color: #efc17a;
   font-size: 12px;
 }
 
-.secondaryStatPicker > div:last-child {
+.statEditorHeading small {
+  max-width: 390px;
+  color: #788592;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.statEditorGrid,
+.selectedSecondaryStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.statEditorEmpty {
+  grid-column: 1 / -1;
+  padding: 18px;
+  border: 1px dashed rgba(151, 164, 181, 0.18);
+  border-radius: 10px;
+  color: #778390;
+  font-size: 12px;
+  text-align: center;
+}
+
+.statValueEditor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 86px;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 9px 10px;
+  border: 1px solid rgba(151, 164, 181, 0.14);
+  border-radius: 10px;
+  background: rgba(7, 11, 15, 0.56);
+}
+
+.statEditorIdentity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.statEditorIdentity > img {
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.statEditorIdentity > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.statEditorIdentity strong {
+  overflow: hidden;
+  color: #dce4ea;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statEditorIdentity small {
+  color: #6f7c89;
+  font-size: 11px;
+}
+
+.statNumberInput input {
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(217, 167, 95, 0.24);
+  border-radius: 8px;
+  outline: 0;
+  background: #080d12;
+  color: #f1c781;
+  font: 800 13px/1 inherit;
+  text-align: right;
+}
+
+.statNumberInput input:focus {
+  border-color: rgba(217, 167, 95, 0.58);
+  box-shadow: 0 0 0 2px rgba(217, 167, 95, 0.08);
+}
+
+.statDiamonds {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 3px;
+}
+
+.statDiamonds i {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(217, 167, 95, 0.34);
+  background: #10161d;
+  box-shadow: inset 0 0 0 2px #080d12;
+  transform: rotate(45deg);
+}
+
+.statDiamonds .statDiamondFilled {
+  border-color: #f0c37d;
+  background: linear-gradient(135deg, #f0c37d, #a95e31);
+  box-shadow: 0 0 7px rgba(217, 167, 95, 0.32), inset 0 0 0 1px rgba(8, 13, 18, 0.5);
+}
+
+.secondaryStatGroups {
+  display: grid;
+  gap: 10px;
+}
+
+.secondaryStatGroup {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.secondaryStatGroup > strong {
+  padding-top: 9px;
+  color: #7e8b98;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.secondaryStatGroup > div {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.secondaryStatPicker button {
+.secondaryStatGroup button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 35px;
+  padding: 0 9px;
   border: 1px solid var(--builder-border);
   border-radius: 8px;
-  background: #0d1218;
+  background: #0b1016;
   color: #9aa6b1;
   cursor: pointer;
-  font: 700 12px/1 inherit;
+  font: 700 12px/1.25 inherit;
 }
 
-.secondaryStatPicker button:hover,
+.secondaryStatGroup button:disabled {
+  cursor: not-allowed;
+  opacity: 0.32;
+}
+
+.secondaryStatGroup button:not(:disabled):hover,
 .secondaryStatActive {
   border-color: rgba(217, 167, 95, 0.4) !important;
   background: var(--builder-gold-soft) !important;
   color: #efc37c !important;
 }
 
-.secondaryStatPicker img {
+.secondaryStatGroup img {
+  flex: 0 0 auto;
   object-fit: contain;
+}
+
+.selectedSecondaryStats {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(217, 167, 95, 0.13);
 }
 
 .savedModal {
   grid-template-rows: auto minmax(0, 1fr);
   width: min(820px, 100%);
+  height: auto;
+  max-height: min(760px, calc(100vh - 48px));
 }
 
 .savedList {
@@ -2451,6 +2684,15 @@
   .materialGrid,
   .pickerItems {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statEditorGrid,
+  .selectedSecondaryStats {
+    grid-template-columns: 1fr;
+  }
+
+  .statValueEditor {
+    grid-template-columns: minmax(0, 1fr) auto 78px;
   }
 }
 
@@ -2670,7 +2912,10 @@
   }
 
   .pickerModal {
+    display: block;
     max-height: calc(100vh - 16px);
+    height: auto;
+    overflow-y: auto;
     border-radius: 13px;
   }
 
@@ -2680,6 +2925,7 @@
   }
 
   .pickerItems {
+    max-height: 280px;
     padding: 0 14px 14px;
   }
 
@@ -2690,26 +2936,68 @@
   }
 
   .pickerInspector {
-    grid-template-columns: 1fr;
+    position: sticky;
+    z-index: 3;
+    bottom: 0;
+    align-items: stretch;
+    flex-direction: column;
     gap: 10px;
     padding: 12px 14px;
   }
 
-  .secondaryStatPicker {
+  .pickerStatWorkspace {
     grid-template-columns: 1fr;
-    gap: 9px;
-    padding: 12px 14px;
+    overflow: visible;
   }
 
-  .secondaryStatPicker > div:last-child {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 4px;
+  .primaryStatEditor,
+  .secondaryStatEditor {
+    overflow: visible;
+    padding: 14px;
   }
 
-  .secondaryStatPicker button {
-    flex: 0 0 auto;
-    white-space: nowrap;
+  .secondaryStatEditor {
+    border-top: 1px solid var(--builder-border);
+    border-left: 0;
+  }
+
+  .statEditorHeading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .statEditorHeading small {
+    max-width: none;
+    text-align: left;
+  }
+
+  .secondaryStatGroup {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .secondaryStatGroup > strong {
+    padding-top: 0;
+  }
+
+  .statValueEditor {
+    grid-template-columns: minmax(0, 1fr) 82px;
+  }
+
+  .statDiamonds {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .statNumberInput {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .pickerInspectorSummary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .savedBuild {
