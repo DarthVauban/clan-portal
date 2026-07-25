@@ -823,30 +823,6 @@ a.topItemRow:hover {
   object-fit: contain;
 }
 
-.filterQualityDot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, .025);
-}
-
-.qualityCommon {
-  background: #a9aca8;
-}
-
-.qualityUncommon {
-  background: #6eb987;
-}
-
-.qualityRare {
-  background: #6e9fd0;
-}
-
-.qualityEpic {
-  background: #b77bd2;
-}
-
 .recipeGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

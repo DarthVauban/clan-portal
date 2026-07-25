@@ -200,7 +200,6 @@ export function getQuestDirectory(): QuestDirectory {
 
 function rewardFilterMetadata(item: CatalogItem | undefined) {
   return {
-    qualities: item ? [...new Set(item.variations.map((variation) => variation.quality))] : ["common"],
     mastery: item?.mastery ?? null,
     profession: item?.profession ?? null,
     statTypes: item ? [...new Set(item.stats.map((stat) => stat.type))] : [],

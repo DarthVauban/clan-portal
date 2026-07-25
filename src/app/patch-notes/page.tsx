@@ -11,6 +11,24 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    id: "quest-center-july-2026",
+    date: "25 июля 2026",
+    dateTime: "2026-07-25",
+    period: "Большое обновление знаний",
+    title: "Квестовый центр: задания, цепочки и награды",
+    summary: "Новый информационный раздел объединяет 291 задание, 27 цепочек, подробные страницы квестов и интерактивную статистику игровых наград.",
+    href: "/patch-notes/quests-july-2026",
+    stats: ["3 раздела", "291 задание", "2 988 наград"],
+    highlights: [
+      "Полный каталог заданий с быстрым поиском",
+      "Интерактивные цепочки с сохранением выбора",
+      "Подробные страницы с крупным читаемым текстом",
+      "Реальные иконки всех игровых наград",
+      "Аналитика частых предметов и рецептов",
+      "Фирменные select-меню и адаптивные фильтры",
+    ],
+  },
+  {
     id: "july-2026",
     date: "24 июля 2026",
     dateTime: "2026-07-24",
@@ -41,7 +59,7 @@ export default function PatchNotesPage() {
         </div>
         <div className={styles.latestBadge}>
           <Sparkles size={15} />
-          Последнее обновление: 24 июля
+          Последнее обновление: 25 июля
         </div>
       </section>
 
@@ -54,12 +72,12 @@ export default function PatchNotesPage() {
         <div>
           <CalendarDays size={18} />
           <span>Последний релиз</span>
-          <strong>24.07.2026</strong>
+          <strong>25.07.2026</strong>
         </div>
         <div>
           <FileText size={18} />
-          <span>Изменений в релизе</span>
-          <strong>5</strong>
+          <span>Новых разделов</span>
+          <strong>3</strong>
         </div>
       </section>
 
@@ -101,23 +119,47 @@ export default function PatchNotesPage() {
                 </footer>
               </div>
 
-              <div className={styles.releasePreview} aria-hidden="true">
-                <div className={styles.previewBrand}>
-                  <Image src="/clan-logo.png" alt="" width={68} height={68} />
-                  <div><strong>Squirt Squad</strong><span>Portal update</span></div>
+              {release.id === "quest-center-july-2026" ? (
+                <div className={`${styles.releasePreview} ${styles.questPreview}`} aria-hidden="true">
+                  <div className={styles.previewBrand}>
+                    <Image src="/clan-logo.png" alt="" width={68} height={68} />
+                    <div><strong>Quest Center</strong><span>Knowledge update</span></div>
+                  </div>
+                  <div className={styles.questPreviewTabs}>
+                    <span>Задания</span><span>Цепочки</span><span>Награды</span>
+                  </div>
+                  <div className={styles.questPreviewChain}>
+                    <i>01</i>
+                    <div><strong>Дивный новый мир</strong><small>84 связанных задания</small></div>
+                    <b>84</b>
+                  </div>
+                  <div className={styles.questPreviewRewards}>
+                    <span><Image src="/game-assets/items/resource/ancient-coin.png" alt="" width={38} height={38} /></span>
+                    <span><Image src="/game-assets/items/resource/synthesis-fuel.png" alt="" width={38} height={38} /></span>
+                    <span><Image src="/game-assets/items/resource/reroll-main-values.png" alt="" width={38} height={38} /></span>
+                    <em>+497 предметов</em>
+                  </div>
+                  <p>Интерактивные примеры внутри</p>
                 </div>
-                <div className={styles.previewCounter}>
-                  <div><small>Было</small><strong>11</strong></div>
-                  <i>→</i>
-                  <div><small>Стало</small><strong>3</strong></div>
+              ) : (
+                <div className={styles.releasePreview} aria-hidden="true">
+                  <div className={styles.previewBrand}>
+                    <Image src="/clan-logo.png" alt="" width={68} height={68} />
+                    <div><strong>Squirt Squad</strong><span>Portal update</span></div>
+                  </div>
+                  <div className={styles.previewCounter}>
+                    <div><small>Было</small><strong>11</strong></div>
+                    <i>→</i>
+                    <div><small>Стало</small><strong>3</strong></div>
+                  </div>
+                  <div className={styles.previewLines}>
+                    <span><i /> Заявки синхронизированы</span>
+                    <span><i /> Ресурсы защищены резервом</span>
+                    <span><i /> Разделы загружаются напрямую</span>
+                  </div>
+                  <p>Интерактивные примеры внутри</p>
                 </div>
-                <div className={styles.previewLines}>
-                  <span><i /> Заявки синхронизированы</span>
-                  <span><i /> Ресурсы защищены резервом</span>
-                  <span><i /> Разделы загружаются напрямую</span>
-                </div>
-                <p>Интерактивные примеры внутри</p>
-              </div>
+              )}
             </article>
           ))}
         </div>

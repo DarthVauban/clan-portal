@@ -240,7 +240,6 @@ export type LocalizedQuestRewardItemStat = QuestRewardItemStat & {
   nameEn: string;
   quality: string;
   tier: number;
-  qualities: string[];
   mastery: string | null;
   profession: string | null;
   statTypes: string[];
@@ -253,7 +252,6 @@ export type LocalizedQuestRecipeRewardStat = QuestRecipeRewardStat & {
   nameEn: string;
   quality: string;
   tier: number;
-  qualities: string[];
   mastery: string | null;
   profession: string | null;
   statTypes: string[];

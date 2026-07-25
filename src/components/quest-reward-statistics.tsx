@@ -72,7 +72,6 @@ type RecipeFilterState = {
   query: string;
   type: string;
   tier: string;
-  quality: string;
   mastery: string;
   statTypes: string[];
 };
@@ -81,7 +80,6 @@ const initialRecipeFilters: RecipeFilterState = {
   query: "",
   type: "all",
   tier: "all",
-  quality: "all",
   mastery: "all",
   statTypes: [],
 };
@@ -107,7 +105,6 @@ function recipeMatches(item: LocalizedQuestRecipeRewardStat, filters: RecipeFilt
     (!normalizedQuery || normalize(`${item.name} ${item.nameEn}`).includes(normalizedQuery))
     && (filters.type === "all" || item.type === filters.type)
     && (filters.tier === "all" || item.tier === Number(filters.tier))
-    && (filters.quality === "all" || item.qualities.includes(filters.quality))
     && (filters.mastery === "all" || item.mastery === filters.mastery)
     && (filters.statTypes.length === 0 || filters.statTypes.every((statType) => item.statTypes.includes(statType)))
   );
@@ -247,10 +244,6 @@ export function QuestRewardStatistics({ stats }: { stats: LocalizedQuestRewardSt
     () => [...new Set(recipeContextItems.map((item) => item.tier))].sort((first, second) => first - second),
     [recipeContextItems],
   );
-  const recipeQualities = useMemo(
-    () => orderedQualities(recipeContextItems.flatMap((item) => item.qualities)),
-    [recipeContextItems],
-  );
   const recipeMasteries = useMemo(
     () => [...new Set(recipeContextItems.map((item) => item.mastery).filter((value): value is string => Boolean(value)))]
       .sort((first, second) => (masteryLabels[first] ?? first).localeCompare(masteryLabels[second] ?? second, "ru")),
@@ -282,7 +275,6 @@ export function QuestRewardStatistics({ stats }: { stats: LocalizedQuestRewardSt
     updateRecipeFilters({
       type: nextType,
       tier: "all",
-      quality: "all",
       mastery: "all",
       statTypes: [],
     });
@@ -307,13 +299,6 @@ export function QuestRewardStatistics({ stats }: { stats: LocalizedQuestRewardSt
     setVisibleItems(TOP_ITEMS_PAGE);
   };
   const maxTypeEntries = Math.max(...stats.byType.map((entry) => entry.entryCount), 1);
-  const qualityClassNames: Record<string, string> = {
-    common: styles.qualityCommon,
-    uncommon: styles.qualityUncommon,
-    rare: styles.qualityRare,
-    epic: styles.qualityEpic,
-  };
-
   return (
     <div className={styles.catalogShell}>
       <section className={styles.statsSummaryGrid} aria-label="Сводка наград">
@@ -498,7 +483,7 @@ export function QuestRewardStatistics({ stats }: { stats: LocalizedQuestRewardSt
                 </button>
                 {recipeTypes.map((itemType) => (
                   <button className={recipeFilters.type === itemType ? styles.recipeFilterActive : undefined} type="button" onClick={() => changeRecipeType(itemType)} key={itemType}>
-                    {typeLabels[itemType] ?? itemType} <small>{countRecipes({ type: itemType, tier: "all", quality: "all", mastery: "all", statTypes: [] })}</small>
+                    {typeLabels[itemType] ?? itemType} <small>{countRecipes({ type: itemType, tier: "all", mastery: "all", statTypes: [] })}</small>
                   </button>
                 ))}
               </div>
@@ -515,23 +500,6 @@ export function QuestRewardStatistics({ stats }: { stats: LocalizedQuestRewardSt
                 {recipeTiers.map((itemTier) => (
                   <button className={recipeFilters.tier === String(itemTier) ? styles.recipeFilterActive : undefined} type="button" onClick={() => updateRecipeFilters({ tier: String(itemTier) })} key={itemTier}>
                     T{itemTier} <small>{countRecipes({ tier: String(itemTier) })}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {recipeQualities.length > 1 && (
-            <div className={styles.recipeFilterGroup}>
-              <span>Качество</span>
-              <div>
-                <button className={recipeFilters.quality === "all" ? styles.recipeFilterActive : undefined} type="button" onClick={() => updateRecipeFilters({ quality: "all" })}>
-                  Все <small>{countRecipes({ quality: "all" })}</small>
-                </button>
-                {recipeQualities.map((itemQuality) => (
-                  <button className={recipeFilters.quality === itemQuality ? styles.recipeFilterActive : undefined} type="button" onClick={() => updateRecipeFilters({ quality: itemQuality })} key={itemQuality}>
-                    <i className={`${styles.filterQualityDot} ${qualityClassNames[itemQuality] ?? ""}`} />
-                    {qualityLabels[itemQuality] ?? itemQuality} <small>{countRecipes({ quality: itemQuality })}</small>
                   </button>
                 ))}
               </div>
