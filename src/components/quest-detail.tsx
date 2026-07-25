@@ -69,18 +69,21 @@ function QuestLinks({ title, empty, links, direction }: {
   direction: "back" | "forward";
 }) {
   return (
-    <section className={styles.relationCard}>
+    <section className={`${styles.relationCard} ${direction === "back" ? styles.relationCardBack : styles.relationCardForward}`}>
       <header>
-        {direction === "back" ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}
+        {direction === "back" ? <ArrowLeft size={17} /> : <ArrowRight size={17} />}
         <strong>{title}</strong>
       </header>
       {links.length > 0 ? (
         <div>
           {links.map((link) => (
-            <Link href={`/quests/${link.slug}`} key={link.slug}>
-              <span>ур. {link.level}</span>
+            <Link className={styles.relationLink} href={`/quests/${link.slug}`} key={link.slug}>
+              <span className={styles.relationLevel}>ур. {link.level}</span>
               <div><strong>{link.name}</strong>{link.name !== link.nameEn && <small>{link.nameEn}</small>}</div>
-              <ArrowRight size={13} />
+              <span className={styles.relationAction}>
+                Открыть
+                {direction === "back" ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}
+              </span>
             </Link>
           ))}
         </div>
