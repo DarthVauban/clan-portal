@@ -55,7 +55,7 @@ const requestNavigation = [
 ];
 
 const utilityNavigation = [
-  { href: "/character-builder", label: "Character Builder", icon: Sparkles },
+  { href: "/character-builder", label: "Конструктор персонажа", icon: Sparkles },
   { href: "/audit-log", label: "Журнал учета", icon: ScrollText, restricted: true },
   { href: "/craft-calculator", label: "Калькулятор крафта", icon: Calculator, restricted: true },
   { href: "/blocked-users", label: "Заблокированные", icon: ShieldX, absoluteOnly: true },

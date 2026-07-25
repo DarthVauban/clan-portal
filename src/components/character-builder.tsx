@@ -25,7 +25,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { LoadableImage } from "@/components/loadable-image";
 import {
@@ -36,15 +36,19 @@ import {
   fallbackStatLabels,
 } from "@/lib/character-builder-config";
 import {
+  builderArtifactSlotIds,
   builderQualities,
-  builderSlotIds,
+  builderWeaponSlotIds,
   createDefaultCharacterBuild,
+  normalizeCharacterBuildState,
+  type BuilderArtifactSlotId,
   type BuilderEquipmentItem,
   type BuilderItemSelection,
   type BuilderQuality,
   type BuilderReferenceItem,
   type BuilderSetId,
   type BuilderSlotId,
+  type BuilderWeaponSlotId,
   type CharacterBuilderDataset,
   type CharacterBuildState,
   type SavedCharacterBuild,
@@ -65,27 +69,28 @@ type MaterialEntry = BuilderReferenceItem & {
   quantity: number;
 };
 
-const DRAFT_KEY = "clan-portal:character-builder-draft:v1";
+type BuilderSection = "gear" | "talents" | "mastery" | "materials";
+
+const DRAFT_KEY = "clan-portal:character-builder-draft:v2";
+const LEGACY_DRAFT_KEY = "clan-portal:character-builder-draft:v1";
 
 const slotMeta: Record<BuilderSlotId, { label: string; shortLabel: string; type: BuilderEquipmentItem["type"] }> = {
-  "weapon-primary": { label: "Основна зброя", shortLabel: "Основна", type: "weapon" },
-  "weapon-secondary": { label: "Додаткова зброя", shortLabel: "Додаткова", type: "weapon" },
-  "implant-1": { label: "Імплант 1", shortLabel: "Імплант 1", type: "implant" },
-  "implant-2": { label: "Імплант 2", shortLabel: "Імплант 2", type: "implant" },
-  "implant-3": { label: "Імплант 3", shortLabel: "Імплант 3", type: "implant" },
-  "implant-4": { label: "Імплант 4", shortLabel: "Імплант 4", type: "implant" },
-  "implant-5": { label: "Імплант 5", shortLabel: "Імплант 5", type: "implant" },
-  "implant-6": { label: "Імплант 6", shortLabel: "Імплант 6", type: "implant" },
+  "weapon-primary": { label: "Оружие", shortLabel: "Оружие", type: "weapon" },
   "chip-1": { label: "Чип 1", shortLabel: "Чип 1", type: "chip" },
   "chip-2": { label: "Чип 2", shortLabel: "Чип 2", type: "chip" },
   "chip-3": { label: "Чип 3", shortLabel: "Чип 3", type: "chip" },
-  "rune-1": { label: "Руна", shortLabel: "Руна", type: "rune" },
+  "implant-1": { label: "Артефакт 1", shortLabel: "Артефакт 1", type: "implant" },
+  "implant-2": { label: "Артефакт 2", shortLabel: "Артефакт 2", type: "implant" },
+  "implant-3": { label: "Артефакт 3", shortLabel: "Артефакт 3", type: "implant" },
+  "implant-4": { label: "Артефакт 4", shortLabel: "Артефакт 4", type: "implant" },
+  "implant-5": { label: "Артефакт 5", shortLabel: "Артефакт 5", type: "implant" },
+  "implant-6": { label: "Артефакт 6", shortLabel: "Артефакт 6", type: "implant" },
 };
 
 const qualityLabels: Record<BuilderQuality, string> = {
-  uncommon: "Звичайний",
-  rare: "Покращений",
-  epic: "Розігнаний",
+  uncommon: "Обычный",
+  rare: "Улучшенный",
+  epic: "Разогнанный",
 };
 
 const recipeByQuality: Record<BuilderQuality, "regular" | "upgraded" | "overclocked"> = {
@@ -96,14 +101,31 @@ const recipeByQuality: Record<BuilderQuality, "regular" | "upgraded" | "overcloc
 
 const secondaryStatOptions = ["health", "mana", "armor", "mr", "wd", "sp", "as", "hasp", "pcc", "mcc", "ppen", "mpen"];
 
+const sections: Array<{ id: BuilderSection; label: string; icon: typeof Swords }> = [
+  { id: "gear", label: "Экипировка", icon: Swords },
+  { id: "talents", label: "Таланты", icon: Sparkles },
+  { id: "mastery", label: "Мастерство", icon: BookOpenCheck },
+  { id: "materials", label: "Материалы", icon: Boxes },
+];
+
 function formatNumber(value: number) {
   return Number.isInteger(value)
-    ? new Intl.NumberFormat("uk-UA").format(value)
-    : new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 1 }).format(value);
+    ? new Intl.NumberFormat("ru-RU").format(value)
+    : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(value);
 }
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+function isArtifactSlot(slotId: BuilderSlotId): slotId is BuilderArtifactSlotId {
+  return builderArtifactSlotIds.includes(slotId as BuilderArtifactSlotId);
+}
+
+function getSelection(state: CharacterBuildState, slotId: BuilderSlotId) {
+  return isArtifactSlot(slotId)
+    ? state.artifacts[slotId]
+    : state.sets[state.activeSet][slotId as BuilderWeaponSlotId];
 }
 
 function getVariation(item: BuilderEquipmentItem, quality: BuilderQuality) {
@@ -145,16 +167,19 @@ function buildMaterialTotals(
     for (const ingredient of ingredients) expand(ingredient.slug, ingredient.quantity * quantity, nextPath);
   };
 
-  for (const setId of setIds) {
-    for (const selection of Object.values(state.sets[setId])) {
-      if (!selection) continue;
-      const item = equipmentMap.get(selection.itemSlug);
-      const recipe = item?.recipes.find((entry) => entry.id === recipeByQuality[selection.quality]);
-      if (!item || !recipe) continue;
-      for (const ingredient of recipe.ingredients) {
-        add(direct, ingredient.slug, ingredient.quantity);
-        expand(ingredient.slug, ingredient.quantity, new Set([item.slug]));
-      }
+  const selections = [
+    ...setIds.flatMap((setId) => Object.values(state.sets[setId])),
+    ...Object.values(state.artifacts),
+  ];
+
+  for (const selection of selections) {
+    if (!selection) continue;
+    const item = equipmentMap.get(selection.itemSlug);
+    const recipe = item?.recipes.find((entry) => entry.id === recipeByQuality[selection.quality]);
+    if (!item || !recipe) continue;
+    for (const ingredient of recipe.ingredients) {
+      add(direct, ingredient.slug, ingredient.quantity);
+      expand(ingredient.slug, ingredient.quantity, new Set([item.slug]));
     }
   }
 
@@ -178,7 +203,7 @@ function buildMaterialTotals(
       }
       return { ...reference, quantity } satisfies MaterialEntry;
     })
-    .sort((left, right) => right.tier - left.tier || left.name.localeCompare(right.name, "uk"));
+    .sort((left, right) => right.tier - left.tier || left.name.localeCompare(right.name, "ru"));
 
   return { direct: materialize(direct), total: materialize(total) };
 }
@@ -230,8 +255,8 @@ function MaterialsTable({
     return (
       <div className={styles.emptyState}>
         <Boxes size={28} />
-        <strong>Матеріали з’являться після вибору спорядження</strong>
-        <span>Калькулятор автоматично підхопить рецепт потрібної якості.</span>
+        <strong>Материалы появятся после выбора экипировки</strong>
+        <span>Калькулятор автоматически подхватит рецепт выбранного качества.</span>
       </div>
     );
   }
@@ -247,10 +272,10 @@ function MaterialsTable({
             </span>
             <span className={styles.materialInfo}>
               <strong>{entry.name}</strong>
-              <small>{entry.type === "resource" ? "Базовий ресурс" : `Компонент · тир ${entry.tier || "—"}`}</small>
+              <small>{entry.type === "resource" ? "Базовый ресурс" : `Компонент · тир ${entry.tier || "—"}`}</small>
               {showAvailability && (
                 <span className={missing > 0 ? styles.materialShortage : styles.materialReady}>
-                  {missing > 0 ? `Бракує ${formatNumber(missing)}` : "Є в банку"}
+                  {missing > 0 ? `Не хватает ${formatNumber(missing)}` : "Есть в банке"}
                 </span>
               )}
             </span>
@@ -293,35 +318,35 @@ function EditableMaterialPanel({
   const required = entries.reduce((sum, entry) => sum + entry.quantity, 0);
 
   return (
-    <section className={styles.panel} id="materials">
+    <section className={styles.panel}>
       <div className={styles.panelHeading}>
         <div>
-          <span className={styles.eyebrow}><Boxes size={16} /> Матеріальна оцінка</span>
-          <h2>Вартість у ресурсах</h2>
-          <p>Рецепти всього екіпірованого спорядження з урахуванням обраної якості.</p>
+          <span className={styles.eyebrow}><Boxes size={16} /> Материальная оценка</span>
+          <h2>Стоимость билда в ресурсах</h2>
+          <p>Рецепты оружия, чипов и общего набора артефактов с учётом выбранного качества.</p>
         </div>
         <div className={styles.materialSummary}>
-          <span>Позицій<strong>{entries.length}</strong></span>
-          <span>Покриття банком<strong>{required ? `${Math.round((covered / required) * 100)}%` : "—"}</strong></span>
+          <span>Позиций<strong>{entries.length}</strong></span>
+          <span>Покрытие банком<strong>{required ? `${Math.round((covered / required) * 100)}%` : "—"}</strong></span>
         </div>
       </div>
       <div className={styles.segmentedRow}>
         <div className={styles.segmented}>
           <button className={view === "total" ? styles.segmentActive : ""} onClick={() => setView("total")} type="button">
-            Повна розкладка
+            Полная раскладка
           </button>
           <button className={view === "direct" ? styles.segmentActive : ""} onClick={() => setView("direct")} type="button">
-            Прямий рецепт
+            Прямой рецепт
           </button>
         </div>
         <CustomSelect
           value={scope}
           onChange={(value) => setScope(value as "active" | "both")}
           options={[
-            { value: "both", label: "Обидві комплектації" },
-            { value: "active", label: `Активна комплектація ${state.activeSet === "one" ? "I" : "II"}` },
+            { value: "both", label: "Оба оружейных комплекта + артефакты" },
+            { value: "active", label: `Комплект ${state.activeSet === "one" ? "I" : "II"} + артефакты` },
           ]}
-          ariaLabel="Комплектації для розрахунку"
+          ariaLabel="Комплекты для расчёта"
           startIcon={<Layers3 size={16} />}
           layout="inline"
           size="regular"
@@ -342,17 +367,17 @@ function ReadOnlyMaterialPanel({
   const [view, setView] = useState<"direct" | "total">("total");
   const materials = useMemo(() => buildMaterialTotals(state, dataset, "both"), [dataset, state]);
   return (
-    <section className={styles.panel} id="materials">
+    <section className={styles.panel}>
       <div className={styles.panelHeading}>
         <div>
-          <span className={styles.eyebrow}><Boxes size={16} /> Матеріальна оцінка</span>
-          <h2>Повна вартість білда</h2>
-          <p>Розрахунок для обох комплектів спорядження.</p>
+          <span className={styles.eyebrow}><Boxes size={16} /> Материальная оценка</span>
+          <h2>Полная стоимость билда</h2>
+          <p>Расчёт двух оружейных комплектов и единого набора артефактов.</p>
         </div>
       </div>
       <div className={styles.segmented}>
-        <button className={view === "total" ? styles.segmentActive : ""} onClick={() => setView("total")} type="button">Повна розкладка</button>
-        <button className={view === "direct" ? styles.segmentActive : ""} onClick={() => setView("direct")} type="button">Прямий рецепт</button>
+        <button className={view === "total" ? styles.segmentActive : ""} onClick={() => setView("total")} type="button">Полная раскладка</button>
+        <button className={view === "direct" ? styles.segmentActive : ""} onClick={() => setView("direct")} type="button">Прямой рецепт</button>
       </div>
       <MaterialsTable entries={materials[view]} />
     </section>
@@ -369,18 +394,18 @@ export function CharacterBuilder({
     if (initialBuild?.buildData) return initialBuild.buildData;
     if (!readOnly && typeof window !== "undefined") {
       try {
-        const draft = window.localStorage.getItem(DRAFT_KEY);
-        const parsed = draft ? JSON.parse(draft) as CharacterBuildState : null;
-        if (parsed?.schemaVersion === 1 && parsed.heroClass) return parsed;
+        const draft = window.localStorage.getItem(DRAFT_KEY) ?? window.localStorage.getItem(LEGACY_DRAFT_KEY);
+        const normalized = draft ? normalizeCharacterBuildState(JSON.parse(draft)) : null;
+        if (normalized) return normalized;
       } catch {
-        // A broken local draft should not prevent the builder from opening.
+        // Повреждённый локальный черновик не должен мешать открытию конструктора.
       }
     }
     return createDefaultCharacterBuild(firstClass);
   });
   const [currentBuild, setCurrentBuild] = useState<SavedCharacterBuild | null>(initialBuild);
   const [savedBuilds, setSavedBuilds] = useState<SavedCharacterBuild[]>([]);
-  const [activeSection, setActiveSection] = useState<"gear" | "talents" | "mastery" | "materials">("gear");
+  const [activeSection, setActiveSection] = useState<BuilderSection>("gear");
   const [pickerSlot, setPickerSlot] = useState<BuilderSlotId | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerTier, setPickerTier] = useState("all");
@@ -394,6 +419,7 @@ export function CharacterBuilder({
   useEffect(() => {
     if (readOnly) return;
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
+    window.localStorage.removeItem(LEGACY_DRAFT_KEY);
   }, [readOnly, state]);
 
   useEffect(() => {
@@ -423,8 +449,9 @@ export function CharacterBuilder({
   const stats = useMemo(() => {
     const values: Record<string, number> = { ...(baseClassStats[state.heroClass] ?? baseClassStats.legionnary) };
     const levelScale = 0.7 + state.level * 0.03;
-    for (const stat of Object.keys(values)) values[stat] = values[stat] * levelScale;
-    for (const selection of Object.values(activeSet)) {
+    for (const stat of Object.keys(values)) values[stat] *= levelScale;
+    const selections = [...Object.values(activeSet), ...Object.values(state.artifacts)];
+    for (const selection of selections) {
       if (!selection) continue;
       const item = equipmentMap.get(selection.itemSlug);
       const variation = item ? getVariation(item, selection.quality) : null;
@@ -439,21 +466,30 @@ export function CharacterBuilder({
       values[archetype.passiveStat] = (values[archetype.passiveStat] ?? 0) + ranks * archetype.passivePerRank;
     }
     return values;
-  }, [activeSet, equipmentMap, state.heroClass, state.level, state.talentRanks]);
+  }, [activeSet, equipmentMap, state.artifacts, state.heroClass, state.level, state.talentRanks]);
 
   const talentAllocation = Object.values(state.talentRanks).filter((rank) => rank > 0).length;
   const talentLevelPoints = Object.values(state.talentRanks).reduce((sum, rank) => sum + Math.max(0, rank - 1), 0);
   const masteryAllocation = Object.values(state.masteryRanks).filter((rank) => rank > 0).length;
   const masteryLevelPoints = Object.values(state.masteryRanks).reduce((sum, rank) => sum + Math.max(0, rank - 1), 0);
+  const pickerSelection = pickerSlot ? getSelection(state, pickerSlot) : null;
 
   const updateSelection = (slotId: BuilderSlotId, selection: BuilderItemSelection | null) => {
-    setState((current) => ({
-      ...current,
-      sets: {
-        ...current.sets,
-        [current.activeSet]: { ...current.sets[current.activeSet], [slotId]: selection },
-      },
-    }));
+    setState((current) => {
+      if (isArtifactSlot(slotId)) {
+        return { ...current, artifacts: { ...current.artifacts, [slotId]: selection } };
+      }
+      return {
+        ...current,
+        sets: {
+          ...current.sets,
+          [current.activeSet]: {
+            ...current.sets[current.activeSet],
+            [slotId as BuilderWeaponSlotId]: selection,
+          },
+        },
+      };
+    });
   };
 
   const updateTalentRank = (nodeId: string, direction: 1 | -1, tier: number) => {
@@ -462,7 +498,10 @@ export function CharacterBuilder({
       const next = clamp(rank + direction, 0, 5);
       const currentAllocation = Object.values(current.talentRanks).filter((value) => value > 0).length;
       const currentLevelPoints = Object.values(current.talentRanks).reduce((sum, value) => sum + Math.max(0, value - 1), 0);
-      const archetypeAllocation = selectedArchetypeConfig?.nodes.reduce((sum, node) => sum + ((current.talentRanks[node.id] ?? 0) > 0 ? 1 : 0), 0) ?? 0;
+      const archetypeAllocation = selectedArchetypeConfig?.nodes.reduce(
+        (sum, node) => sum + ((current.talentRanks[node.id] ?? 0) > 0 ? 1 : 0),
+        0,
+      ) ?? 0;
       if (direction > 0 && rank === 0 && (currentAllocation >= 15 || archetypeAllocation < (tier - 1) * 3)) return current;
       if (direction > 0 && rank > 0 && currentLevelPoints >= 12) return current;
       const talentRanks = { ...current.talentRanks, [nodeId]: next };
@@ -471,13 +510,20 @@ export function CharacterBuilder({
     });
   };
 
-  const updateMasteryRank = (nodeId: string, direction: 1 | -1, final = false) => {
+  const updateMasteryRank = (
+    nodeId: string,
+    direction: 1 | -1,
+    options: { final?: boolean; maxRank?: number; prerequisite?: string } = {},
+  ) => {
     setState((current) => {
       const rank = current.masteryRanks[nodeId] ?? 0;
-      const next = clamp(rank + direction, 0, 2);
+      const maxRank = options.maxRank ?? 2;
+      const next = clamp(rank + direction, 0, maxRank);
       const allocation = Object.values(current.masteryRanks).filter((value) => value > 0).length;
       const levelPoints = Object.values(current.masteryRanks).reduce((sum, value) => sum + Math.max(0, value - 1), 0);
-      if (direction > 0 && rank === 0 && (allocation >= 26 || (final && allocation < 20))) return current;
+      if (direction > 0 && rank === 0 && allocation >= 26) return current;
+      if (direction > 0 && rank === 0 && options.final && allocation < 20) return current;
+      if (direction > 0 && rank === 0 && options.prerequisite && !current.masteryRanks[options.prerequisite]) return current;
       if (direction > 0 && rank > 0 && levelPoints >= 2) return current;
       const masteryRanks = { ...current.masteryRanks, [nodeId]: next };
       if (next === 0) delete masteryRanks[nodeId];
@@ -485,8 +531,8 @@ export function CharacterBuilder({
     });
   };
 
-  const saveBuild = async () => {
-    if (readOnly || busy) return;
+  const saveBuild = async (): Promise<SavedCharacterBuild | null> => {
+    if (readOnly || busy) return null;
     setBusy(true);
     try {
       const response = await fetch(currentBuild ? `/api/character-builds/${currentBuild.buildId}` : "/api/character-builds", {
@@ -495,93 +541,107 @@ export function CharacterBuilder({
         body: JSON.stringify({ build: state }),
       });
       const payload = await response.json().catch(() => null) as { build?: SavedCharacterBuild; error?: string } | null;
-      if (!response.ok || !payload?.build) throw new Error(payload?.error || "Не вдалося зберегти білд.");
+      if (!response.ok || !payload?.build) throw new Error(payload?.error || "Не удалось сохранить билд.");
       setCurrentBuild(payload.build);
       setSavedBuilds((current) => [
         payload.build!,
         ...current.filter((entry) => entry.buildId !== payload.build!.buildId),
       ]);
-      setNotice("Білд збережено у вашому профілі.");
+      setNotice("Билд сохранён в вашем профиле.");
+      return payload.build;
     } catch (error) {
       setNotice((error as Error).message);
+      return null;
     } finally {
       setBusy(false);
     }
   };
 
   const copyShareLink = async () => {
-    let build = currentBuild;
-    if (!build) {
-      await saveBuild();
-      const response = await fetch("/api/character-builds", { cache: "no-store" });
-      const payload = await response.json().catch(() => null) as { builds?: SavedCharacterBuild[] } | null;
-      build = payload?.builds?.[0] ?? null;
-      if (build) {
-        setCurrentBuild(build);
-        setSavedBuilds(payload?.builds ?? []);
-      }
-    }
+    const build = currentBuild ?? await saveBuild();
     if (!build) return;
     const url = `${window.location.origin}/character-builder/shared/${build.shareSlug}`;
     await navigator.clipboard.writeText(url);
-    setNotice("Посилання на білд скопійовано.");
+    setNotice("Ссылка на билд скопирована.");
   };
 
   const resetBuild = () => {
-    if (!window.confirm("Очистити поточний білд і почати з нуля?")) return;
+    if (!window.confirm("Очистить текущий билд и начать с нуля?")) return;
     setState(createDefaultCharacterBuild(firstClass));
     setCurrentBuild(null);
     setSelectedArchetype("");
-    setNotice("Створено чистий білд.");
+    setNotice("Создан новый чистый билд.");
   };
 
   const loadBuild = (build: SavedCharacterBuild) => {
-    setState(build.buildData);
-    setCurrentBuild(build);
+    const normalized = normalizeCharacterBuildState(build.buildData);
+    if (!normalized) return;
+    setState(normalized);
+    setCurrentBuild({ ...build, buildData: normalized });
     setShowSaved(false);
-    setSelectedArchetype(build.buildData.selectedArchetypes[0] ?? "");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setNotice(`Відкрито «${build.title}».`);
+    setSelectedArchetype(normalized.selectedArchetypes[0] ?? "");
+    setNotice(`Открыт билд «${build.title}».`);
   };
 
   const deleteBuild = async (build: SavedCharacterBuild) => {
-    if (!window.confirm(`Видалити білд «${build.title}»?`)) return;
+    if (!window.confirm(`Удалить билд «${build.title}»?`)) return;
     const response = await fetch(`/api/character-builds/${build.buildId}`, { method: "DELETE" });
     if (!response.ok) {
-      setNotice("Не вдалося видалити білд.");
+      setNotice("Не удалось удалить билд.");
       return;
     }
     setSavedBuilds((current) => current.filter((entry) => entry.buildId !== build.buildId));
     if (currentBuild?.buildId === build.buildId) setCurrentBuild(null);
-    setNotice("Білд видалено.");
+    setNotice("Билд удалён.");
   };
 
   const pickerItems = useMemo(() => {
     if (!pickerSlot) return [];
     const target = slotMeta[pickerSlot];
-    const normalizedSearch = pickerSearch.trim().toLocaleLowerCase("uk");
+    const normalizedSearch = pickerSearch.trim().toLocaleLowerCase("ru");
     return dataset.equipment.filter((item) => {
       if (item.type !== target.type) return false;
       if (item.type === "weapon") {
-        const secondary = pickerSlot === "weapon-secondary";
-        if (secondary && item.slot !== "secondary-weapon") return false;
-        if (!secondary && item.slot === "secondary-weapon") return false;
+        if (item.slot === "secondary-weapon") return false;
         if (item.mastery && item.mastery !== state.heroClass) return false;
       }
       if (pickerTier !== "all" && String(item.tier) !== pickerTier) return false;
       if (!item.variations.some((variation) => variation.quality === pickerQuality)) return false;
       return !normalizedSearch
-        || item.name.toLocaleLowerCase("uk").includes(normalizedSearch)
+        || item.name.toLocaleLowerCase("ru").includes(normalizedSearch)
         || item.englishName.toLocaleLowerCase("en").includes(normalizedSearch);
     }).slice(0, 80);
   }, [dataset.equipment, pickerQuality, pickerSearch, pickerSlot, pickerTier, state.heroClass]);
 
-  const sections = [
-    { id: "gear" as const, label: "Спорядження", icon: Swords },
-    { id: "talents" as const, label: "Таланти", icon: Sparkles },
-    { id: "mastery" as const, label: "Майстерність", icon: BookOpenCheck },
-    { id: "materials" as const, label: "Матеріали", icon: Boxes },
-  ];
+  const renderGearSlot = (slotId: BuilderSlotId) => {
+    const selection = getSelection(state, slotId);
+    const item = selection ? equipmentMap.get(selection.itemSlug) : null;
+    const variation = item && selection ? getVariation(item, selection.quality) : null;
+    return (
+      <button
+        className={`${styles.gearSlot}${selection ? ` ${styles.gearSlotFilled}` : ""}`}
+        type="button"
+        key={slotId}
+        disabled={readOnly}
+        onClick={() => {
+          if (!readOnly) {
+            setPickerSlot(slotId);
+            setPickerQuality(selection?.quality ?? "epic");
+          }
+        }}
+      >
+        <span className={styles.slotImage}>
+          {item ? <ItemImage src={variation?.image} alt={item.name} size={54} /> : <Plus size={24} />}
+        </span>
+        <span className={styles.slotText}>
+          <small>{slotMeta[slotId].label}</small>
+          <strong>{item?.name || "Выбрать предмет"}</strong>
+          {selection && <em>{qualityLabels[selection.quality]} · {selection.roll}% характеристик</em>}
+        </span>
+        {!readOnly && <ChevronRight size={18} />}
+      </button>
+    );
+  };
 
   return (
     <div className={`${styles.builder}${readOnly ? ` ${styles.readOnly}` : ""}`}>
@@ -590,11 +650,11 @@ export function CharacterBuilder({
       <section className={styles.hero}>
         <div className={styles.heroGlow} />
         <div className={styles.heroMain}>
-          <span className={styles.kicker}><Sparkles size={16} /> Character Builder</span>
+          <span className={styles.kicker}><Sparkles size={16} /> Конструктор персонажа</span>
           {readOnly ? (
             <>
               <h1>{state.title}</h1>
-              <p>Готовий білд від {initialBuild?.ownerName || "гравця порталу"} — спорядження, таланти, майстерність і повна вартість.</p>
+              <p>Готовый билд от {initialBuild?.ownerName || "игрока портала"} — экипировка, таланты, мастерство и полная стоимость.</p>
             </>
           ) : (
             <>
@@ -602,28 +662,28 @@ export function CharacterBuilder({
                 className={styles.titleInput}
                 value={state.title}
                 onChange={(event) => setState((current) => ({ ...current, title: event.target.value.slice(0, 80) }))}
-                aria-label="Назва білда"
+                aria-label="Название билда"
               />
-              <p>Зберіть героя, порівняйте комплекти та одразу побачте повну потребу в ресурсах.</p>
+              <p>Соберите героя, сравните оружейные комплекты и сразу увидьте полную потребность в ресурсах.</p>
             </>
           )}
         </div>
         {!readOnly && (
           <div className={styles.heroActions}>
             <button className={styles.secondaryButton} type="button" onClick={() => setShowSaved(true)}>
-              <Database size={18} /> Мої білди <span>{savedBuilds.length}</span>
+              <Database size={18} /> Мои билды <span>{savedBuilds.length}</span>
             </button>
             <button className={styles.secondaryButton} type="button" onClick={copyShareLink}>
-              <Link2 size={18} /> Поділитися
+              <Link2 size={18} /> Поделиться
             </button>
-            <button className={styles.primaryButton} type="button" onClick={saveBuild} disabled={busy}>
-              <Save size={18} /> {busy ? "Зберігаємо…" : currentBuild ? "Зберегти зміни" : "Зберегти білд"}
+            <button className={`${styles.primaryButton} ${styles.saveBuildButton}`} type="button" onClick={saveBuild} disabled={busy}>
+              <Save size={18} /> {busy ? "Сохраняем…" : currentBuild ? "Сохранить изменения" : "Сохранить билд"}
             </button>
           </div>
         )}
         {readOnly && (
           <a className={styles.primaryButton} href="/character-builder">
-            <Sparkles size={18} /> Створити власний білд
+            <Sparkles size={18} /> Создать свой билд
           </a>
         )}
       </section>
@@ -634,7 +694,7 @@ export function CharacterBuilder({
             {selectedClass?.image ? <LoadableImage src={selectedClass.image} alt={selectedClass.name} width={60} height={60} /> : <UserRound size={30} />}
           </span>
           <span>
-            <small>Клас героя</small>
+            <small>Класс героя</small>
             <strong>{selectedClass?.name || state.heroClass}</strong>
             <em>{selectedClass?.family}</em>
           </span>
@@ -648,20 +708,12 @@ export function CharacterBuilder({
                 heroClass,
                 masteryRanks: {},
                 sets: {
-                  one: {
-                    ...current.sets.one,
-                    "weapon-primary": null,
-                    "weapon-secondary": null,
-                  },
-                  two: {
-                    ...current.sets.two,
-                    "weapon-primary": null,
-                    "weapon-secondary": null,
-                  },
+                  one: { ...current.sets.one, "weapon-primary": null },
+                  two: { ...current.sets.two, "weapon-primary": null },
                 },
               }))}
               options={dataset.classes.map((entry) => ({ value: entry.slug, label: entry.name }))}
-              ariaLabel="Клас героя"
+              ariaLabel="Класс героя"
               startIcon={<Shield size={17} />}
               size="regular"
             />
@@ -679,21 +731,21 @@ export function CharacterBuilder({
                 );
                 return { ...current, level, selectedArchetypes, talentRanks };
               })}
-              options={Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: `Рівень ${index + 1}` }))}
-              ariaLabel="Рівень героя"
+              options={Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: `Уровень ${index + 1}` }))}
+              ariaLabel="Уровень героя"
               startIcon={<Zap size={17} />}
               size="regular"
             />
             <button className={styles.resetButton} type="button" onClick={resetBuild}>
-              <RefreshCcw size={17} /> Почати заново
+              <RefreshCcw size={17} /> Начать заново
             </button>
           </>
         ) : (
-          <span className={styles.levelBadge}>Рівень {state.level}</span>
+          <span className={styles.levelBadge}>Уровень {state.level}</span>
         )}
       </section>
 
-      <nav className={styles.sectionNav} aria-label="Розділи білдера">
+      <nav className={styles.sectionNav} aria-label="Разделы конструктора">
         {sections.map((section) => {
           const Icon = section.icon;
           return (
@@ -701,10 +753,8 @@ export function CharacterBuilder({
               key={section.id}
               type="button"
               className={activeSection === section.id ? styles.sectionNavActive : ""}
-              onClick={() => {
-                setActiveSection(section.id);
-                document.getElementById(section.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
+              onClick={() => setActiveSection(section.id)}
+              aria-pressed={activeSection === section.id}
             >
               <Icon size={19} /> {section.label}
             </button>
@@ -712,291 +762,341 @@ export function CharacterBuilder({
         })}
       </nav>
 
-      <section className={styles.builderGrid} id="gear">
-        <div className={styles.panel}>
+      {activeSection === "gear" && (
+        <>
+          <section className={styles.builderGrid}>
+            <div className={styles.panel}>
+              <div className={styles.panelHeading}>
+                <div>
+                  <span className={styles.eyebrow}><Layers3 size={16} /> Экипировка</span>
+                  <h2>Снаряжение героя</h2>
+                  <p>Оружие и чипы переключаются комплектами. Артефакты всегда остаются общими.</p>
+                </div>
+              </div>
+
+              <div className={styles.gearCategory}>
+                <div className={styles.gearCategoryHeader}>
+                  <div>
+                    <span className={styles.gearCategoryIcon}><Swords size={20} /></span>
+                    <span><strong>Оружие и чипы</strong><small>Два оружейных комплекта для быстрого переключения</small></span>
+                  </div>
+                  <div className={styles.setControls}>
+                    <div className={styles.setSwitch}>
+                      {(["one", "two"] as BuilderSetId[]).map((setId) => (
+                        <button
+                          key={setId}
+                          type="button"
+                          className={state.activeSet === setId ? styles.setSwitchActive : ""}
+                          onClick={() => setState((current) => ({ ...current, activeSet: setId }))}
+                        >
+                          Комплект {setId === "one" ? "I" : "II"}
+                        </button>
+                      ))}
+                    </div>
+                    {!readOnly && (
+                      <button
+                        className={styles.copySetButton}
+                        type="button"
+                        onClick={() => setState((current) => {
+                          const targetSet: BuilderSetId = current.activeSet === "one" ? "two" : "one";
+                          return {
+                            ...current,
+                            sets: {
+                              ...current.sets,
+                              [targetSet]: { ...current.sets[current.activeSet] },
+                            },
+                          };
+                        })}
+                      >
+                        <Copy size={16} /> Копировать в {state.activeSet === "one" ? "II" : "I"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className={`${styles.slotGrid} ${styles.weaponSlotGrid}`}>
+                  {builderWeaponSlotIds.map(renderGearSlot)}
+                </div>
+              </div>
+
+              <div className={`${styles.gearCategory} ${styles.artifactCategory}`}>
+                <div className={styles.gearCategoryHeader}>
+                  <div>
+                    <span className={styles.gearCategoryIcon}><Gem size={20} /></span>
+                    <span><strong>Артефакты</strong><small>Единый набор для обоих оружейных комплектов</small></span>
+                  </div>
+                  <span className={styles.singleSetBadge}>Общий комплект</span>
+                </div>
+                <div className={`${styles.slotGrid} ${styles.artifactSlotGrid}`}>
+                  {builderArtifactSlotIds.map(renderGearSlot)}
+                </div>
+              </div>
+            </div>
+
+            <aside className={`${styles.panel} ${styles.statsPanel}`}>
+              <div className={styles.panelHeading}>
+                <div>
+                  <span className={styles.eyebrow}><Zap size={16} /> Живой расчёт</span>
+                  <h2>Характеристики</h2>
+                  <p>Оружейный комплект {state.activeSet === "one" ? "I" : "II"} + общий набор артефактов.</p>
+                </div>
+              </div>
+              <div className={styles.statsGroups}>
+                {builderStatGroups.map((group) => {
+                  const visibleStats = group.stats.filter((stat) => Math.abs(stats[stat] ?? 0) > 0.01);
+                  if (visibleStats.length === 0) return null;
+                  return (
+                    <div className={styles.statGroup} key={group.id}>
+                      <h3>{group.label}</h3>
+                      {visibleStats.map((stat) => <StatValue key={stat} stat={stat} value={stats[stat] ?? 0} dataset={dataset} />)}
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+          </section>
+
+          <section className={styles.notesPanel}>
+            <div>
+              <span className={styles.eyebrow}><Clipboard size={16} /> Заметки</span>
+              <h2>Как играть этим билдом</h2>
+            </div>
+            {readOnly ? (
+              <p>{state.notes || "Автор не оставил дополнительных пояснений."}</p>
+            ) : (
+              <textarea
+                value={state.notes}
+                onChange={(event) => setState((current) => ({ ...current, notes: event.target.value.slice(0, 1200) }))}
+                placeholder="Опишите ротацию, роль в группе, сильные стороны или ситуативные замены…"
+                maxLength={1200}
+              />
+            )}
+          </section>
+        </>
+      )}
+
+      {activeSection === "talents" && (
+        <section className={styles.panel}>
           <div className={styles.panelHeading}>
             <div>
-              <span className={styles.eyebrow}><Layers3 size={16} /> Комплектація</span>
-              <h2>Спорядження героя</h2>
-              <p>Два незалежні набори для швидкого порівняння характеристик.</p>
+              <span className={styles.eyebrow}><Sparkles size={16} /> Развитие героя</span>
+              <h2>Ветки талантов</h2>
+              <p>На уровне {state.level} доступно веток: {allowedArchetypes}. Первый ранг расходует очко распределения, следующие — очки уровня.</p>
             </div>
-            <div className={styles.setControls}>
-              <div className={styles.setSwitch}>
-                {(["one", "two"] as BuilderSetId[]).map((setId) => (
-                  <button
-                    key={setId}
-                    type="button"
-                    className={state.activeSet === setId ? styles.setSwitchActive : ""}
-                    onClick={() => setState((current) => ({ ...current, activeSet: setId }))}
-                  >
-                    Комплект {setId === "one" ? "I" : "II"}
-                  </button>
-                ))}
-              </div>
-              {!readOnly && (
-                <button
-                  className={styles.copySetButton}
-                  type="button"
-                  onClick={() => setState((current) => {
-                    const targetSet: BuilderSetId = current.activeSet === "one" ? "two" : "one";
-                    return {
-                      ...current,
-                      sets: {
-                        ...current.sets,
-                        [targetSet]: { ...current.sets[current.activeSet] },
-                      },
-                    };
-                  })}
-                >
-                  <Copy size={16} /> Скопіювати в {state.activeSet === "one" ? "II" : "I"}
-                </button>
-              )}
+            <div className={styles.points}>
+              <span>Распределение<strong>{talentAllocation} / 15</strong></span>
+              <span>Очки уровня<strong>{talentLevelPoints} / 12</strong></span>
             </div>
           </div>
-          <div className={styles.slotGrid}>
-            {builderSlotIds.map((slotId) => {
-              const selection = activeSet[slotId];
-              const item = selection ? equipmentMap.get(selection.itemSlug) : null;
-              const variation = item && selection ? getVariation(item, selection.quality) : null;
+          <div className={styles.archetypeGrid}>
+            {builderArchetypes.map((archetype) => {
+              const selected = state.selectedArchetypes.includes(archetype.id);
               return (
                 <button
-                  className={`${styles.gearSlot}${selection ? ` ${styles.gearSlotFilled}` : ""}`}
+                  key={archetype.id}
                   type="button"
-                  key={slotId}
-                  disabled={readOnly}
+                  className={`${styles.archetypeCard}${selected ? ` ${styles.archetypeSelected}` : ""}`}
+                  style={{ "--archetype-accent": archetype.accent } as CSSProperties}
                   onClick={() => {
-                    if (!readOnly) {
-                      setPickerSlot(slotId);
-                      setPickerQuality(selection?.quality ?? "epic");
+                    setSelectedArchetype(archetype.id);
+                    if (readOnly || selected) return;
+                    if (state.selectedArchetypes.length >= allowedArchetypes) {
+                      setNotice(`На этом уровне можно выбрать только ${allowedArchetypes} ветки.`);
+                      return;
                     }
+                    setState((current) => ({ ...current, selectedArchetypes: [...current.selectedArchetypes, archetype.id] }));
                   }}
                 >
-                  <span className={styles.slotImage}>
-                    {item ? <ItemImage src={variation?.image} alt={item.name} size={54} /> : <Plus size={24} />}
+                  <span className={styles.archetypeIcon}>
+                    <LoadableImage src={archetype.icon} alt="" width={54} height={54} />
                   </span>
-                  <span className={styles.slotText}>
-                    <small>{slotMeta[slotId].label}</small>
-                    <strong>{item?.name || "Обрати предмет"}</strong>
-                    {selection && <em>{qualityLabels[selection.quality]} · {selection.roll}% характеристик</em>}
-                  </span>
-                  {!readOnly && <ChevronRight size={18} />}
+                  <span><strong>{archetype.name}</strong><small>{archetype.description}</small><em>{archetype.bonus}</em></span>
+                  {selected && <Check size={18} />}
                 </button>
               );
             })}
           </div>
-        </div>
-
-        <aside className={`${styles.panel} ${styles.statsPanel}`}>
-          <div className={styles.panelHeading}>
-            <div>
-              <span className={styles.eyebrow}><Zap size={16} /> Живий розрахунок</span>
-              <h2>Характеристики</h2>
-              <p>Комплект {state.activeSet === "one" ? "I" : "II"} · рол обраних предметів враховано.</p>
-            </div>
-          </div>
-          <div className={styles.statsGroups}>
-            {builderStatGroups.map((group) => {
-              const visibleStats = group.stats.filter((stat) => Math.abs(stats[stat] ?? 0) > 0.01);
-              if (visibleStats.length === 0) return null;
-              return (
-                <div className={styles.statGroup} key={group.id}>
-                  <h3>{group.label}</h3>
-                  {visibleStats.map((stat) => <StatValue key={stat} stat={stat} value={stats[stat] ?? 0} dataset={dataset} />)}
+          {selectedArchetypeConfig && state.selectedArchetypes.includes(selectedArchetypeConfig.id) ? (
+            <div
+              className={styles.talentTree}
+              style={{ "--archetype-accent": selectedArchetypeConfig.accent } as CSSProperties}
+            >
+              <div className={styles.subheading}>
+                <div className={styles.talentBranchTitle}>
+                  <LoadableImage src={selectedArchetypeConfig.simplifiedIcon} alt="" width={64} height={64} />
+                  <div><h3>{selectedArchetypeConfig.name}</h3><p>{selectedArchetypeConfig.bonus}</p></div>
                 </div>
-              );
-            })}
-          </div>
-        </aside>
-      </section>
-
-      <section className={styles.panel} id="talents">
-        <div className={styles.panelHeading}>
-          <div>
-            <span className={styles.eyebrow}><Sparkles size={16} /> Розвиток героя</span>
-            <h2>Таланти архетипів</h2>
-            <p>На рівні {state.level} доступно архетипів: {allowedArchetypes}. Перший ранг витрачає очко розподілу, наступні — очки рівня.</p>
-          </div>
-          <div className={styles.points}>
-            <span>Розподіл<strong>{talentAllocation} / 15</strong></span>
-            <span>Очки рівня<strong>{talentLevelPoints} / 12</strong></span>
-          </div>
-        </div>
-        <div className={styles.archetypeGrid}>
-          {builderArchetypes.map((archetype) => {
-            const selected = state.selectedArchetypes.includes(archetype.id);
-            return (
-              <button
-                key={archetype.id}
-                type="button"
-                className={`${styles.archetypeCard}${selected ? ` ${styles.archetypeSelected}` : ""}`}
-                style={{ "--archetype-accent": archetype.accent } as React.CSSProperties}
-                onClick={() => {
-                  setSelectedArchetype(archetype.id);
-                  if (readOnly || selected) return;
-                  if (state.selectedArchetypes.length >= allowedArchetypes) {
-                    setNotice(`На цьому рівні можна обрати лише ${allowedArchetypes} архетипи.`);
-                    return;
-                  }
-                  setState((current) => ({ ...current, selectedArchetypes: [...current.selectedArchetypes, archetype.id] }));
-                }}
-              >
-                <span className={styles.archetypeIcon}><Sparkles size={22} /></span>
-                <span><strong>{archetype.name}</strong><small>{archetype.description}</small></span>
-                {selected && <Check size={18} />}
-              </button>
-            );
-          })}
-        </div>
-        {selectedArchetypeConfig && state.selectedArchetypes.includes(selectedArchetypeConfig.id) ? (
-          <div className={styles.talentTree}>
-            <div className={styles.subheading}>
-              <div>
-                <h3>{selectedArchetypeConfig.name}</h3>
-                <p>{selectedArchetypeConfig.description}</p>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className={styles.textButton}
+                    onClick={() => setState((current) => ({
+                      ...current,
+                      selectedArchetypes: current.selectedArchetypes.filter((id) => id !== selectedArchetypeConfig.id),
+                      talentRanks: Object.fromEntries(
+                        Object.entries(current.talentRanks).filter(([id]) => !id.startsWith(`${selectedArchetypeConfig.id}-`)),
+                      ),
+                    }))}
+                  >
+                    <Trash2 size={16} /> Удалить ветку
+                  </button>
+                )}
               </div>
-              {!readOnly && (
-                <button
-                  type="button"
-                  className={styles.textButton}
-                  onClick={() => setState((current) => ({
-                    ...current,
-                    selectedArchetypes: current.selectedArchetypes.filter((id) => id !== selectedArchetypeConfig.id),
-                    talentRanks: Object.fromEntries(Object.entries(current.talentRanks).filter(([id]) => !id.startsWith(`${selectedArchetypeConfig.id}-`))),
-                  }))}
-                >
-                  <Trash2 size={16} /> Прибрати архетип
-                </button>
-              )}
-            </div>
-            <div className={styles.talentTiers}>
-              {Array.from({ length: 5 }, (_, tierIndex) => {
-                const tier = tierIndex + 1;
-                return (
-                  <div className={styles.talentTier} key={tier}>
-                    <span className={styles.tierLabel}>Ряд {tier}</span>
-                    <div>
-                      {selectedArchetypeConfig.nodes.filter((node) => node.tier === tier).map((node) => {
-                        const rank = state.talentRanks[node.id] ?? 0;
-                        return (
-                          <article className={`${styles.talentNode}${rank ? ` ${styles.talentNodeActive}` : ""}`} key={node.id}>
-                            <span className={styles.nodeIcon}><Sparkles size={20} /></span>
-                            <div><strong>{node.name}</strong><p>{node.description}</p></div>
-                            <div className={styles.rankControl}>
-                              {!readOnly && <button type="button" aria-label={`Зменшити ранг: ${node.name}`} onClick={() => updateTalentRank(node.id, -1, tier)} disabled={rank === 0}><Minus size={15} /></button>}
-                              <span>{rank} / 5</span>
-                              {!readOnly && <button type="button" aria-label={`Підвищити ранг: ${node.name}`} onClick={() => updateTalentRank(node.id, 1, tier)} disabled={rank === 5}><Plus size={15} /></button>}
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className={styles.emptyState}>
-            <Sparkles size={30} />
-            <strong>{readOnly ? "Архетипи не розподілено" : "Оберіть архетип для налаштування"}</strong>
-            <span>Дерево талантів відкриється тут.</span>
-          </div>
-        )}
-      </section>
-
-      <section className={styles.panel} id="mastery">
-        <div className={styles.panelHeading}>
-          <div>
-            <span className={styles.eyebrow}><BookOpenCheck size={16} /> Класова спеціалізація</span>
-            <h2>Майстерність {selectedClass?.name}</h2>
-            <p>Покращуйте ключові здібності та відкрийте одну з фінальних спеціалізацій.</p>
-          </div>
-          <div className={styles.points}>
-            <span>Розподіл<strong>{masteryAllocation} / 26</strong></span>
-            <span>Очки рівня<strong>{masteryLevelPoints} / 2</strong></span>
-          </div>
-        </div>
-        <div className={styles.masteryGrid}>
-          {mastery.branches.map((branch) => (
-            <article className={styles.masteryBranch} key={branch.id}>
-              <header><span><Zap size={21} /></span><div><h3>{branch.name}</h3><p>{branch.description}</p></div></header>
-              <div className={styles.masteryNodes}>
-                {branch.nodes.map((node) => {
-                  const rank = state.masteryRanks[node.id] ?? 0;
+              <div className={styles.talentTiers}>
+                {Array.from({ length: 5 }, (_, tierIndex) => {
+                  const tier = tierIndex + 1;
                   return (
-                    <div className={`${styles.masteryNode}${rank ? ` ${styles.masteryNodeActive}` : ""}`} key={node.id} title={node.description}>
-                      <span><strong>{node.name}</strong><small>{node.description}</small></span>
-                      <div className={styles.rankControl}>
-                        {!readOnly && <button type="button" aria-label={`Зменшити ранг: ${branch.name} — ${node.name}`} onClick={() => updateMasteryRank(node.id, -1)} disabled={rank === 0}><Minus size={14} /></button>}
-                        <b>{rank}/2</b>
-                        {!readOnly && <button type="button" aria-label={`Підвищити ранг: ${branch.name} — ${node.name}`} onClick={() => updateMasteryRank(node.id, 1)} disabled={rank === 2}><Plus size={14} /></button>}
+                    <div className={styles.talentTier} key={tier}>
+                      <span className={styles.tierLabel}>Ряд {tier}</span>
+                      <div>
+                        {selectedArchetypeConfig.nodes.filter((node) => node.tier === tier).map((node) => {
+                          const rank = state.talentRanks[node.id] ?? 0;
+                          return (
+                            <article className={`${styles.talentNode}${rank ? ` ${styles.talentNodeActive}` : ""}`} key={node.id}>
+                              <span className={styles.nodeIcon}>
+                                <LoadableImage src={node.icon} alt="" width={48} height={48} />
+                              </span>
+                              <div><strong>{node.name}</strong><p>{node.description}</p></div>
+                              <div className={styles.rankControl}>
+                                {!readOnly && <button type="button" aria-label={`Уменьшить ранг: ${node.name}`} onClick={() => updateTalentRank(node.id, -1, tier)} disabled={rank === 0}><Minus size={15} /></button>}
+                                <span>{rank} / 5</span>
+                                {!readOnly && <button type="button" aria-label={`Повысить ранг: ${node.name}`} onClick={() => updateTalentRank(node.id, 1, tier)} disabled={rank === 5}><Plus size={15} /></button>}
+                              </div>
+                            </article>
+                          );
+                        })}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </article>
-          ))}
-        </div>
-        <div className={styles.finalMasteries}>
-          <span className={styles.tierLabel}>Фінальна майстерність · потрібно 20 очок</span>
-          <div>
-            {mastery.finals.map((node) => {
-              const rank = state.masteryRanks[node.id] ?? 0;
+            </div>
+          ) : (
+            <div className={styles.emptyState}>
+              <Sparkles size={30} />
+              <strong>{readOnly ? "Ветки талантов не распределены" : "Выберите ветку для настройки"}</strong>
+              <span>Дерево талантов откроется здесь.</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeSection === "mastery" && (
+        <section className={styles.panel}>
+          <div className={styles.panelHeading}>
+            <div className={styles.masteryHeading}>
+              <LoadableImage src={mastery.icon} alt="" width={72} height={72} />
+              <div>
+                <span className={styles.eyebrow}><BookOpenCheck size={16} /> Классовая специализация</span>
+                <h2>Мастерство: {selectedClass?.name}</h2>
+                <p>Развивайте способности по связанным веткам и откройте финальную специализацию.</p>
+              </div>
+            </div>
+            <div className={styles.points}>
+              <span>Распределение<strong>{masteryAllocation} / 26</strong></span>
+              <span>Очки уровня<strong>{masteryLevelPoints} / 2</strong></span>
+            </div>
+          </div>
+
+          <div className={styles.masteryTree}>
+            {mastery.branches.map((branch) => {
+              const rootRank = state.masteryRanks[branch.rootId] ?? 0;
               return (
-                <article className={`${styles.finalMastery}${rank ? ` ${styles.finalMasteryActive}` : ""}`} key={node.id}>
-                  <span className={styles.nodeIcon}><Gem size={22} /></span>
-                  <div><strong>{node.name}</strong><p>{node.description}</p></div>
-                  <div className={styles.rankControl}>
-                    {!readOnly && <button type="button" aria-label={`Зменшити ранг: ${node.name}`} onClick={() => updateMasteryRank(node.id, -1, true)} disabled={rank === 0}><Minus size={15} /></button>}
-                    <span>{rank} / 2</span>
-                    {!readOnly && <button type="button" aria-label={`Підвищити ранг: ${node.name}`} onClick={() => updateMasteryRank(node.id, 1, true)} disabled={rank === 2 || (rank === 0 && masteryAllocation < 20)}><Plus size={15} /></button>}
+                <article className={styles.masteryColumn} key={branch.id}>
+                  <header className={`${styles.masteryAbility}${rootRank ? ` ${styles.masteryNodeActive}` : ""}`}>
+                    <button
+                      type="button"
+                      className={styles.masteryIconButton}
+                      disabled={readOnly}
+                      onClick={() => !readOnly && updateMasteryRank(branch.rootId, rootRank ? -1 : 1, { maxRank: 1 })}
+                      aria-label={`${rootRank ? "Снять" : "Выбрать"} способность ${branch.name}`}
+                    >
+                      <LoadableImage src={branch.icon} alt="" width={66} height={66} />
+                      <span className={styles.masteryRankBadge}>{rootRank ? <Check size={15} /> : <Plus size={15} />}</span>
+                    </button>
+                    <div><h3>{branch.name}</h3><p>{branch.description}</p></div>
+                  </header>
+                  <div className={styles.masteryPath}>
+                    {branch.nodes.map((node, nodeIndex) => {
+                      const rank = state.masteryRanks[node.id] ?? 0;
+                      const prerequisite = nodeIndex === 0 ? branch.rootId : branch.nodes[nodeIndex - 1].id;
+                      const unlocked = Boolean(state.masteryRanks[prerequisite]);
+                      return (
+                        <div
+                          className={`${styles.masteryTreeNode}${rank ? ` ${styles.masteryNodeActive}` : ""}${!unlocked ? ` ${styles.masteryNodeLocked}` : ""}`}
+                          key={node.id}
+                        >
+                          <button
+                            type="button"
+                            className={styles.masteryIconButton}
+                            disabled={readOnly || (!unlocked && rank === 0)}
+                            onClick={() => !readOnly && updateMasteryRank(node.id, rank ? -1 : 1, { prerequisite })}
+                            title={node.description}
+                            aria-label={`${rank ? "Снять" : "Выбрать"} улучшение ${node.name}`}
+                          >
+                            <LoadableImage src={node.icon} alt="" width={54} height={54} />
+                            <span className={styles.masteryRankBadge}>{rank}/2</span>
+                          </button>
+                          <strong>{node.name}</strong>
+                          {rank > 0 && !readOnly && (
+                            <div className={styles.masteryRankActions}>
+                              <button type="button" onClick={() => updateMasteryRank(node.id, -1)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
+                              <button type="button" onClick={() => updateMasteryRank(node.id, 1)} disabled={rank >= 2} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </article>
               );
             })}
           </div>
-        </div>
-      </section>
 
-      {readOnly
-        ? <ReadOnlyMaterialPanel state={state} dataset={dataset} />
-        : <EditableMaterialPanel state={state} dataset={dataset} />}
+          <div className={styles.finalMasteries}>
+            <span className={styles.tierLabel}>Финальная специализация · требуется 20 очков</span>
+            <div>
+              {mastery.finals.map((node) => {
+                const rank = state.masteryRanks[node.id] ?? 0;
+                return (
+                  <article className={`${styles.finalMastery}${rank ? ` ${styles.finalMasteryActive}` : ""}`} key={node.id}>
+                    <span className={styles.nodeIcon}><LoadableImage src={node.icon} alt="" width={58} height={58} /></span>
+                    <div><strong>{node.name}</strong><p>{node.description}</p></div>
+                    <div className={styles.rankControl}>
+                      {!readOnly && <button type="button" aria-label={`Уменьшить ранг: ${node.name}`} onClick={() => updateMasteryRank(node.id, -1, { final: true })} disabled={rank === 0}><Minus size={15} /></button>}
+                      <span>{rank} / 2</span>
+                      {!readOnly && <button type="button" aria-label={`Повысить ранг: ${node.name}`} onClick={() => updateMasteryRank(node.id, 1, { final: true })} disabled={rank === 2 || (rank === 0 && masteryAllocation < 20)}><Plus size={15} /></button>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
-      <section className={styles.notesPanel}>
-        <div>
-          <span className={styles.eyebrow}><Clipboard size={16} /> Нотатки</span>
-          <h2>Як грати цим білдом</h2>
-        </div>
-        {readOnly ? (
-          <p>{state.notes || "Автор не залишив додаткових пояснень."}</p>
-        ) : (
-          <textarea
-            value={state.notes}
-            onChange={(event) => setState((current) => ({ ...current, notes: event.target.value.slice(0, 1200) }))}
-            placeholder="Опишіть ротацію, роль у групі, сильні сторони або ситуативні заміни…"
-            maxLength={1200}
-          />
-        )}
-      </section>
+      {activeSection === "materials" && (
+        readOnly
+          ? <ReadOnlyMaterialPanel state={state} dataset={dataset} />
+          : <EditableMaterialPanel state={state} dataset={dataset} />
+      )}
 
       {pickerSlot && !readOnly && (
         <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setPickerSlot(null)}>
-          <section className={styles.pickerModal} role="dialog" aria-modal="true" aria-label={`Вибір: ${slotMeta[pickerSlot].label}`} onMouseDown={(event) => event.stopPropagation()}>
+          <section className={styles.pickerModal} role="dialog" aria-modal="true" aria-label={`Выбор: ${slotMeta[pickerSlot].label}`} onMouseDown={(event) => event.stopPropagation()}>
             <header className={styles.modalHeader}>
-              <div><span className={styles.eyebrow}>Вибір спорядження</span><h2>{slotMeta[pickerSlot].label}</h2></div>
-              <button type="button" onClick={() => setPickerSlot(null)} aria-label="Закрити"><X size={22} /></button>
+              <div><span className={styles.eyebrow}>Выбор экипировки</span><h2>{slotMeta[pickerSlot].label}</h2></div>
+              <button type="button" onClick={() => setPickerSlot(null)} aria-label="Закрыть"><X size={22} /></button>
             </header>
             <div className={styles.pickerFilters}>
               <label className={styles.searchField}>
                 <Search size={18} />
-                <input value={pickerSearch} onChange={(event) => setPickerSearch(event.target.value)} placeholder="Пошук за назвою…" autoFocus />
+                <input value={pickerSearch} onChange={(event) => setPickerSearch(event.target.value)} placeholder="Поиск по названию…" autoFocus />
               </label>
               <CustomSelect
                 value={pickerQuality}
                 onChange={(value) => setPickerQuality(value as BuilderQuality)}
                 options={builderQualities.map((quality) => ({ value: quality, label: qualityLabels[quality] }))}
-                ariaLabel="Якість предмета"
+                ariaLabel="Качество предмета"
                 startIcon={<Gem size={16} />}
                 size="regular"
               />
@@ -1004,7 +1104,7 @@ export function CharacterBuilder({
                 value={pickerTier}
                 onChange={setPickerTier}
                 options={[
-                  { value: "all", label: "Усі тири" },
+                  { value: "all", label: "Все тиры" },
                   ...[1, 2, 3, 4, 5].map((tier) => ({ value: String(tier), label: `Тир ${tier}` })),
                 ]}
                 ariaLabel="Тир предмета"
@@ -1013,20 +1113,20 @@ export function CharacterBuilder({
               />
             </div>
             <div className={styles.pickerResultHeader}>
-              <span>Знайдено: <strong>{pickerItems.length}{pickerItems.length === 80 ? "+" : ""}</strong></span>
-              {activeSet[pickerSlot] && (
+              <span>Найдено: <strong>{pickerItems.length}{pickerItems.length === 80 ? "+" : ""}</strong></span>
+              {pickerSelection && (
                 <button className={styles.textButton} type="button" onClick={() => {
                   updateSelection(pickerSlot, null);
                   setPickerSlot(null);
                 }}>
-                  <Trash2 size={16} /> Зняти предмет
+                  <Trash2 size={16} /> Снять предмет
                 </button>
               )}
             </div>
             <div className={styles.pickerItems}>
               {pickerItems.map((item) => {
                 const variation = getVariation(item, pickerQuality);
-                const equipped = activeSet[pickerSlot]?.itemSlug === item.slug;
+                const equipped = pickerSelection?.itemSlug === item.slug;
                 return (
                   <button
                     className={`${styles.pickerItem}${equipped ? ` ${styles.pickerItemEquipped}` : ""}`}
@@ -1036,8 +1136,8 @@ export function CharacterBuilder({
                       updateSelection(pickerSlot, {
                         itemSlug: item.slug,
                         quality: pickerQuality,
-                        roll: activeSet[pickerSlot]?.itemSlug === item.slug ? activeSet[pickerSlot]?.roll ?? 100 : 100,
-                        secondaryStats: activeSet[pickerSlot]?.itemSlug === item.slug ? activeSet[pickerSlot]?.secondaryStats ?? [] : [],
+                        roll: equipped ? pickerSelection?.roll ?? 100 : 100,
+                        secondaryStats: equipped ? pickerSelection?.secondaryStats ?? [] : [],
                       });
                     }}
                   >
@@ -1051,19 +1151,19 @@ export function CharacterBuilder({
                   </button>
                 );
               })}
-              {pickerItems.length === 0 && <div className={styles.emptyState}><Search size={28} /><strong>Нічого не знайдено</strong><span>Змініть запит або фільтри.</span></div>}
+              {pickerItems.length === 0 && <div className={styles.emptyState}><Search size={28} /><strong>Ничего не найдено</strong><span>Измените запрос или фильтры.</span></div>}
             </div>
-            {activeSet[pickerSlot] && (
+            {pickerSelection && (
               <>
                 {slotMeta[pickerSlot].type === "implant" && (
                   <div className={styles.secondaryStatPicker}>
                     <div>
-                      <strong>Додаткові характеристики</strong>
-                      <span>Оберіть до трьох бонусів для імпланта</span>
+                      <strong>Дополнительные характеристики</strong>
+                      <span>Выберите до трёх бонусов для артефакта</span>
                     </div>
                     <div>
                       {secondaryStatOptions.map((stat) => {
-                        const selection = activeSet[pickerSlot];
+                        const selection = getSelection(state, pickerSlot);
                         const selected = selection?.secondaryStats.includes(stat) ?? false;
                         const asset = dataset.stats[stat];
                         return (
@@ -1090,27 +1190,27 @@ export function CharacterBuilder({
                     </div>
                   </div>
                 )}
-              <footer className={styles.pickerInspector}>
-                <div>
-                  <span>Якість характеристик</span>
-                  <strong>{activeSet[pickerSlot]?.roll}%</strong>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={activeSet[pickerSlot]?.roll ?? 100}
-                  onChange={(event) => {
-                    const selection = activeSet[pickerSlot];
-                    if (selection) updateSelection(pickerSlot, { ...selection, roll: Number(event.target.value) });
-                  }}
-                  aria-label="Відсоток характеристик предмета"
-                />
-                <button className={styles.primaryButton} type="button" onClick={() => setPickerSlot(null)}>
-                  <Check size={17} /> Готово
-                </button>
-              </footer>
+                <footer className={styles.pickerInspector}>
+                  <div>
+                    <span>Качество характеристик</span>
+                    <strong>{pickerSelection.roll}%</strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={pickerSelection.roll}
+                    onChange={(event) => {
+                      const selection = getSelection(state, pickerSlot);
+                      if (selection) updateSelection(pickerSlot, { ...selection, roll: Number(event.target.value) });
+                    }}
+                    aria-label="Процент характеристик предмета"
+                  />
+                  <button className={styles.primaryButton} type="button" onClick={() => setPickerSlot(null)}>
+                    <Check size={17} /> Готово
+                  </button>
+                </footer>
               </>
             )}
           </section>
@@ -1119,10 +1219,10 @@ export function CharacterBuilder({
 
       {showSaved && !readOnly && (
         <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setShowSaved(false)}>
-          <section className={`${styles.pickerModal} ${styles.savedModal}`} role="dialog" aria-modal="true" aria-label="Мої білди" onMouseDown={(event) => event.stopPropagation()}>
+          <section className={`${styles.pickerModal} ${styles.savedModal}`} role="dialog" aria-modal="true" aria-label="Мои билды" onMouseDown={(event) => event.stopPropagation()}>
             <header className={styles.modalHeader}>
-              <div><span className={styles.eyebrow}>Профіль гравця</span><h2>Мої збережені білди</h2></div>
-              <button type="button" onClick={() => setShowSaved(false)} aria-label="Закрити"><X size={22} /></button>
+              <div><span className={styles.eyebrow}>Профиль игрока</span><h2>Мои сохранённые билды</h2></div>
+              <button type="button" onClick={() => setShowSaved(false)} aria-label="Закрыть"><X size={22} /></button>
             </header>
             <div className={styles.savedList}>
               {savedBuilds.map((build) => {
@@ -1132,17 +1232,17 @@ export function CharacterBuilder({
                     <span className={styles.savedClass}>
                       {classEntry?.image ? <LoadableImage src={classEntry.image} alt="" width={46} height={46} /> : <UserRound size={24} />}
                     </span>
-                    <div><strong>{build.title}</strong><span>{classEntry?.name || build.heroClass} · рівень {build.level}</span><small>Оновлено {new Date(build.updatedAt).toLocaleString("uk-UA")}</small></div>
-                    <button type="button" onClick={() => loadBuild(build)}>Відкрити</button>
+                    <div><strong>{build.title}</strong><span>{classEntry?.name || build.heroClass} · уровень {build.level}</span><small>Обновлено {new Date(build.updatedAt).toLocaleString("ru-RU")}</small></div>
+                    <button type="button" onClick={() => loadBuild(build)}>Открыть</button>
                     <button type="button" className={styles.iconButton} onClick={async () => {
                       await navigator.clipboard.writeText(`${window.location.origin}/character-builder/shared/${build.shareSlug}`);
-                      setNotice("Посилання скопійовано.");
-                    }} aria-label={`Копіювати посилання на ${build.title}`}><Copy size={18} /></button>
-                    <button type="button" className={styles.iconButtonDanger} onClick={() => deleteBuild(build)} aria-label={`Видалити ${build.title}`}><Trash2 size={18} /></button>
+                      setNotice("Ссылка скопирована.");
+                    }} aria-label={`Копировать ссылку на ${build.title}`}><Copy size={18} /></button>
+                    <button type="button" className={styles.iconButtonDanger} onClick={() => deleteBuild(build)} aria-label={`Удалить ${build.title}`}><Trash2 size={18} /></button>
                   </article>
                 );
               })}
-              {savedBuilds.length === 0 && <div className={styles.emptyState}><Database size={30} /><strong>Збережених білдів ще немає</strong><span>Перший білд з’явиться тут після збереження.</span></div>}
+              {savedBuilds.length === 0 && <div className={styles.emptyState}><Database size={30} /><strong>Сохранённых билдов пока нет</strong><span>Первый билд появится здесь после сохранения.</span></div>}
             </div>
           </section>
         </div>

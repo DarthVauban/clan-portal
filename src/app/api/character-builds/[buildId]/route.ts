@@ -17,12 +17,12 @@ export async function PUT(
   context: { params: Promise<{ buildId: string }> },
 ) {
   const session = readSession(request);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) return NextResponse.json({ error: "Требуется авторизация." }, { status: 401 });
   let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: "Некоректні дані білда." }, { status: 400 });
+    return NextResponse.json({ error: "Некорректные данные билда." }, { status: 400 });
   }
   const { buildId } = await context.params;
   const build = await updateCharacterBuild(
@@ -30,7 +30,7 @@ export async function PUT(
     buildId,
     payload && typeof payload === "object" ? (payload as { build?: unknown }).build : null,
   );
-  if (!build) return NextResponse.json({ error: "Білд не знайдено." }, { status: 404 });
+  if (!build) return NextResponse.json({ error: "Билд не найден." }, { status: 404 });
   return NextResponse.json({ build });
 }
 
@@ -39,9 +39,9 @@ export async function DELETE(
   context: { params: Promise<{ buildId: string }> },
 ) {
   const session = readSession(request);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) return NextResponse.json({ error: "Требуется авторизация." }, { status: 401 });
   const { buildId } = await context.params;
   const deleted = await deleteCharacterBuild(session, buildId);
-  if (!deleted) return NextResponse.json({ error: "Білд не знайдено." }, { status: 404 });
+  if (!deleted) return NextResponse.json({ error: "Билд не найден." }, { status: 404 });
   return NextResponse.json({ deleted: true });
 }

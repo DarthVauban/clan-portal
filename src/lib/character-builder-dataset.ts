@@ -67,9 +67,9 @@ function mapRecipes(item: {
   const overclocked = item.recipes?.find((recipe) => /overclocked|разогн|розігн/i.test(recipe.name))
     ?? item.recipes?.[1];
   return [
-    { id: "regular", label: "Звичайний", ingredients: mapIngredients(item.ingredients ?? []) },
-    { id: "upgraded", label: "Покращений", ingredients: mapIngredients(upgraded?.ingredients ?? item.ingredients ?? []) },
-    { id: "overclocked", label: "Розігнаний", ingredients: mapIngredients(overclocked?.ingredients ?? upgraded?.ingredients ?? item.ingredients ?? []) },
+    { id: "regular", label: "Обычный", ingredients: mapIngredients(item.ingredients ?? []) },
+    { id: "upgraded", label: "Улучшенный", ingredients: mapIngredients(upgraded?.ingredients ?? item.ingredients ?? []) },
+    { id: "overclocked", label: "Разогнанный", ingredients: mapIngredients(overclocked?.ingredients ?? upgraded?.ingredients ?? item.ingredients ?? []) },
   ];
 }
 

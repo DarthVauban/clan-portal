@@ -13,10 +13,10 @@ type SharedBuildPageProps = {
 export async function generateMetadata({ params }: SharedBuildPageProps): Promise<Metadata> {
   const { shareSlug } = await params;
   const build = await getPublicCharacterBuild(shareSlug);
-  if (!build) return { title: "Білд не знайдено" };
+  if (!build) return { title: "Билд не найден" };
   return {
-    title: `${build.title} · Character Builder`,
-    description: `Білд ${build.ownerName || "гравця"} для класу ${build.heroClass}, рівень ${build.level}.`,
+    title: `${build.title} · Конструктор персонажа`,
+    description: `Билд ${build.ownerName || "игрока"} для класса ${build.heroClass}, уровень ${build.level}.`,
   };
 }
 

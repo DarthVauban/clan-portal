@@ -1,4 +1,4 @@
-export const CHARACTER_BUILD_SCHEMA_VERSION = 1;
+export const CHARACTER_BUILD_SCHEMA_VERSION = 2;
 
 export const builderSetIds = ["one", "two"] as const;
 export type BuilderSetId = (typeof builderSetIds)[number];
@@ -6,20 +6,25 @@ export type BuilderSetId = (typeof builderSetIds)[number];
 export const builderQualities = ["uncommon", "rare", "epic"] as const;
 export type BuilderQuality = (typeof builderQualities)[number];
 
-export const builderSlotIds = [
+export const builderWeaponSlotIds = [
   "weapon-primary",
-  "weapon-secondary",
+  "chip-1",
+  "chip-2",
+  "chip-3",
+] as const;
+export type BuilderWeaponSlotId = (typeof builderWeaponSlotIds)[number];
+
+export const builderArtifactSlotIds = [
   "implant-1",
   "implant-2",
   "implant-3",
   "implant-4",
   "implant-5",
   "implant-6",
-  "chip-1",
-  "chip-2",
-  "chip-3",
-  "rune-1",
 ] as const;
+export type BuilderArtifactSlotId = (typeof builderArtifactSlotIds)[number];
+
+export const builderSlotIds = [...builderWeaponSlotIds, ...builderArtifactSlotIds] as const;
 export type BuilderSlotId = (typeof builderSlotIds)[number];
 
 export type BuilderIngredient = {
@@ -95,7 +100,8 @@ export type BuilderItemSelection = {
   secondaryStats: string[];
 };
 
-export type BuilderEquipmentSet = Record<BuilderSlotId, BuilderItemSelection | null>;
+export type BuilderEquipmentSet = Record<BuilderWeaponSlotId, BuilderItemSelection | null>;
+export type BuilderArtifactSet = Record<BuilderArtifactSlotId, BuilderItemSelection | null>;
 
 export type CharacterBuildState = {
   schemaVersion: typeof CHARACTER_BUILD_SCHEMA_VERSION;
@@ -104,6 +110,7 @@ export type CharacterBuildState = {
   level: number;
   activeSet: BuilderSetId;
   sets: Record<BuilderSetId, BuilderEquipmentSet>;
+  artifacts: BuilderArtifactSet;
   selectedArchetypes: string[];
   talentRanks: Record<string, number>;
   masteryRanks: Record<string, number>;
@@ -123,13 +130,17 @@ export type SavedCharacterBuild = {
 };
 
 export function createEmptyEquipmentSet(): BuilderEquipmentSet {
-  return Object.fromEntries(builderSlotIds.map((slotId) => [slotId, null])) as BuilderEquipmentSet;
+  return Object.fromEntries(builderWeaponSlotIds.map((slotId) => [slotId, null])) as BuilderEquipmentSet;
+}
+
+export function createEmptyArtifactSet(): BuilderArtifactSet {
+  return Object.fromEntries(builderArtifactSlotIds.map((slotId) => [slotId, null])) as BuilderArtifactSet;
 }
 
 export function createDefaultCharacterBuild(heroClass = "legionnary"): CharacterBuildState {
   return {
     schemaVersion: CHARACTER_BUILD_SCHEMA_VERSION,
-    title: "Новий білд",
+    title: "Новый билд",
     heroClass,
     level: 20,
     activeSet: "one",
@@ -137,6 +148,7 @@ export function createDefaultCharacterBuild(heroClass = "legionnary"): Character
       one: createEmptyEquipmentSet(),
       two: createEmptyEquipmentSet(),
     },
+    artifacts: createEmptyArtifactSet(),
     selectedArchetypes: [],
     talentRanks: {},
     masteryRanks: {},
@@ -174,7 +186,16 @@ function normalizeSelection(value: unknown): BuilderItemSelection | null {
 
 function normalizeEquipmentSet(value: unknown): BuilderEquipmentSet {
   const candidate = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  return Object.fromEntries(builderSlotIds.map((slotId) => [slotId, normalizeSelection(candidate[slotId])])) as BuilderEquipmentSet;
+  return Object.fromEntries(
+    builderWeaponSlotIds.map((slotId) => [slotId, normalizeSelection(candidate[slotId])]),
+  ) as BuilderEquipmentSet;
+}
+
+function normalizeArtifactSet(value: unknown): BuilderArtifactSet {
+  const candidate = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return Object.fromEntries(
+    builderArtifactSlotIds.map((slotId) => [slotId, normalizeSelection(candidate[slotId])]),
+  ) as BuilderArtifactSet;
 }
 
 function normalizeRankMap(value: unknown, maximumRank: number, maximumEntries: number) {
@@ -187,30 +208,90 @@ function normalizeRankMap(value: unknown, maximumRank: number, maximumEntries: n
   );
 }
 
+const legacyArchetypeAliases: Record<string, string> = {
+  assassin: "assassin",
+  sharpshooter: "hunter",
+  guardian: "tank",
+  warlock: "mage",
+  duelist: "warrior",
+  medic: "medic",
+  trickster: "pathfinder",
+  berserker: "support",
+};
+
+function normalizeTalentRankMap(value: unknown) {
+  const normalized = normalizeRankMap(value, 5, 120);
+  const migrated: Record<string, number> = {};
+  for (const [nodeId, rank] of Object.entries(normalized)) {
+    const separator = nodeId.lastIndexOf("-");
+    if (separator < 1) continue;
+    const archetypeId = nodeId.slice(0, separator);
+    const nodeNumber = nodeId.slice(separator + 1);
+    const mappedId = legacyArchetypeAliases[archetypeId] ?? archetypeId;
+    migrated[`${mappedId}-${nodeNumber}`] = Math.max(migrated[`${mappedId}-${nodeNumber}`] ?? 0, rank);
+  }
+  return migrated;
+}
+
+function normalizeMasteryRankMap(value: unknown, heroClass: string) {
+  const normalized = normalizeRankMap(value, 2, 80);
+  const migrated: Record<string, number> = {};
+  for (const [nodeId, rank] of Object.entries(normalized)) {
+    const legacyRoot = nodeId.match(new RegExp(`^${heroClass}-mastery-([1-4])-6$`));
+    const mappedId = legacyRoot ? `${heroClass}-branch-${legacyRoot[1]}-root` : nodeId;
+    const valid = (
+      new RegExp(`^${heroClass}-mastery-[1-4]-[1-5]$`).test(mappedId)
+      || new RegExp(`^${heroClass}-branch-[1-4]-root$`).test(mappedId)
+      || new RegExp(`^${heroClass}-final-[1-2]$`).test(mappedId)
+    );
+    if (valid) migrated[mappedId] = Math.max(migrated[mappedId] ?? 0, rank);
+  }
+  return migrated;
+}
+
 export function normalizeCharacterBuildState(value: unknown): CharacterBuildState | null {
   if (!value || typeof value !== "object") return null;
-  const candidate = value as Partial<CharacterBuildState>;
+  const candidate = value as Record<string, unknown>;
   const heroClass = boundedString(candidate.heroClass, 80);
   if (!heroClass) return null;
+
   const rawSets = candidate.sets && typeof candidate.sets === "object"
     ? candidate.sets as Partial<Record<BuilderSetId, unknown>>
     : {};
+  const firstSetCandidate = rawSets.one && typeof rawSets.one === "object"
+    ? rawSets.one as Record<string, unknown>
+    : {};
+  const sets = {
+    one: normalizeEquipmentSet(rawSets.one),
+    two: normalizeEquipmentSet(rawSets.two),
+  };
+
+  // В старой схеме в первом комплекте было два оружия. Второе безопасно
+  // переносим во второй оружейный комплект, если тот ещё пуст.
+  if (!sets.two["weapon-primary"]) {
+    sets.two["weapon-primary"] = normalizeSelection(firstSetCandidate["weapon-secondary"]);
+  }
+
+  const rawArtifacts = candidate.artifacts ?? rawSets.one;
   const selectedArchetypes = Array.isArray(candidate.selectedArchetypes)
-    ? [...new Set(candidate.selectedArchetypes.map((item) => boundedString(item, 40)).filter(Boolean))].slice(0, 3)
+    ? [...new Set(candidate.selectedArchetypes
+      .map((item) => boundedString(item, 40))
+      .filter(Boolean)
+      .map((item) => legacyArchetypeAliases[item] ?? item))]
+      .slice(0, 3)
     : [];
+
   return {
     schemaVersion: CHARACTER_BUILD_SCHEMA_VERSION,
-    title: boundedString(candidate.title, 80) || "Новий білд",
+    title: boundedString(candidate.title, 80) || "Новый билд",
     heroClass,
     level: boundedInteger(candidate.level, 1, 20, 20),
     activeSet: builderSetIds.includes(candidate.activeSet as BuilderSetId) ? candidate.activeSet as BuilderSetId : "one",
-    sets: {
-      one: normalizeEquipmentSet(rawSets.one),
-      two: normalizeEquipmentSet(rawSets.two),
-    },
+    sets,
+    artifacts: normalizeArtifactSet(rawArtifacts),
     selectedArchetypes,
-    talentRanks: normalizeRankMap(candidate.talentRanks, 5, 120),
-    masteryRanks: normalizeRankMap(candidate.masteryRanks, 2, 40),
+    talentRanks: normalizeTalentRankMap(candidate.talentRanks),
+    masteryRanks: normalizeMasteryRankMap(candidate.masteryRanks, heroClass),
     notes: boundedString(candidate.notes, 1200),
   };
 }
