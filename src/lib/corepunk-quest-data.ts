@@ -240,6 +240,10 @@ export type LocalizedQuestRewardItemStat = QuestRewardItemStat & {
   nameEn: string;
   quality: string;
   tier: number;
+  qualities: string[];
+  mastery: string | null;
+  profession: string | null;
+  statTypes: string[];
   image: string;
   fallbackImage: string;
 };
@@ -249,6 +253,10 @@ export type LocalizedQuestRecipeRewardStat = QuestRecipeRewardStat & {
   nameEn: string;
   quality: string;
   tier: number;
+  qualities: string[];
+  mastery: string | null;
+  profession: string | null;
+  statTypes: string[];
   image: string;
   fallbackImage: string;
 };
@@ -256,6 +264,7 @@ export type LocalizedQuestRecipeRewardStat = QuestRecipeRewardStat & {
 export type LocalizedQuestRewardStats = Omit<QuestRewardStats, "topItems" | "recipes"> & {
   topItems: LocalizedQuestRewardItemStat[];
   recipes: LocalizedQuestRecipeRewardStat[];
+  statAssets: Record<string, { label: string; image: string }>;
 };
 
 export type QuestCatalog = {

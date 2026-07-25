@@ -1,6 +1,8 @@
 import "server-only";
 import sourceJson from "@/data/corepunk-quest-chains.json";
 import translationJson from "@/data/corepunk-quest-chains-ru.json";
+import { getCatalogDataset } from "@/lib/corepunk-item-repository";
+import type { CatalogItem } from "@/lib/corepunk-item-data";
 import type {
   CorepunkQuest,
   CorepunkQuestDataset,
@@ -196,18 +198,44 @@ export function getQuestDirectory(): QuestDirectory {
   };
 }
 
-function localizeRewardItemStat(item: QuestRewardItemStat): LocalizedQuestRewardItemStat {
-  return { ...item, ...rewardItemPresentation(item.item, item.type) };
+function rewardFilterMetadata(item: CatalogItem | undefined) {
+  return {
+    qualities: item ? [...new Set(item.variations.map((variation) => variation.quality))] : ["common"],
+    mastery: item?.mastery ?? null,
+    profession: item?.profession ?? null,
+    statTypes: item ? [...new Set(item.stats.map((stat) => stat.type))] : [],
+  };
 }
 
-function localizeRecipeRewardStat(item: QuestRecipeRewardStat): LocalizedQuestRecipeRewardStat {
-  return { ...item, ...rewardItemPresentation(item.item, item.type) };
+function localizeRewardItemStat(item: QuestRewardItemStat, catalogItem: CatalogItem | undefined): LocalizedQuestRewardItemStat {
+  return {
+    ...item,
+    ...rewardItemPresentation(item.item, item.type),
+    ...rewardFilterMetadata(catalogItem),
+  };
 }
 
-export function getQuestRewardStatistics(): LocalizedQuestRewardStats {
+function localizeRecipeRewardStat(item: QuestRecipeRewardStat, catalogItem: CatalogItem | undefined): LocalizedQuestRecipeRewardStat {
+  return {
+    ...item,
+    ...rewardItemPresentation(item.item, item.type),
+    ...rewardFilterMetadata(catalogItem),
+  };
+}
+
+export async function getQuestRewardStatistics(): Promise<LocalizedQuestRewardStats> {
+  const catalog = await getCatalogDataset();
+  const catalogBySlug = new Map(catalog.items.map((item) => [item.slug, item]));
   return {
     ...dataset.rewardStats,
-    topItems: dataset.rewardStats.topItems.map(localizeRewardItemStat),
-    recipes: dataset.rewardStats.recipes.map(localizeRecipeRewardStat),
+    topItems: dataset.rewardStats.topItems.map((item) => localizeRewardItemStat(item, catalogBySlug.get(item.item))),
+    recipes: dataset.rewardStats.recipes.map((item) => localizeRecipeRewardStat(item, catalogBySlug.get(item.item))),
+    statAssets: Object.fromEntries(Object.entries(catalog.stats).map(([type, asset]) => [
+      type,
+      {
+        label: asset.label ?? type.toUpperCase(),
+        image: asset.downloaded ? asset.local : "",
+      },
+    ])),
   };
 }

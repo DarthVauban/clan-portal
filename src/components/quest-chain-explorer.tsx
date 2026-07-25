@@ -13,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { CustomSelect } from "@/components/custom-select";
 import type { LocalizedQuestChain, LocalizedQuestChainNode } from "@/lib/corepunk-quest-data";
 import styles from "@/app/quests/quests.module.css";
 
@@ -71,16 +72,27 @@ export function QuestChainExplorer({ chains, locations }: { chains: LocalizedQue
   const [sort, setSort] = useState<SortMode>("size");
   const [selectedRoot, setSelectedRoot] = useState(chains[0]?.rootSlug ?? "");
   const [expandAll, setExpandAll] = useState(false);
+  const locationOptions = useMemo(
+    () => [{ value: "all", label: "Все локации" }, ...locations.map((entry) => ({ value: entry, label: entry }))],
+    [locations],
+  );
+  const sortOptions = useMemo(() => [
+    { value: "size", label: "Сначала крупные" },
+    { value: "level", label: "По уровню старта" },
+    { value: "name", label: "По названию" },
+  ], []);
   const indexedChains = useMemo(() => new Map(chains.map((chain) => [chain.rootSlug, chainSearchText(chain)])), [chains]);
   useEffect(() => {
+    let frame = 0;
     try {
       const storedRoot = window.localStorage.getItem(SELECTED_CHAIN_STORAGE_KEY);
       if (storedRoot && chains.some((chain) => chain.rootSlug === storedRoot)) {
-        setSelectedRoot(storedRoot);
+        frame = window.requestAnimationFrame(() => setSelectedRoot(storedRoot));
       }
     } catch {
       // Storage can be unavailable in restricted browser contexts.
     }
+    return () => window.cancelAnimationFrame(frame);
   }, [chains]);
   const filteredChains = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -111,21 +123,22 @@ export function QuestChainExplorer({ chains, locations }: { chains: LocalizedQue
           />
           <kbd>{filteredChains.length}</kbd>
         </label>
-        <label className={styles.selectField}>
-          <MapPin size={15} />
-          <select value={location} onChange={(event) => setLocation(event.target.value)}>
-            <option value="all">Все локации</option>
-            {locations.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-          </select>
-        </label>
-        <label className={styles.selectField}>
-          <ArrowDownAZ size={15} />
-          <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)}>
-            <option value="size">Сначала крупные</option>
-            <option value="level">По уровню старта</option>
-            <option value="name">По названию</option>
-          </select>
-        </label>
+        <CustomSelect
+          value={location}
+          options={locationOptions}
+          onChange={setLocation}
+          ariaLabel="Локация цепочки"
+          size="regular"
+          startIcon={<MapPin size={15} />}
+        />
+        <CustomSelect
+          value={sort}
+          options={sortOptions}
+          onChange={(value) => setSort(value as SortMode)}
+          ariaLabel="Сортировка цепочек"
+          size="regular"
+          startIcon={<ArrowDownAZ size={15} />}
+        />
       </header>
 
       {activeChain ? (

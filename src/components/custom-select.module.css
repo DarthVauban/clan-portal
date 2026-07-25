@@ -33,6 +33,25 @@
   transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, color .16s ease;
 }
 
+.startIcon {
+  display: grid;
+  place-items: center;
+  color: #8e969a;
+}
+
+.startIcon + .value {
+  grid-column: 2;
+}
+
+.triggerWithIcon {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.trigger:hover:not(:disabled) .startIcon,
+.triggerOpen .startIcon {
+  color: #d2ad78;
+}
+
 .trigger:hover:not(:disabled),
 .triggerOpen {
   color: #f0dfbd;

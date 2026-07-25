@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   ArrowDownAZ,
   ArrowRight,
-  ChevronDown,
   Gift,
   ListChecks,
   MapPin,
@@ -14,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CustomSelect } from "@/components/custom-select";
 import { QuestRewardImage } from "@/components/quest-reward-image";
 import type { LocalizedQuest, LocalizedRewardItem } from "@/lib/corepunk-quest-data";
 import styles from "@/components/quest-library.module.css";
@@ -85,6 +85,20 @@ export function QuestTaskCatalog({
   const [level, setLevel] = useState("all");
   const [sort, setSort] = useState<QuestSort>("level-asc");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const locationOptions = useMemo(
+    () => [{ value: "all", label: "Все локации" }, ...locations.map((entry) => ({ value: entry, label: entry }))],
+    [locations],
+  );
+  const levelOptions = useMemo(
+    () => [{ value: "all", label: "Все уровни" }, ...levels.map((entry) => ({ value: String(entry), label: `Уровень ${entry}` }))],
+    [levels],
+  );
+  const sortOptions = useMemo(() => [
+    { value: "level-asc", label: "Сначала низкий уровень" },
+    { value: "level-desc", label: "Сначала высокий уровень" },
+    { value: "name", label: "По названию" },
+    { value: "rewards", label: "По числу наград" },
+  ], []);
   const searchIndex = useMemo(
     () => new Map(quests.map((quest) => [quest.slug, questSearchText(quest)])),
     [quests],
@@ -130,53 +144,40 @@ export function QuestTaskCatalog({
             placeholder="Название, NPC, цель или награда..."
           />
         </label>
-        <label className={styles.selectField}>
-          <MapPin size={16} />
-          <select
-            value={location}
-            onChange={(event) => {
-              setLocation(event.target.value);
-              setVisibleCount(PAGE_SIZE);
-            }}
-            aria-label="Локация"
-          >
-            <option value="all">Все локации</option>
-            {locations.map((entry) => <option value={entry} key={entry}>{entry}</option>)}
-          </select>
-          <ChevronDown size={14} />
-        </label>
-        <label className={styles.selectField}>
-          <SlidersHorizontal size={16} />
-          <select
-            value={level}
-            onChange={(event) => {
-              setLevel(event.target.value);
-              setVisibleCount(PAGE_SIZE);
-            }}
-            aria-label="Уровень задания"
-          >
-            <option value="all">Все уровни</option>
-            {levels.map((entry) => <option value={entry} key={entry}>Уровень {entry}</option>)}
-          </select>
-          <ChevronDown size={14} />
-        </label>
-        <label className={styles.selectField}>
-          <ArrowDownAZ size={16} />
-          <select
-            value={sort}
-            onChange={(event) => {
-              setSort(event.target.value as QuestSort);
-              setVisibleCount(PAGE_SIZE);
-            }}
-            aria-label="Сортировка заданий"
-          >
-            <option value="level-asc">Сначала низкий уровень</option>
-            <option value="level-desc">Сначала высокий уровень</option>
-            <option value="name">По названию</option>
-            <option value="rewards">По числу наград</option>
-          </select>
-          <ChevronDown size={14} />
-        </label>
+        <CustomSelect
+          value={location}
+          options={locationOptions}
+          onChange={(value) => {
+            setLocation(value);
+            setVisibleCount(PAGE_SIZE);
+          }}
+          ariaLabel="Локация"
+          size="regular"
+          startIcon={<MapPin size={16} />}
+        />
+        <CustomSelect
+          value={level}
+          options={levelOptions}
+          onChange={(value) => {
+            setLevel(value);
+            setVisibleCount(PAGE_SIZE);
+          }}
+          ariaLabel="Уровень задания"
+          size="regular"
+          startIcon={<SlidersHorizontal size={16} />}
+        />
+        <CustomSelect
+          className={styles.sortSelect}
+          value={sort}
+          options={sortOptions}
+          onChange={(value) => {
+            setSort(value as QuestSort);
+            setVisibleCount(PAGE_SIZE);
+          }}
+          ariaLabel="Сортировка заданий"
+          size="regular"
+          startIcon={<ArrowDownAZ size={16} />}
+        />
         <button className={styles.resetButton} type="button" onClick={resetFilters}>
           <RotateCcw size={15} /> Сбросить
         </button>

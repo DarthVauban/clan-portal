@@ -10,8 +10,10 @@ export const metadata: Metadata = {
   description: "Статистика предметов, валюты, опыта и рецептов в наградах за задания Corepunk.",
 };
 
-export default function QuestRewardStatsPage() {
-  const stats = getQuestRewardStatistics();
+export const dynamic = "force-dynamic";
+
+export default async function QuestRewardStatsPage() {
+  const stats = await getQuestRewardStatistics();
   return (
     <div className="page-stack">
       <section className="page-hero">

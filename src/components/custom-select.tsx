@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { type CSSProperties, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "@/components/custom-select.module.css";
 
@@ -22,6 +22,7 @@ type CustomSelectProps = {
   className?: string;
   size?: "compact" | "regular";
   layout?: "block" | "inline";
+  startIcon?: ReactNode;
 };
 
 type MenuPosition = {
@@ -62,6 +63,7 @@ export function CustomSelect({
   className = "",
   size = "compact",
   layout = "block",
+  startIcon,
 }: CustomSelectProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -247,7 +249,7 @@ export function CustomSelect({
       <button
         ref={triggerRef}
         type="button"
-        className={`${styles.trigger}${open ? ` ${styles.triggerOpen}` : ""}`}
+        className={`${styles.trigger}${open ? ` ${styles.triggerOpen}` : ""}${startIcon ? ` ${styles.triggerWithIcon}` : ""}`}
         onClick={() => (open ? closeMenu() : openMenu())}
         onKeyDown={handleKeyDown}
         disabled={disabled}
@@ -257,6 +259,7 @@ export function CustomSelect({
         aria-label={ariaLabel ?? placeholder}
         data-testid={testId}
       >
+        {startIcon && <span className={styles.startIcon}>{startIcon}</span>}
         <span className={`${styles.value}${selectedOption ? "" : ` ${styles.placeholder}`}`}>
           {selectedOption?.label ?? placeholder}
         </span>
