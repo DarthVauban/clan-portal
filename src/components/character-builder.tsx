@@ -643,7 +643,23 @@ export function CharacterBuilder({
           <>
             <CustomSelect
               value={state.heroClass}
-              onChange={(heroClass) => setState((current) => ({ ...current, heroClass, masteryRanks: {} }))}
+              onChange={(heroClass) => setState((current) => ({
+                ...current,
+                heroClass,
+                masteryRanks: {},
+                sets: {
+                  one: {
+                    ...current.sets.one,
+                    "weapon-primary": null,
+                    "weapon-secondary": null,
+                  },
+                  two: {
+                    ...current.sets.two,
+                    "weapon-primary": null,
+                    "weapon-secondary": null,
+                  },
+                },
+              }))}
               options={dataset.classes.map((entry) => ({ value: entry.slug, label: entry.name }))}
               ariaLabel="Клас героя"
               startIcon={<Shield size={17} />}
@@ -651,7 +667,18 @@ export function CharacterBuilder({
             />
             <CustomSelect
               value={String(state.level)}
-              onChange={(value) => setState((current) => ({ ...current, level: Number(value) }))}
+              onChange={(value) => setState((current) => {
+                const level = Number(value);
+                const archetypeLimit = level >= 15 ? 3 : level >= 10 ? 2 : 1;
+                const selectedArchetypes = current.selectedArchetypes.slice(0, archetypeLimit);
+                const selectedSet = new Set(selectedArchetypes);
+                const talentRanks = Object.fromEntries(
+                  Object.entries(current.talentRanks).filter(([nodeId]) => (
+                    builderArchetypes.some((archetype) => selectedSet.has(archetype.id) && nodeId.startsWith(`${archetype.id}-`))
+                  )),
+                );
+                return { ...current, level, selectedArchetypes, talentRanks };
+              })}
               options={Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: `Рівень ${index + 1}` }))}
               ariaLabel="Рівень героя"
               startIcon={<Zap size={17} />}
@@ -693,17 +720,37 @@ export function CharacterBuilder({
               <h2>Спорядження героя</h2>
               <p>Два незалежні набори для швидкого порівняння характеристик.</p>
             </div>
-            <div className={styles.setSwitch}>
-              {(["one", "two"] as BuilderSetId[]).map((setId) => (
+            <div className={styles.setControls}>
+              <div className={styles.setSwitch}>
+                {(["one", "two"] as BuilderSetId[]).map((setId) => (
+                  <button
+                    key={setId}
+                    type="button"
+                    className={state.activeSet === setId ? styles.setSwitchActive : ""}
+                    onClick={() => setState((current) => ({ ...current, activeSet: setId }))}
+                  >
+                    Комплект {setId === "one" ? "I" : "II"}
+                  </button>
+                ))}
+              </div>
+              {!readOnly && (
                 <button
-                  key={setId}
+                  className={styles.copySetButton}
                   type="button"
-                  className={state.activeSet === setId ? styles.setSwitchActive : ""}
-                  onClick={() => setState((current) => ({ ...current, activeSet: setId }))}
+                  onClick={() => setState((current) => {
+                    const targetSet: BuilderSetId = current.activeSet === "one" ? "two" : "one";
+                    return {
+                      ...current,
+                      sets: {
+                        ...current.sets,
+                        [targetSet]: { ...current.sets[current.activeSet] },
+                      },
+                    };
+                  })}
                 >
-                  Комплект {setId === "one" ? "I" : "II"}
+                  <Copy size={16} /> Скопіювати в {state.activeSet === "one" ? "II" : "I"}
                 </button>
-              ))}
+              )}
             </div>
           </div>
           <div className={styles.slotGrid}>

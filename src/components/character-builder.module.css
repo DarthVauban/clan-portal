@@ -335,6 +335,29 @@
   background: #0d1218;
 }
 
+.setControls {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.copySetButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 0;
+  background: transparent;
+  color: #8d99a5;
+  cursor: pointer;
+  font: 700 12px/1 inherit;
+}
+
+.copySetButton:hover {
+  color: #efc37c;
+}
+
 .setSwitch button,
 .segmented button {
   min-width: 124px;
@@ -1358,6 +1381,15 @@
   .setSwitch,
   .segmented {
     width: 100%;
+  }
+
+  .setControls {
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .copySetButton {
+    justify-content: center;
   }
 
   .setSwitch button,
