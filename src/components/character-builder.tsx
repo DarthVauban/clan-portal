@@ -34,6 +34,8 @@ import {
   builderMasteries,
   builderStatGroups,
   fallbackStatLabels,
+  type BuilderMasteryConfig,
+  type BuilderMasteryNode,
 } from "@/lib/character-builder-config";
 import {
   builderArtifactSlotIds,
@@ -116,6 +118,140 @@ function formatNumber(value: number) {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+type MasteryGridNode = BuilderMasteryNode & {
+  row: number;
+  column: number;
+};
+
+type MasteryEdge = {
+  id: string;
+  start: MasteryGridNode;
+  end: MasteryGridNode;
+};
+
+const MASTERY_ALLOCATION_LIMIT = 26;
+const MASTERY_LEVEL_LIMIT = 2;
+const MASTERY_BOARD_WIDTH = 1280;
+const MASTERY_BOARD_HEIGHT = 650;
+const MASTERY_ROOT_X = 72;
+const MASTERY_NODE_X = [230, 438, 646, 854, 1062];
+const MASTERY_ROW_Y = [82, 238, 394, 550];
+const MASTERY_FINAL_X = 1210;
+const MASTERY_FINAL_Y = [160, 472];
+
+function getMasteryGridNodes(mastery: BuilderMasteryConfig): MasteryGridNode[] {
+  return mastery.branches.flatMap((branch, row) => (
+    branch.nodes.map((node, column) => ({ ...node, row, column }))
+  ));
+}
+
+function getMasteryEdgeId(classSlug: string, start: MasteryGridNode, end: MasteryGridNode) {
+  return `${classSlug}-mastery-link-r${start.row + 1}c${start.column + 1}-r${end.row + 1}c${end.column + 1}`;
+}
+
+function getMasteryBoostId(edge: MasteryEdge, step: 1 | 2) {
+  return `${edge.id}-boost-${step}`;
+}
+
+function getMasteryEdges(mastery: BuilderMasteryConfig): MasteryEdge[] {
+  const matrix = mastery.branches.map((branch, row) => (
+    branch.nodes.map((node, column) => ({ ...node, row, column }))
+  ));
+  const edges: MasteryEdge[] = [];
+  const addEdge = (start: MasteryGridNode, end: MasteryGridNode) => {
+    edges.push({ id: getMasteryEdgeId(mastery.classSlug, start, end), start, end });
+  };
+
+  for (let column = 0; column < 5; column += 1) {
+    for (let row = 0; row < 3; row += 1) addEdge(matrix[row][column], matrix[row + 1][column]);
+  }
+  for (let column = 0; column < 4; column += 1) {
+    for (let row = 0; row < 4; row += 1) addEdge(matrix[row][column], matrix[row][column + 1]);
+    for (let row = 0; row < 3; row += 1) {
+      addEdge(matrix[row][column], matrix[row + 1][column + 1]);
+      addEdge(matrix[row + 1][column], matrix[row][column + 1]);
+    }
+  }
+  return edges;
+}
+
+function getMasteryAllocation(ranks: Record<string, number>) {
+  return Object.values(ranks).filter((rank) => rank > 0).length;
+}
+
+function getMasteryLevelPoints(ranks: Record<string, number>) {
+  return Object.values(ranks).reduce((sum, rank) => sum + Math.max(0, rank - 1), 0);
+}
+
+function isMasteryNodeUnlockable(
+  node: MasteryGridNode,
+  ranks: Record<string, number>,
+  edges: MasteryEdge[],
+) {
+  if (node.column === 0) return true;
+  return edges.some((edge) => {
+    const other = edge.start.id === node.id
+      ? edge.end
+      : edge.end.id === node.id
+        ? edge.start
+        : null;
+    return Boolean(
+      other
+      && ranks[other.id]
+      && ranks[getMasteryBoostId(edge, 1)]
+      && ranks[getMasteryBoostId(edge, 2)],
+    );
+  });
+}
+
+function getFinalMasteryPredecessors(mastery: BuilderMasteryConfig, finalIndex: number) {
+  const rows = finalIndex === 0 ? [0, 1] : [2, 3];
+  return rows.map((row) => mastery.branches[row].nodes[4].id);
+}
+
+function pruneMasteryRanks(mastery: BuilderMasteryConfig, candidate: Record<string, number>) {
+  const ranks = { ...candidate };
+  const nodes = getMasteryGridNodes(mastery);
+  const edges = getMasteryEdges(mastery);
+  const activeNodeIds = new Set(nodes.filter((node) => ranks[node.id]).map((node) => node.id));
+  const reachable = new Set(nodes.filter((node) => node.column === 0 && activeNodeIds.has(node.id)).map((node) => node.id));
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const edge of edges) {
+      if (!ranks[getMasteryBoostId(edge, 1)] || !ranks[getMasteryBoostId(edge, 2)]) continue;
+      if (reachable.has(edge.start.id) && activeNodeIds.has(edge.end.id) && !reachable.has(edge.end.id)) {
+        reachable.add(edge.end.id);
+        changed = true;
+      }
+      if (reachable.has(edge.end.id) && activeNodeIds.has(edge.start.id) && !reachable.has(edge.start.id)) {
+        reachable.add(edge.start.id);
+        changed = true;
+      }
+    }
+  }
+
+  for (const node of nodes) {
+    if (ranks[node.id] && !reachable.has(node.id)) delete ranks[node.id];
+  }
+  for (const edge of edges) {
+    if (!reachable.has(edge.start.id) && !reachable.has(edge.end.id)) {
+      delete ranks[getMasteryBoostId(edge, 1)];
+      delete ranks[getMasteryBoostId(edge, 2)];
+    }
+  }
+
+  const nonFinalAllocation = Object.entries(ranks)
+    .filter(([id, rank]) => rank > 0 && !id.includes("-final-"))
+    .length;
+  mastery.finals.forEach((final, finalIndex) => {
+    const hasPath = getFinalMasteryPredecessors(mastery, finalIndex).some((id) => ranks[id]);
+    if (!hasPath || nonFinalAllocation < 20) delete ranks[final.id];
+  });
+  return ranks;
 }
 
 function isArtifactSlot(slotId: BuilderSlotId): slotId is BuilderArtifactSlotId {
@@ -410,7 +546,6 @@ export function CharacterBuilder({
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerTier, setPickerTier] = useState("all");
   const [pickerQuality, setPickerQuality] = useState<BuilderQuality>("epic");
-  const [selectedArchetype, setSelectedArchetype] = useState("");
   const [showSaved, setShowSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -442,9 +577,9 @@ export function CharacterBuilder({
   const selectedClass = dataset.classes.find((entry) => entry.slug === state.heroClass) ?? dataset.classes[0];
   const mastery = builderMasteries[state.heroClass] ?? builderMasteries.legionnary;
   const allowedArchetypes = state.level >= 15 ? 3 : state.level >= 10 ? 2 : 1;
-  const selectedArchetypeConfig = builderArchetypes.find((entry) => entry.id === selectedArchetype)
-    ?? builderArchetypes.find((entry) => state.selectedArchetypes.includes(entry.id))
-    ?? null;
+  const selectedTalentBranches = builderArchetypes.filter((entry) => state.selectedArchetypes.includes(entry.id));
+  const masteryGridNodes = useMemo(() => getMasteryGridNodes(mastery), [mastery]);
+  const masteryEdges = useMemo(() => getMasteryEdges(mastery), [mastery]);
 
   const stats = useMemo(() => {
     const values: Record<string, number> = { ...(baseClassStats[state.heroClass] ?? baseClassStats.legionnary) };
@@ -470,8 +605,8 @@ export function CharacterBuilder({
 
   const talentAllocation = Object.values(state.talentRanks).filter((rank) => rank > 0).length;
   const talentLevelPoints = Object.values(state.talentRanks).reduce((sum, rank) => sum + Math.max(0, rank - 1), 0);
-  const masteryAllocation = Object.values(state.masteryRanks).filter((rank) => rank > 0).length;
-  const masteryLevelPoints = Object.values(state.masteryRanks).reduce((sum, rank) => sum + Math.max(0, rank - 1), 0);
+  const masteryAllocation = getMasteryAllocation(state.masteryRanks);
+  const masteryLevelPoints = getMasteryLevelPoints(state.masteryRanks);
   const pickerSelection = pickerSlot ? getSelection(state, pickerSlot) : null;
 
   const updateSelection = (slotId: BuilderSlotId, selection: BuilderItemSelection | null) => {
@@ -492,18 +627,32 @@ export function CharacterBuilder({
     });
   };
 
-  const updateTalentRank = (nodeId: string, direction: 1 | -1, tier: number) => {
+  const updateTalentRank = (nodeId: string, direction: 1 | -1) => {
     setState((current) => {
+      const archetype = builderArchetypes.find((entry) => entry.nodes.some((node) => node.id === nodeId));
+      const targetNode = archetype?.nodes.find((node) => node.id === nodeId);
+      if (!archetype || !targetNode || !current.selectedArchetypes.includes(archetype.id)) return current;
       const rank = current.talentRanks[nodeId] ?? 0;
       const next = clamp(rank + direction, 0, 5);
       const currentAllocation = Object.values(current.talentRanks).filter((value) => value > 0).length;
       const currentLevelPoints = Object.values(current.talentRanks).reduce((sum, value) => sum + Math.max(0, value - 1), 0);
-      const archetypeAllocation = selectedArchetypeConfig?.nodes.reduce(
-        (sum, node) => sum + ((current.talentRanks[node.id] ?? 0) > 0 ? 1 : 0),
-        0,
-      ) ?? 0;
-      if (direction > 0 && rank === 0 && (currentAllocation >= 15 || archetypeAllocation < (tier - 1) * 3)) return current;
-      if (direction > 0 && rank > 0 && currentLevelPoints >= 12) return current;
+      const rowHasAnotherTalent = archetype.nodes.some((node) => (
+        node.tier === targetNode.tier
+        && node.id !== nodeId
+        && (current.talentRanks[node.id] ?? 0) > 0
+      ));
+      if (direction > 0 && rank === 0 && rowHasAnotherTalent) {
+        setNotice("В одном ряду можно выбрать только один талант.");
+        return current;
+      }
+      if (direction > 0 && rank === 0 && currentAllocation >= 15) {
+        setNotice("Все 15 базовых очков талантов уже распределены.");
+        return current;
+      }
+      if (direction > 0 && rank > 0 && currentLevelPoints >= 12) {
+        setNotice("Все 12 очков улучшения талантов уже распределены.");
+        return current;
+      }
       const talentRanks = { ...current.talentRanks, [nodeId]: next };
       if (next === 0) delete talentRanks[nodeId];
       return { ...current, talentRanks };
@@ -513,21 +662,69 @@ export function CharacterBuilder({
   const updateMasteryRank = (
     nodeId: string,
     direction: 1 | -1,
-    options: { final?: boolean; maxRank?: number; prerequisite?: string } = {},
+    finalIndex?: number,
   ) => {
     setState((current) => {
       const rank = current.masteryRanks[nodeId] ?? 0;
-      const maxRank = options.maxRank ?? 2;
-      const next = clamp(rank + direction, 0, maxRank);
-      const allocation = Object.values(current.masteryRanks).filter((value) => value > 0).length;
-      const levelPoints = Object.values(current.masteryRanks).reduce((sum, value) => sum + Math.max(0, value - 1), 0);
-      if (direction > 0 && rank === 0 && allocation >= 26) return current;
-      if (direction > 0 && rank === 0 && options.final && allocation < 20) return current;
-      if (direction > 0 && rank === 0 && options.prerequisite && !current.masteryRanks[options.prerequisite]) return current;
-      if (direction > 0 && rank > 0 && levelPoints >= 2) return current;
+      const next = clamp(rank + direction, 0, 3);
+      const allocation = getMasteryAllocation(current.masteryRanks);
+      const levelPoints = getMasteryLevelPoints(current.masteryRanks);
+      if (direction > 0 && rank === 0 && allocation >= MASTERY_ALLOCATION_LIMIT) {
+        setNotice("Все 26 очков мастерства уже распределены.");
+        return current;
+      }
+      if (direction > 0 && rank === 0 && finalIndex !== undefined) {
+        const nonFinalAllocation = Object.entries(current.masteryRanks)
+          .filter(([id, value]) => value > 0 && !id.includes("-final-"))
+          .length;
+        const hasPath = getFinalMasteryPredecessors(mastery, finalIndex).some((id) => current.masteryRanks[id]);
+        if (nonFinalAllocation < 20 || !hasPath) {
+          setNotice("Финальная специализация требует 20 очков и открытый путь к последнему столбцу.");
+          return current;
+        }
+      }
+      if (direction > 0 && rank === 0 && finalIndex === undefined) {
+        const node = masteryGridNodes.find((entry) => entry.id === nodeId);
+        if (!node || !isMasteryNodeUnlockable(node, current.masteryRanks, masteryEdges)) {
+          setNotice("Сначала проложите путь к таланту через два улучшения связи.");
+          return current;
+        }
+      }
+      if (direction > 0 && rank > 0 && levelPoints >= MASTERY_LEVEL_LIMIT) {
+        setNotice("Доступно только 2 очка дополнительного улучшения мастерства.");
+        return current;
+      }
       const masteryRanks = { ...current.masteryRanks, [nodeId]: next };
       if (next === 0) delete masteryRanks[nodeId];
-      return { ...current, masteryRanks };
+      return {
+        ...current,
+        masteryRanks: next === 0 ? pruneMasteryRanks(mastery, masteryRanks) : masteryRanks,
+      };
+    });
+  };
+
+  const updateMasteryBoost = (edge: MasteryEdge, step: 1 | 2, direction: 1 | -1) => {
+    setState((current) => {
+      const boostId = getMasteryBoostId(edge, step);
+      const selected = Boolean(current.masteryRanks[boostId]);
+      if (direction > 0 && selected) return current;
+      if (direction < 0 && !selected) return current;
+      if (direction > 0 && getMasteryAllocation(current.masteryRanks) >= MASTERY_ALLOCATION_LIMIT) {
+        setNotice("Все 26 очков мастерства уже распределены.");
+        return current;
+      }
+      if (direction > 0) {
+        const adjacentNodeId = step === 1 ? edge.start.id : edge.end.id;
+        const otherBoostId = getMasteryBoostId(edge, step === 1 ? 2 : 1);
+        if (!current.masteryRanks[adjacentNodeId] && !current.masteryRanks[otherBoostId]) {
+          setNotice("Начните улучшать связь со стороны уже изученного таланта.");
+          return current;
+        }
+      }
+      const masteryRanks = { ...current.masteryRanks };
+      if (direction > 0) masteryRanks[boostId] = 1;
+      else delete masteryRanks[boostId];
+      return { ...current, masteryRanks: pruneMasteryRanks(mastery, masteryRanks) };
     });
   };
 
@@ -569,7 +766,6 @@ export function CharacterBuilder({
     if (!window.confirm("Очистить текущий билд и начать с нуля?")) return;
     setState(createDefaultCharacterBuild(firstClass));
     setCurrentBuild(null);
-    setSelectedArchetype("");
     setNotice("Создан новый чистый билд.");
   };
 
@@ -579,7 +775,6 @@ export function CharacterBuilder({
     setState(normalized);
     setCurrentBuild({ ...build, buildData: normalized });
     setShowSaved(false);
-    setSelectedArchetype(normalized.selectedArchetypes[0] ?? "");
     setNotice(`Открыт билд «${build.title}».`);
   };
 
@@ -601,6 +796,7 @@ export function CharacterBuilder({
     const normalizedSearch = pickerSearch.trim().toLocaleLowerCase("ru");
     return dataset.equipment.filter((item) => {
       if (item.type !== target.type) return false;
+      if (item.tier < 1 || item.tier > 3) return false;
       if (item.type === "weapon") {
         if (item.slot === "secondary-weapon") return false;
         if (item.mastery && item.mastery !== state.heroClass) return false;
@@ -897,7 +1093,6 @@ export function CharacterBuilder({
                   className={`${styles.archetypeCard}${selected ? ` ${styles.archetypeSelected}` : ""}`}
                   style={{ "--archetype-accent": archetype.accent } as CSSProperties}
                   onClick={() => {
-                    setSelectedArchetype(archetype.id);
                     if (readOnly || selected) return;
                     if (state.selectedArchetypes.length >= allowedArchetypes) {
                       setNotice(`На этом уровне можно выбрать только ${allowedArchetypes} ветки.`);
@@ -915,60 +1110,77 @@ export function CharacterBuilder({
               );
             })}
           </div>
-          {selectedArchetypeConfig && state.selectedArchetypes.includes(selectedArchetypeConfig.id) ? (
-            <div
-              className={styles.talentTree}
-              style={{ "--archetype-accent": selectedArchetypeConfig.accent } as CSSProperties}
-            >
-              <div className={styles.subheading}>
-                <div className={styles.talentBranchTitle}>
-                  <LoadableImage src={selectedArchetypeConfig.simplifiedIcon} alt="" width={64} height={64} />
-                  <div><h3>{selectedArchetypeConfig.name}</h3><p>{selectedArchetypeConfig.bonus}</p></div>
-                </div>
-                {!readOnly && (
-                  <button
-                    type="button"
-                    className={styles.textButton}
-                    onClick={() => setState((current) => ({
-                      ...current,
-                      selectedArchetypes: current.selectedArchetypes.filter((id) => id !== selectedArchetypeConfig.id),
-                      talentRanks: Object.fromEntries(
-                        Object.entries(current.talentRanks).filter(([id]) => !id.startsWith(`${selectedArchetypeConfig.id}-`)),
-                      ),
-                    }))}
-                  >
-                    <Trash2 size={16} /> Удалить ветку
-                  </button>
-                )}
-              </div>
-              <div className={styles.talentTiers}>
-                {Array.from({ length: 5 }, (_, tierIndex) => {
-                  const tier = tierIndex + 1;
-                  return (
-                    <div className={styles.talentTier} key={tier}>
-                      <span className={styles.tierLabel}>Ряд {tier}</span>
-                      <div>
-                        {selectedArchetypeConfig.nodes.filter((node) => node.tier === tier).map((node) => {
-                          const rank = state.talentRanks[node.id] ?? 0;
-                          return (
-                            <article className={`${styles.talentNode}${rank ? ` ${styles.talentNodeActive}` : ""}`} key={node.id}>
-                              <span className={styles.nodeIcon}>
-                                <LoadableImage src={node.icon} alt="" width={48} height={48} />
-                              </span>
-                              <div><strong>{node.name}</strong><p>{node.description}</p></div>
-                              <div className={styles.rankControl}>
-                                {!readOnly && <button type="button" aria-label={`Уменьшить ранг: ${node.name}`} onClick={() => updateTalentRank(node.id, -1, tier)} disabled={rank === 0}><Minus size={15} /></button>}
-                                <span>{rank} / 5</span>
-                                {!readOnly && <button type="button" aria-label={`Повысить ранг: ${node.name}`} onClick={() => updateTalentRank(node.id, 1, tier)} disabled={rank === 5}><Plus size={15} /></button>}
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          {selectedTalentBranches.length > 0 ? (
+            <div className={styles.selectedTalentGrid}>
+              {selectedTalentBranches.map((archetype) => (
+                <article
+                  className={styles.selectedTalentBranch}
+                  style={{ "--archetype-accent": archetype.accent } as CSSProperties}
+                  key={archetype.id}
+                >
+                  <header className={styles.selectedTalentHeader}>
+                    <LoadableImage src={archetype.simplifiedIcon} alt="" width={58} height={58} />
+                    <div><h3>{archetype.name}</h3><p>{archetype.bonus}</p></div>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setState((current) => ({
+                          ...current,
+                          selectedArchetypes: current.selectedArchetypes.filter((id) => id !== archetype.id),
+                          talentRanks: Object.fromEntries(
+                            Object.entries(current.talentRanks).filter(([id]) => !id.startsWith(`${archetype.id}-`)),
+                          ),
+                        }))}
+                        aria-label={`Удалить ветку ${archetype.name}`}
+                      >
+                        <X size={17} />
+                      </button>
+                    )}
+                  </header>
+                  <div className={styles.selectedTalentRows}>
+                    {Array.from({ length: 5 }, (_, rowIndex) => {
+                      const row = rowIndex + 1;
+                      const rowNodes = archetype.nodes.filter((node) => node.tier === row);
+                      const selectedInRow = rowNodes.find((node) => (state.talentRanks[node.id] ?? 0) > 0);
+                      return (
+                        <div className={styles.selectedTalentRow} key={row}>
+                          <span>Ряд {row}</span>
+                          <div>
+                            {rowNodes.map((node) => {
+                              const rank = state.talentRanks[node.id] ?? 0;
+                              const blockedByRow = Boolean(selectedInRow && selectedInRow.id !== node.id);
+                              return (
+                                <article
+                                  className={`${styles.talentTile}${rank ? ` ${styles.talentTileActive}` : ""}${blockedByRow ? ` ${styles.talentTileBlocked}` : ""}`}
+                                  key={node.id}
+                                >
+                                  <button
+                                    className={styles.talentTileMain}
+                                    type="button"
+                                    disabled={readOnly || blockedByRow || rank >= 5}
+                                    onClick={() => updateTalentRank(node.id, 1)}
+                                    title={`${node.name}. ${node.description}`}
+                                    aria-label={`${rank ? "Повысить" : "Изучить"} талант ${node.name}`}
+                                  >
+                                    <LoadableImage src={node.icon} alt="" width={96} height={96} />
+                                    {rank > 0 && <span>{rank}/5</span>}
+                                  </button>
+                                  {rank > 0 && !readOnly && (
+                                    <div className={styles.talentTileActions}>
+                                      <button type="button" onClick={() => updateTalentRank(node.id, -1)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
+                                      <button type="button" onClick={() => updateTalentRank(node.id, 1)} disabled={rank >= 5} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
+                                    </div>
+                                  )}
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              ))}
             </div>
           ) : (
             <div className={styles.emptyState}>
@@ -988,7 +1200,7 @@ export function CharacterBuilder({
               <div>
                 <span className={styles.eyebrow}><BookOpenCheck size={16} /> Классовая специализация</span>
                 <h2>Мастерство: {selectedClass?.name}</h2>
-                <p>Развивайте способности по связанным веткам и откройте финальную специализацию.</p>
+                <p>Базовые способности изучены сразу. Между талантами нужно открыть два усиления связи; маршрут можно продолжать по горизонтали, вертикали и диагонали.</p>
               </div>
             </div>
             <div className={styles.points}>
@@ -997,75 +1209,166 @@ export function CharacterBuilder({
             </div>
           </div>
 
-          <div className={styles.masteryTree}>
-            {mastery.branches.map((branch) => {
-              const rootRank = state.masteryRanks[branch.rootId] ?? 0;
-              return (
-                <article className={styles.masteryColumn} key={branch.id}>
-                  <header className={`${styles.masteryAbility}${rootRank ? ` ${styles.masteryNodeActive}` : ""}`}>
+          <div className={styles.masteryLegend}>
+            <span><Check size={15} /> 4 стандартные способности изучены</span>
+            <span><Plus size={15} /> каждое звено даёт 1 очко характеристик способности</span>
+            <span>Любой талант: 1 / 3 · глобально на улучшения: 2 очка</span>
+          </div>
+
+          <div className={styles.masteryViewport}>
+            <div
+              className={styles.masteryBoard}
+              style={{ width: MASTERY_BOARD_WIDTH, height: MASTERY_BOARD_HEIGHT }}
+            >
+              <svg
+                className={styles.masteryConnections}
+                viewBox={`0 0 ${MASTERY_BOARD_WIDTH} ${MASTERY_BOARD_HEIGHT}`}
+                aria-hidden="true"
+              >
+                {mastery.branches.map((branch, row) => (
+                  <line
+                    className={state.masteryRanks[branch.nodes[0].id] ? styles.masteryConnectionActive : ""}
+                    key={`${branch.id}-root-line`}
+                    x1={MASTERY_ROOT_X}
+                    y1={MASTERY_ROW_Y[row]}
+                    x2={MASTERY_NODE_X[0]}
+                    y2={MASTERY_ROW_Y[row]}
+                  />
+                ))}
+                {masteryEdges.map((edge) => {
+                  const active = Boolean(
+                    state.masteryRanks[getMasteryBoostId(edge, 1)]
+                    && state.masteryRanks[getMasteryBoostId(edge, 2)],
+                  );
+                  return (
+                    <line
+                      className={active ? styles.masteryConnectionActive : ""}
+                      key={`${edge.id}-line`}
+                      x1={MASTERY_NODE_X[edge.start.column]}
+                      y1={MASTERY_ROW_Y[edge.start.row]}
+                      x2={MASTERY_NODE_X[edge.end.column]}
+                      y2={MASTERY_ROW_Y[edge.end.row]}
+                    />
+                  );
+                })}
+                {mastery.finals.flatMap((final, finalIndex) => (
+                  getFinalMasteryPredecessors(mastery, finalIndex).map((predecessorId) => {
+                    const predecessor = masteryGridNodes.find((node) => node.id === predecessorId)!;
+                    return (
+                      <line
+                        className={state.masteryRanks[final.id] && state.masteryRanks[predecessorId] ? styles.masteryConnectionActive : ""}
+                        key={`${final.id}-${predecessorId}-line`}
+                        x1={MASTERY_NODE_X[predecessor.column]}
+                        y1={MASTERY_ROW_Y[predecessor.row]}
+                        x2={MASTERY_FINAL_X}
+                        y2={MASTERY_FINAL_Y[finalIndex]}
+                      />
+                    );
+                  })
+                ))}
+              </svg>
+
+              {masteryEdges.flatMap((edge) => ([1, 2] as const).map((step) => {
+                const selected = Boolean(state.masteryRanks[getMasteryBoostId(edge, step)]);
+                const ratio = step / 3;
+                const left = MASTERY_NODE_X[edge.start.column]
+                  + (MASTERY_NODE_X[edge.end.column] - MASTERY_NODE_X[edge.start.column]) * ratio;
+                const top = MASTERY_ROW_Y[edge.start.row]
+                  + (MASTERY_ROW_Y[edge.end.row] - MASTERY_ROW_Y[edge.start.row]) * ratio;
+                return (
+                  <button
+                    className={`${styles.masteryBoost}${selected ? ` ${styles.masteryBoostActive}` : ""}`}
+                    style={{ left, top }}
+                    type="button"
+                    key={getMasteryBoostId(edge, step)}
+                    disabled={readOnly}
+                    onClick={() => updateMasteryBoost(edge, step, selected ? -1 : 1)}
+                    title={`Улучшение связи: ${edge.start.name} → ${edge.end.name}`}
+                    aria-label={`${selected ? "Убрать" : "Добавить"} улучшение связи`}
+                  >
+                    {selected ? <Check size={12} /> : <Plus size={12} />}
+                  </button>
+                );
+              }))}
+
+              {mastery.branches.map((branch, row) => (
+                <article
+                  className={styles.masteryRoot}
+                  style={{ left: MASTERY_ROOT_X, top: MASTERY_ROW_Y[row] }}
+                  key={branch.id}
+                >
+                  <span className={`${styles.masteryIconButton} ${styles.masteryRootIcon}`}>
+                    <LoadableImage src={branch.icon} alt="" width={104} height={104} />
+                    <span className={styles.masteryRankBadge}><Check size={15} /></span>
+                  </span>
+                  <strong>{branch.name}</strong>
+                  <small>Базовая способность</small>
+                </article>
+              ))}
+
+              {masteryGridNodes.map((node) => {
+                const rank = state.masteryRanks[node.id] ?? 0;
+                const unlockable = isMasteryNodeUnlockable(node, state.masteryRanks, masteryEdges);
+                return (
+                  <article
+                    className={`${styles.masteryBoardNode}${rank ? ` ${styles.masteryBoardNodeActive}` : ""}${!unlockable && !rank ? ` ${styles.masteryBoardNodeLocked}` : ""}`}
+                    style={{ left: MASTERY_NODE_X[node.column], top: MASTERY_ROW_Y[node.row] }}
+                    key={node.id}
+                  >
                     <button
                       type="button"
                       className={styles.masteryIconButton}
-                      disabled={readOnly}
-                      onClick={() => !readOnly && updateMasteryRank(branch.rootId, rootRank ? -1 : 1, { maxRank: 1 })}
-                      aria-label={`${rootRank ? "Снять" : "Выбрать"} способность ${branch.name}`}
+                      disabled={readOnly || (!unlockable && rank === 0) || rank >= 3}
+                      onClick={() => updateMasteryRank(node.id, 1)}
+                      title={node.description}
+                      aria-label={`${rank ? "Повысить" : "Изучить"} улучшение ${node.name}`}
                     >
-                      <LoadableImage src={branch.icon} alt="" width={66} height={66} />
-                      <span className={styles.masteryRankBadge}>{rootRank ? <Check size={15} /> : <Plus size={15} />}</span>
+                      <LoadableImage src={node.icon} alt="" width={78} height={78} />
+                      <span className={styles.masteryRankBadge}>{rank ? `${rank}/3` : <Plus size={13} />}</span>
                     </button>
-                    <div><h3>{branch.name}</h3><p>{branch.description}</p></div>
-                  </header>
-                  <div className={styles.masteryPath}>
-                    {branch.nodes.map((node, nodeIndex) => {
-                      const rank = state.masteryRanks[node.id] ?? 0;
-                      const prerequisite = nodeIndex === 0 ? branch.rootId : branch.nodes[nodeIndex - 1].id;
-                      const unlocked = Boolean(state.masteryRanks[prerequisite]);
-                      return (
-                        <div
-                          className={`${styles.masteryTreeNode}${rank ? ` ${styles.masteryNodeActive}` : ""}${!unlocked ? ` ${styles.masteryNodeLocked}` : ""}`}
-                          key={node.id}
-                        >
-                          <button
-                            type="button"
-                            className={styles.masteryIconButton}
-                            disabled={readOnly || (!unlocked && rank === 0)}
-                            onClick={() => !readOnly && updateMasteryRank(node.id, rank ? -1 : 1, { prerequisite })}
-                            title={node.description}
-                            aria-label={`${rank ? "Снять" : "Выбрать"} улучшение ${node.name}`}
-                          >
-                            <LoadableImage src={node.icon} alt="" width={54} height={54} />
-                            <span className={styles.masteryRankBadge}>{rank}/2</span>
-                          </button>
-                          <strong>{node.name}</strong>
-                          {rank > 0 && !readOnly && (
-                            <div className={styles.masteryRankActions}>
-                              <button type="button" onClick={() => updateMasteryRank(node.id, -1)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
-                              <button type="button" onClick={() => updateMasteryRank(node.id, 1)} disabled={rank >= 2} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                    <strong>{node.name}</strong>
+                    {rank > 0 && !readOnly && (
+                      <div className={styles.masteryRankActions}>
+                        <button type="button" onClick={() => updateMasteryRank(node.id, -1)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
+                        <button type="button" onClick={() => updateMasteryRank(node.id, 1)} disabled={rank >= 3} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
 
-          <div className={styles.finalMasteries}>
-            <span className={styles.tierLabel}>Финальная специализация · требуется 20 очков</span>
-            <div>
-              {mastery.finals.map((node) => {
+              {mastery.finals.map((node, finalIndex) => {
                 const rank = state.masteryRanks[node.id] ?? 0;
+                const nonFinalAllocation = Object.entries(state.masteryRanks)
+                  .filter(([id, value]) => value > 0 && !id.includes("-final-"))
+                  .length;
+                const hasPath = getFinalMasteryPredecessors(mastery, finalIndex).some((id) => state.masteryRanks[id]);
+                const unlockable = nonFinalAllocation >= 20 && hasPath;
                 return (
-                  <article className={`${styles.finalMastery}${rank ? ` ${styles.finalMasteryActive}` : ""}`} key={node.id}>
-                    <span className={styles.nodeIcon}><LoadableImage src={node.icon} alt="" width={58} height={58} /></span>
-                    <div><strong>{node.name}</strong><p>{node.description}</p></div>
-                    <div className={styles.rankControl}>
-                      {!readOnly && <button type="button" aria-label={`Уменьшить ранг: ${node.name}`} onClick={() => updateMasteryRank(node.id, -1, { final: true })} disabled={rank === 0}><Minus size={15} /></button>}
-                      <span>{rank} / 2</span>
-                      {!readOnly && <button type="button" aria-label={`Повысить ранг: ${node.name}`} onClick={() => updateMasteryRank(node.id, 1, { final: true })} disabled={rank === 2 || (rank === 0 && masteryAllocation < 20)}><Plus size={15} /></button>}
-                    </div>
+                  <article
+                    className={`${styles.masteryBoardNode} ${styles.masteryFinalNode}${rank ? ` ${styles.masteryBoardNodeActive}` : ""}${!unlockable && !rank ? ` ${styles.masteryBoardNodeLocked}` : ""}`}
+                    style={{ left: MASTERY_FINAL_X, top: MASTERY_FINAL_Y[finalIndex] }}
+                    key={node.id}
+                  >
+                    <button
+                      type="button"
+                      className={`${styles.masteryIconButton} ${styles.masteryFinalIcon}`}
+                      disabled={readOnly || (!unlockable && rank === 0) || rank >= 3}
+                      onClick={() => updateMasteryRank(node.id, 1, finalIndex)}
+                      title={node.description}
+                      aria-label={`${rank ? "Повысить" : "Изучить"} финальную специализацию ${node.name}`}
+                    >
+                      <LoadableImage src={node.icon} alt="" width={88} height={88} />
+                      <span className={styles.masteryRankBadge}>{rank ? `${rank}/3` : <Plus size={13} />}</span>
+                    </button>
+                    <strong>{node.name}</strong>
+                    <small>Финал · 20 очков</small>
+                    {rank > 0 && !readOnly && (
+                      <div className={styles.masteryRankActions}>
+                        <button type="button" onClick={() => updateMasteryRank(node.id, -1, finalIndex)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
+                        <button type="button" onClick={() => updateMasteryRank(node.id, 1, finalIndex)} disabled={rank >= 3} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
+                      </div>
+                    )}
                   </article>
                 );
               })}
@@ -1105,7 +1408,7 @@ export function CharacterBuilder({
                 onChange={setPickerTier}
                 options={[
                   { value: "all", label: "Все тиры" },
-                  ...[1, 2, 3, 4, 5].map((tier) => ({ value: String(tier), label: `Тир ${tier}` })),
+                  ...[1, 2, 3].map((tier) => ({ value: String(tier), label: `Тир ${tier}` })),
                 ]}
                 ariaLabel="Тир предмета"
                 startIcon={<Layers3 size={16} />}

@@ -233,18 +233,49 @@ function normalizeTalentRankMap(value: unknown) {
   return migrated;
 }
 
+function constrainTalentRankMap(ranks: Record<string, number>, selectedArchetypes: string[]) {
+  const selected = new Set(selectedArchetypes);
+  const occupiedRows = new Set<string>();
+  const constrained: Record<string, number> = {};
+  let allocation = 0;
+  let levelPoints = 0;
+
+  for (const [nodeId, rank] of Object.entries(ranks)) {
+    const separator = nodeId.lastIndexOf("-");
+    const archetypeId = separator > 0 ? nodeId.slice(0, separator) : "";
+    const nodeNumber = Number(nodeId.slice(separator + 1));
+    if (!selected.has(archetypeId) || !Number.isInteger(nodeNumber) || nodeNumber < 1 || nodeNumber > 15) continue;
+    const rowId = `${archetypeId}-${Math.ceil(nodeNumber / 3)}`;
+    if (occupiedRows.has(rowId) || allocation >= 15) continue;
+    const safeRank = Math.min(rank, 1 + Math.max(0, 12 - levelPoints));
+    constrained[nodeId] = safeRank;
+    occupiedRows.add(rowId);
+    allocation += 1;
+    levelPoints += Math.max(0, safeRank - 1);
+  }
+  return constrained;
+}
+
 function normalizeMasteryRankMap(value: unknown, heroClass: string) {
-  const normalized = normalizeRankMap(value, 2, 80);
+  const normalized = normalizeRankMap(value, 3, 180);
   const migrated: Record<string, number> = {};
+  let allocation = 0;
+  let levelPoints = 0;
   for (const [nodeId, rank] of Object.entries(normalized)) {
     const legacyRoot = nodeId.match(new RegExp(`^${heroClass}-mastery-([1-4])-6$`));
     const mappedId = legacyRoot ? `${heroClass}-branch-${legacyRoot[1]}-root` : nodeId;
     const valid = (
       new RegExp(`^${heroClass}-mastery-[1-4]-[1-5]$`).test(mappedId)
-      || new RegExp(`^${heroClass}-branch-[1-4]-root$`).test(mappedId)
       || new RegExp(`^${heroClass}-final-[1-2]$`).test(mappedId)
+      || new RegExp(`^${heroClass}-mastery-link-r[1-4]c[1-5]-r[1-4]c[1-5]-boost-[12]$`).test(mappedId)
     );
-    if (valid) migrated[mappedId] = Math.max(migrated[mappedId] ?? 0, rank);
+    if (!valid || allocation >= 26 || migrated[mappedId]) continue;
+    const safeRank = mappedId.includes("-mastery-link-")
+      ? 1
+      : Math.min(rank, 1 + Math.max(0, 2 - levelPoints));
+    migrated[mappedId] = safeRank;
+    allocation += 1;
+    levelPoints += Math.max(0, safeRank - 1);
   }
   return migrated;
 }
@@ -290,7 +321,7 @@ export function normalizeCharacterBuildState(value: unknown): CharacterBuildStat
     sets,
     artifacts: normalizeArtifactSet(rawArtifacts),
     selectedArchetypes,
-    talentRanks: normalizeTalentRankMap(candidate.talentRanks),
+    talentRanks: constrainTalentRankMap(normalizeTalentRankMap(candidate.talentRanks), selectedArchetypes),
     masteryRanks: normalizeMasteryRankMap(candidate.masteryRanks, heroClass),
     notes: boundedString(candidate.notes, 1200),
   };

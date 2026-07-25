@@ -84,7 +84,7 @@ export async function getCharacterBuilderDataset(): Promise<CharacterBuilderData
 
   const equipment = baseSlugs.flatMap((slug) => {
     const item = itemsBySlug.get(slug);
-    if (!item || !equipmentTypes.has(item.type)) return [];
+    if (!item || !equipmentTypes.has(item.type) || item.tier < 1 || item.tier > 3) return [];
     const variations = qualityOrder.flatMap((quality) => {
       const variation = (variationsByRoot.get(slug) ?? []).find((candidate) => candidate.quality === quality);
       if (!variation) return [];
