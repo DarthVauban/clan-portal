@@ -8,11 +8,17 @@ import type {
   LocalizedQuestChain,
   LocalizedQuestChainNode,
   LocalizedQuestGoal,
+  LocalizedQuestRecipeRewardStat,
+  LocalizedQuestRewardItemStat,
+  LocalizedQuestRewardStats,
   LocalizedQuestRewards,
   LocalizedRewardItem,
   QuestCatalog,
   QuestChainNode,
+  QuestDirectory,
   QuestLink,
+  QuestRecipeRewardStat,
+  QuestRewardItemStat,
   QuestRewardItem,
 } from "@/lib/corepunk-quest-data";
 
@@ -39,6 +45,21 @@ function rewardAssetSlug(slug: string) {
     .replace(/^br(?=implant-)/, "")
     .replace(/^m(?=(?:implant|weapon)-)/, "")
     .replace(/^implant-implant-/, "implant-");
+}
+
+function rewardItemPresentation(itemSlug: string, itemType: string) {
+  const related = dataset.items[itemSlug];
+  const nameEn = related?.name ?? humanizeSlug(itemSlug);
+  const assetType = related?.type ?? itemType;
+  const assetSlug = rewardAssetSlug(related?.slug ?? itemSlug);
+  return {
+    nameEn,
+    name: translate(nameEn),
+    quality: related?.quality ?? "common",
+    tier: related?.tier ?? 0,
+    image: `/game-assets/items/${assetType}/${assetSlug}.png`,
+    fallbackImage: `${questAssetBase}/items/${assetType}/${assetSlug}.png`,
+  };
 }
 
 function npcName(slug: string) {
@@ -85,18 +106,10 @@ const unlockMap = buildUnlockMap();
 
 function localizeRewardItem(item: QuestRewardItem): LocalizedRewardItem {
   const related = dataset.items[item.item];
-  const nameEn = related?.name ?? humanizeSlug(item.item);
-  const assetType = related?.type ?? item.type;
-  const assetSlug = rewardAssetSlug(related?.slug ?? item.item);
   return {
     ...item,
-    nameEn,
-    name: translate(nameEn),
+    ...rewardItemPresentation(item.item, item.type),
     description: translate(related?.description ?? ""),
-    quality: related?.quality ?? "common",
-    tier: related?.tier ?? 0,
-    image: `/game-assets/items/${assetType}/${assetSlug}.png`,
-    fallbackImage: `${questAssetBase}/items/${assetType}/${assetSlug}.png`,
   };
 }
 
@@ -158,7 +171,10 @@ export function getQuestCatalog(): QuestCatalog {
   return {
     chains,
     locations,
-    counts: dataset.counts,
+    counts: {
+      ...dataset.counts,
+      quests: chains.reduce((total, chain) => total + chain.size, 0),
+    },
     scrapedAt: dataset.source.scrapedAt,
   };
 }
@@ -166,4 +182,32 @@ export function getQuestCatalog(): QuestCatalog {
 export function getQuestBySlug(slug: string) {
   const quest = questBySlug.get(slug);
   return quest ? localizeQuest(quest) : null;
+}
+
+export function getQuestDirectory(): QuestDirectory {
+  const quests = dataset.quests
+    .map(localizeQuest)
+    .sort((first, second) => first.level - second.level || first.name.localeCompare(second.name, "ru"));
+  return {
+    quests,
+    locations: [...new Set(quests.map((quest) => quest.location))].sort((first, second) => first.localeCompare(second, "ru")),
+    levels: [...new Set(quests.map((quest) => quest.level))].sort((first, second) => first - second),
+    questsWithRewards: quests.filter((quest) => quest.rewards).length,
+  };
+}
+
+function localizeRewardItemStat(item: QuestRewardItemStat): LocalizedQuestRewardItemStat {
+  return { ...item, ...rewardItemPresentation(item.item, item.type) };
+}
+
+function localizeRecipeRewardStat(item: QuestRecipeRewardStat): LocalizedQuestRecipeRewardStat {
+  return { ...item, ...rewardItemPresentation(item.item, item.type) };
+}
+
+export function getQuestRewardStatistics(): LocalizedQuestRewardStats {
+  return {
+    ...dataset.rewardStats,
+    topItems: dataset.rewardStats.topItems.map(localizeRewardItemStat),
+    recipes: dataset.rewardStats.recipes.map(localizeRecipeRewardStat),
+  };
 }

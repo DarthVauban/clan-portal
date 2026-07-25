@@ -3,6 +3,8 @@ import path from "node:path";
 
 const SITE_BASE = "https://corepunk.help";
 const CHAINS_API = `${SITE_BASE}/api/quests/chains`;
+const CATALOG_API = `${SITE_BASE}/api/quests`;
+const REWARD_STATS_API = `${SITE_BASE}/api/quests/reward-stats`;
 const OUTPUT_PATH = path.resolve("src", "data", "corepunk-quest-chains.json");
 const USER_AGENT = "ClanPortalQuestImporter/1.0 (+local portal data import)";
 const CONCURRENCY = 4;
@@ -104,11 +106,18 @@ function collectRelatedSlugs(quests) {
 
 async function main() {
   console.log(`[chains] ${CHAINS_API}`);
-  const chainPayload = await fetchJson(CHAINS_API);
+  const [chainPayload, catalogPayload, rewardStats] = await Promise.all([
+    fetchJson(CHAINS_API),
+    fetchJson(`${CATALOG_API}?page=1&pageSize=999&sort=level%3Aasc`),
+    fetchJson(REWARD_STATS_API),
+  ]);
   const summaries = new Map();
   for (const chain of chainPayload.chains ?? []) flattenChainTree(chain.tree, summaries);
 
-  const questSlugs = [...summaries.keys()];
+  const questSlugs = [...new Set([
+    ...(catalogPayload.data ?? []).map((quest) => quest.slug),
+    ...summaries.keys(),
+  ])];
   let completedQuests = 0;
   const quests = await mapLimit(questSlugs, CONCURRENCY, async (slug) => {
     const quest = await fetchJson(`${SITE_BASE}/api/quests/${slug}`);
@@ -149,9 +158,11 @@ async function main() {
   const payload = {
     schemaVersion: 1,
     source: {
-      page: `${SITE_BASE}/quests/chains`,
+      page: `${SITE_BASE}/quests`,
       chainsApi: CHAINS_API,
+      catalogApi: CATALOG_API,
       questApi: `${SITE_BASE}/api/quests/{slug}`,
+      rewardStatsApi: REWARD_STATS_API,
       npcApi: `${SITE_BASE}/api/npcs/{slug}`,
       itemApi: `${SITE_BASE}/api/items/{slug}`,
       scrapedAt: new Date().toISOString(),
@@ -165,9 +176,13 @@ async function main() {
       unresolvedNpcs: unresolvedNpcs.length,
       unresolvedItems: unresolvedItems.length,
     },
-    meta: chainPayload.meta ?? null,
+    meta: {
+      chains: chainPayload.meta ?? null,
+      catalog: catalogPayload.meta ?? null,
+    },
     chains: chainPayload.chains,
     quests,
+    rewardStats,
     npcs,
     items,
     unresolved: {

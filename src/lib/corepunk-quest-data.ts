@@ -56,6 +56,44 @@ export type QuestRewards = {
   items: QuestRewardItem[];
 };
 
+export type QuestRewardStatsSummary = {
+  questsWithRewards: number;
+  totalRewardEntries: number;
+  uniqueItems: number;
+  guaranteedCount: number;
+  chanceCount: number;
+  totalGold: number;
+  totalXp: number;
+  hasEconomyData: boolean;
+};
+
+export type QuestRewardTypeStat = {
+  type: string;
+  uniqueItems: number;
+  entryCount: number;
+};
+
+export type QuestRewardItemStat = {
+  item: string;
+  type: string;
+  questCount: number;
+  totalQuantity: number;
+};
+
+export type QuestRecipeRewardStat = {
+  item: string;
+  type: string;
+  recipe: string;
+  questCount: number;
+};
+
+export type QuestRewardStats = {
+  summary: QuestRewardStatsSummary;
+  topItems: QuestRewardItemStat[];
+  byType: QuestRewardTypeStat[];
+  recipes: QuestRecipeRewardStat[];
+};
+
 export type CorepunkQuest = {
   id: number;
   documentId: string;
@@ -102,7 +140,9 @@ export type CorepunkQuestDataset = {
   source: {
     page: string;
     chainsApi: string;
+    catalogApi: string;
     questApi: string;
+    rewardStatsApi: string;
     npcApi: string;
     itemApi: string;
     scrapedAt: string;
@@ -118,6 +158,7 @@ export type CorepunkQuestDataset = {
   };
   chains: QuestChain[];
   quests: CorepunkQuest[];
+  rewardStats: QuestRewardStats;
   npcs: Record<string, RelatedNpc>;
   items: Record<string, RelatedItem>;
 };
@@ -185,6 +226,36 @@ export type LocalizedQuest = Omit<CorepunkQuest, "goals" | "rewards" | "name" | 
   rewards: LocalizedQuestRewards | null;
   prerequisites: QuestLink[];
   unlocks: QuestLink[];
+};
+
+export type QuestDirectory = {
+  quests: LocalizedQuest[];
+  locations: string[];
+  levels: number[];
+  questsWithRewards: number;
+};
+
+export type LocalizedQuestRewardItemStat = QuestRewardItemStat & {
+  name: string;
+  nameEn: string;
+  quality: string;
+  tier: number;
+  image: string;
+  fallbackImage: string;
+};
+
+export type LocalizedQuestRecipeRewardStat = QuestRecipeRewardStat & {
+  name: string;
+  nameEn: string;
+  quality: string;
+  tier: number;
+  image: string;
+  fallbackImage: string;
+};
+
+export type LocalizedQuestRewardStats = Omit<QuestRewardStats, "topItems" | "recipes"> & {
+  topItems: LocalizedQuestRewardItemStat[];
+  recipes: LocalizedQuestRecipeRewardStat[];
 };
 
 export type QuestCatalog = {

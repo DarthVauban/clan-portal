@@ -7,10 +7,12 @@ export function QuestRewardImage({
   image,
   fallbackImage,
   alt,
+  size = 38,
 }: {
   image: string;
   fallbackImage: string;
   alt: string;
+  size?: number;
 }) {
   const [src, setSrc] = useState(image);
 
@@ -18,9 +20,9 @@ export function QuestRewardImage({
     <LoadableImage
       src={src}
       alt={alt}
-      width={38}
-      height={38}
-      sizes="38px"
+      width={size}
+      height={size}
+      sizes={`${size}px`}
       onError={() => {
         if (src !== fallbackImage) setSrc(fallbackImage);
       }}

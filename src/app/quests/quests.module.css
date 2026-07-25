@@ -58,7 +58,7 @@
   align-items: center;
   gap: 11px;
   padding: 12px 14px;
-  color: #70777d;
+  color: #8f979b;
   border: 1px solid transparent;
   border-radius: 9px;
   transition: color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease;
@@ -90,13 +90,13 @@
 
 .sectionNav a strong {
   color: inherit;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .sectionNav a small {
-  margin-top: 3px;
-  color: #4f565c;
-  font-size: 9px;
+  margin-top: 4px;
+  color: #737b81;
+  font-size: 10px;
 }
 
 .sectionNav .sectionNavActive {
