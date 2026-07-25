@@ -1718,10 +1718,17 @@
 .masteryBoard {
   position: relative;
   min-width: 1540px;
+  transform-origin: top left;
   contain: layout paint;
 }
 
+.masteryStage {
+  position: relative;
+  flex: 0 0 auto;
+}
+
 .masteryBoard[data-exporting="true"] {
+  transform: none !important;
   background:
     linear-gradient(rgba(140, 155, 169, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(140, 155, 169, 0.035) 1px, transparent 1px),
@@ -1791,10 +1798,20 @@
   position: absolute;
   z-index: 4;
   display: grid;
+  box-sizing: border-box;
   justify-items: center;
-  width: 170px;
+  width: 160px;
+  height: 146px;
+  grid-template-rows: 72px 32px 24px;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(128, 143, 156, 0.17);
+  border-radius: 15px;
+  background:
+    linear-gradient(145deg, rgba(19, 27, 35, 0.97), rgba(8, 13, 18, 0.98));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
   text-align: center;
-  transform: translate(-50%, -44px);
+  transform: translate(-50%, -50%);
 }
 
 .masteryRoot:hover,
@@ -1811,21 +1828,27 @@
 }
 
 .masteryRoot {
-  width: 174px;
-  transform: translate(-50%, -56px);
+  width: 176px;
+  height: 166px;
+  grid-template-rows: 100px 22px 18px;
+  gap: 3px;
+  border-color: rgba(216, 166, 91, 0.25);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(216, 166, 91, 0.08), transparent 52%),
+    linear-gradient(145deg, rgba(20, 26, 32, 0.98), rgba(9, 13, 17, 0.99));
 }
 
 .masteryRoot .masteryRootIcon {
-  width: 112px;
-  height: 112px;
+  width: 98px;
+  height: 98px;
   border: 2px solid rgba(216, 166, 91, 0.68);
-  box-shadow: 0 0 0 5px rgba(216, 166, 91, 0.06), 0 12px 28px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 4px rgba(216, 166, 91, 0.06), 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .masteryRoot strong,
 .masteryBoardNode > strong {
   max-width: 164px;
-  margin-top: 8px;
+  margin-top: 0;
   color: #cbd4dc;
   font-size: 12px;
   line-height: 1.28;
@@ -1837,11 +1860,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   min-height: 34px;
-  padding: 3px 7px;
-  border: 1px solid rgba(128, 143, 156, 0.1);
-  border-radius: 7px;
-  background: rgba(9, 14, 19, 0.94);
+  margin: 0;
+  padding: 1px 5px;
+  color: #d5dde4;
 }
 
 .masteryRoot strong {
@@ -1852,7 +1875,7 @@
 .masteryRoot small,
 .masteryFinalNode > small {
   max-width: 165px;
-  margin-top: 5px;
+  margin-top: 0;
   color: #7e8b97;
   font-size: 10px;
   font-weight: 800;
@@ -1862,11 +1885,11 @@
 }
 
 .masteryBoardNode .masteryIconButton {
-  width: 88px;
-  height: 88px;
+  width: 72px;
+  height: 72px;
   border-color: rgba(142, 155, 167, 0.28);
   background: linear-gradient(145deg, #151c24, #090d12);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
 }
 
 .masteryBoardNode .masteryIconButton img {
@@ -1876,6 +1899,13 @@
 .masteryBoardNodeActive .masteryIconButton {
   border-color: rgba(216, 166, 91, 0.72);
   box-shadow: 0 0 0 4px rgba(216, 166, 91, 0.06), 0 12px 28px rgba(0, 0, 0, 0.32);
+}
+
+.masteryBoardNodeActive {
+  border-color: rgba(216, 166, 91, 0.46);
+  background:
+    radial-gradient(circle at 50% 27%, rgba(216, 166, 91, 0.1), transparent 50%),
+    linear-gradient(145deg, rgba(28, 24, 19, 0.98), rgba(9, 13, 17, 0.99));
 }
 
 .masteryBoardNodeActive .masteryIconButton img {
@@ -1898,6 +1928,10 @@
   border-style: dashed;
 }
 
+.masteryBoardNodeSmart {
+  border-style: dashed;
+}
+
 .masteryBoardNodeSmart .masteryIconButton img {
   filter: grayscale(1) brightness(0.58);
 }
@@ -1909,21 +1943,26 @@
 }
 
 .masteryBoardNode .masteryRankActions {
-  position: absolute;
-  top: 56px;
-  left: calc(50% + 39px);
-  z-index: 5;
+  position: static;
+  z-index: 7;
+  grid-row: 3;
+  align-self: end;
+  justify-self: center;
   margin-top: 0;
 }
 
 .masteryFinalNode {
-  width: 178px;
-  transform: translate(-50%, -51px);
+  width: 184px;
+  height: 200px;
+  grid-template-rows: 92px 34px 34px 24px;
+  gap: 2px;
+  border-color: rgba(199, 134, 69, 0.28);
+  transform: translate(-50%, -50%);
 }
 
 .masteryFinalNode .masteryFinalIcon {
-  width: 102px;
-  height: 102px;
+  width: 92px;
+  height: 92px;
   border: 2px solid rgba(199, 134, 69, 0.48);
   border-radius: 24px;
   background: linear-gradient(145deg, #1c1712, #0b0f14);
@@ -1931,6 +1970,10 @@
 
 .masteryFinalNode .masteryFinalIcon img {
   border-radius: 19px;
+}
+
+.masteryFinalNode .masteryRankActions {
+  grid-row: 4;
 }
 
 .masteryFullscreenShell:fullscreen {
@@ -1949,7 +1992,10 @@
 
 .masteryFullscreenShell:fullscreen .masteryViewport {
   height: 100%;
-  overflow: auto;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  padding: 12px;
 }
 
 .segmentedRow {

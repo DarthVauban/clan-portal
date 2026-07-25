@@ -389,14 +389,19 @@ function sanitizeImageName(value: string) {
 
 async function waitForCaptureAssets(element: HTMLElement) {
   if ("fonts" in document) await document.fonts.ready;
-  await Promise.all(Array.from(element.querySelectorAll("img")).map((image) => (
-    image.complete
-      ? Promise.resolve()
-      : new Promise<void>((resolve) => {
+  await Promise.all(Array.from(element.querySelectorAll("img")).map(async (image) => {
+    if (!image.complete) {
+      await new Promise<void>((resolve) => {
         image.addEventListener("load", () => resolve(), { once: true });
         image.addEventListener("error", () => resolve(), { once: true });
-      })
-  )));
+      });
+    }
+    try {
+      await image.decode();
+    } catch {
+      // Повреждённая иконка не должна блокировать экспорт всего дерева.
+    }
+  }));
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 }
 
@@ -870,9 +875,11 @@ export function CharacterBuilder({
   const [notice, setNotice] = useState("");
   const [captureTarget, setCaptureTarget] = useState<"talents" | "mastery" | null>(null);
   const [masteryFullscreen, setMasteryFullscreen] = useState(false);
+  const [masteryFullscreenScale, setMasteryFullscreenScale] = useState(1);
   const talentTreeRef = useRef<HTMLDivElement>(null);
   const masteryBoardRef = useRef<HTMLDivElement>(null);
   const masteryFullscreenRef = useRef<HTMLDivElement>(null);
+  const masteryViewportRef = useRef<HTMLDivElement>(null);
   const equipmentMap = useMemo(() => new Map(dataset.equipment.map((item) => [item.slug, item])), [dataset.equipment]);
 
   useEffect(() => {
@@ -899,11 +906,31 @@ export function CharacterBuilder({
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setMasteryFullscreen(document.fullscreenElement === masteryFullscreenRef.current);
+      const isFullscreen = document.fullscreenElement === masteryFullscreenRef.current;
+      setMasteryFullscreen(isFullscreen);
+      if (!isFullscreen) setMasteryFullscreenScale(1);
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
+
+  useEffect(() => {
+    if (!masteryFullscreen) return;
+    const viewport = masteryViewportRef.current;
+    if (!viewport) return;
+    const updateScale = () => {
+      const widthScale = Math.max(1, viewport.clientWidth - 24) / MASTERY_BOARD_WIDTH;
+      const heightScale = Math.max(1, viewport.clientHeight - 24) / MASTERY_BOARD_HEIGHT;
+      setMasteryFullscreenScale(clamp(Math.min(widthScale, heightScale), 0.55, 1.6));
+    };
+    const frame = window.requestAnimationFrame(updateScale);
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(viewport);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [masteryFullscreen]);
 
   const exportTreeImage = async (
     element: HTMLDivElement | null,
@@ -922,6 +949,8 @@ export function CharacterBuilder({
         height,
         pixelRatio: 2,
         cacheBust: true,
+        includeQueryParams: true,
+        skipAutoScale: true,
         backgroundColor: "#090e13",
         filter: (node) => {
           if (!(node instanceof HTMLElement)) return true;
@@ -1671,12 +1700,23 @@ export function CharacterBuilder({
                 </button>
               </div>
             </div>
-            <div className={styles.masteryViewport}>
+            <div className={styles.masteryViewport} ref={masteryViewportRef}>
               <div
-                className={styles.masteryBoard}
-                ref={masteryBoardRef}
-                style={{ width: MASTERY_BOARD_WIDTH, height: MASTERY_BOARD_HEIGHT }}
+                className={styles.masteryStage}
+                style={{
+                  width: masteryFullscreen ? MASTERY_BOARD_WIDTH * masteryFullscreenScale : MASTERY_BOARD_WIDTH,
+                  height: masteryFullscreen ? MASTERY_BOARD_HEIGHT * masteryFullscreenScale : MASTERY_BOARD_HEIGHT,
+                }}
               >
+                <div
+                  className={styles.masteryBoard}
+                  ref={masteryBoardRef}
+                  style={{
+                    width: MASTERY_BOARD_WIDTH,
+                    height: MASTERY_BOARD_HEIGHT,
+                    transform: masteryFullscreen ? `scale(${masteryFullscreenScale})` : undefined,
+                  }}
+                >
               <svg
                 className={styles.masteryConnections}
                 viewBox={`0 0 ${MASTERY_BOARD_WIDTH} ${MASTERY_BOARD_HEIGHT}`}
@@ -1690,6 +1730,9 @@ export function CharacterBuilder({
                     y1={MASTERY_ROW_Y[row]}
                     x2={MASTERY_NODE_X[0]}
                     y2={MASTERY_ROW_Y[row]}
+                    stroke={state.masteryRanks[branch.nodes[0].id] ? "#d79b50" : "#2b353e"}
+                    strokeWidth={state.masteryRanks[branch.nodes[0].id] ? 2.5 : 2}
+                    strokeLinecap="round"
                   />
                 ))}
                 {masteryEdges.map((edge) => {
@@ -1705,6 +1748,9 @@ export function CharacterBuilder({
                       y1={MASTERY_ROW_Y[edge.start.row]}
                       x2={MASTERY_NODE_X[edge.end.column]}
                       y2={MASTERY_ROW_Y[edge.end.row]}
+                      stroke={active ? "#d79b50" : "#2b353e"}
+                      strokeWidth={active ? 2.5 : 2}
+                      strokeLinecap="round"
                     />
                   );
                 })}
@@ -1712,12 +1758,7 @@ export function CharacterBuilder({
 
               {masteryEdges.flatMap((edge) => ([1, 2] as const).map((step) => {
                 const selected = Boolean(state.masteryRanks[getMasteryBoostId(edge, step)]);
-                const rowDirection = Math.sign(edge.end.row - edge.start.row);
-                const ratio = rowDirection === 0
-                  ? step / 3
-                  : rowDirection > 0
-                    ? (step === 1 ? 0.48 : 0.70)
-                    : (step === 1 ? 0.30 : 0.52);
+                const ratio = step === 1 ? 0.42 : 0.58;
                 const left = MASTERY_NODE_X[edge.start.column]
                   + (MASTERY_NODE_X[edge.end.column] - MASTERY_NODE_X[edge.start.column]) * ratio;
                 const top = MASTERY_ROW_Y[edge.start.row]
@@ -1832,7 +1873,7 @@ export function CharacterBuilder({
                       <LoadableImage src={node.icon} alt="" width={88} height={88} />
                       <span className={styles.masteryRankBadge}>{rank ? `${rank}/3` : <Plus size={13} />}</span>
                     </button>
-                    <strong>{node.name}</strong>
+                    <strong className={styles.masteryNodeLabel}>{node.name}</strong>
                     <small>Финал · открывается последним талантом ветки</small>
                     {rank > 0 && !readOnly && (
                       <div className={styles.masteryRankActions} data-export-ignore="true">
@@ -1844,6 +1885,7 @@ export function CharacterBuilder({
                   </article>
                 );
               })}
+                </div>
               </div>
             </div>
           </div>
