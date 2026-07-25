@@ -1,9 +1,14 @@
+import progressionSource from "@/data/character-builder-progression.ru.json";
+
+export type BuilderProgressionScale = Record<string, string>;
+
 export type BuilderTalentNode = {
   id: string;
   name: string;
   description: string;
   tier: number;
   icon: string;
+  scale: BuilderProgressionScale[];
 };
 
 export type BuilderArchetype = {
@@ -19,25 +24,70 @@ export type BuilderArchetype = {
   nodes: BuilderTalentNode[];
 };
 
-const talentPatterns = [
-  ["Точный расчёт", "Усиливает ключевое преимущество ветки."],
-  ["Боевой ритм", "Помогает поддерживать темп в затяжном сражении."],
-  ["Тактическое превосходство", "Даёт дополнительный эффект в решающий момент."],
-] as const;
+type RawTalent = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  scale: Array<Record<string, string>>;
+};
 
-function createTalentNodes(archetypeId: string, prefix: string, effect: string): BuilderTalentNode[] {
-  return Array.from({ length: 15 }, (_, index) => {
-    const tier = Math.floor(index / 3) + 1;
-    const variant = index % 3 + 1;
-    const pattern = talentPatterns[index % talentPatterns.length];
-    return {
-      id: `${archetypeId}-${index + 1}`,
-      name: tier === 5 ? `${pattern[0]}: вершина` : `${pattern[0]} ${tier}.${variant}`,
-      description: `${pattern[1]} ${effect} Максимум 5 рангов.`,
-      tier,
-      icon: `/corepunk/builder/talents/${archetypeId}/${prefix}${tier}v${variant}.png`,
-    };
-  });
+type RawMasteryUpgrade = {
+  description: string;
+  values: Array<string | number>;
+};
+
+type RawMasteryNode = {
+  name: string;
+  description: string;
+  upgrades?: {
+    half?: RawMasteryUpgrade[];
+    full?: RawMasteryUpgrade[];
+  };
+};
+
+type RawMasterySkill = {
+  name: string;
+  description: string;
+  nodes: RawMasteryNode[];
+};
+
+type ProgressionSource = {
+  talents: RawTalent[];
+  masteries: Record<string, {
+    skills: Record<"q" | "w" | "e" | "t" | "r", RawMasterySkill>;
+  }>;
+};
+
+const progressionData = progressionSource as unknown as ProgressionSource;
+
+function getTalentPosition(id: string) {
+  const match = id.match(/(\d+)v(\d+)$/);
+  return {
+    tier: Number(match?.[1] ?? 1),
+    variant: Number(match?.[2] ?? 1),
+  };
+}
+
+function createTalentNodes(archetypeId: string, prefix: string): BuilderTalentNode[] {
+  return progressionData.talents
+    .filter((talent) => talent.category === archetypeId)
+    .sort((left, right) => {
+      const leftPosition = getTalentPosition(left.id);
+      const rightPosition = getTalentPosition(right.id);
+      return leftPosition.tier - rightPosition.tier || leftPosition.variant - rightPosition.variant;
+    })
+    .map((talent, index) => {
+      const { tier, variant } = getTalentPosition(talent.id);
+      return {
+        id: `${archetypeId}-${index + 1}`,
+        name: talent.name,
+        description: talent.description,
+        tier,
+        icon: `/corepunk/builder/talents/${archetypeId}/${prefix}${tier}v${variant}.png`,
+        scale: talent.scale,
+      };
+    });
 }
 
 const archetypeDefinitions = [
@@ -61,7 +111,7 @@ export const builderArchetypes: BuilderArchetype[] = archetypeDefinitions.map((d
   simplifiedIcon: `/corepunk/builder/talents/icons/${definition[0]}_simplified.png`,
   passiveStat: definition[5],
   passivePerRank: definition[6],
-  nodes: createTalentNodes(definition[0], definition[8], definition[7]),
+  nodes: createTalentNodes(definition[0], definition[8]),
 }));
 
 export type BuilderMasteryNode = {
@@ -69,6 +119,8 @@ export type BuilderMasteryNode = {
   name: string;
   description: string;
   icon: string;
+  rankDetails: RawMasteryUpgrade[];
+  rankThreeBonus: string | null;
 };
 
 export type BuilderMasteryBranch = {
@@ -89,77 +141,52 @@ export type BuilderMasteryConfig = {
 
 type MasteryDefinition = {
   prefix: string;
-  branches: string[];
-  finals: string[];
 };
 
 const masteryDefinitions: Record<string, MasteryDefinition> = {
-  legionnary: {
-    prefix: "WAR_S1",
-    branches: ["Удар щитом", "Катапульта", "Бросок копья", "Железная кожа"],
-    finals: ["Стойкая жизненная сила", "Защитная жертва"],
-  },
-  shaman: {
-    prefix: "WAR_S3",
-    branches: ["Растерзать", "Тотемная ярость", "Удар молнии", "Стихийное мастерство"],
-    finals: ["Зов дикой природы", "Духовное единение"],
-  },
-  "blast-medic": {
-    prefix: "BOM_S1",
-    branches: ["Прыгающая бомба", "Генератор щита", "Голографический двойник", "Адаптивное усиление"],
-    finals: ["Многофункциональный дрон", "Полевой хирург"],
-  },
-  infiltrator: {
-    prefix: "BOM_S3",
-    branches: ["Камуфляж", "Бросок мины", "Ковровая бомбардировка", "Грань убийцы"],
-    finals: ["Уличное насилие", "Беззвучный приговор"],
-  },
-  ranger: {
-    prefix: "CHA_S2",
-    branches: ["Выстрел сетью", "Град стрел", "Стойка охотника", "Гарпунные стрелы"],
-    finals: ["Сальтация", "Идеальная засада"],
-  },
-  destroyer: {
-    prefix: "CHA_S1",
-    branches: ["Рывок", "Круговой удар", "Боевой клич", "Боевое безумие"],
-    finals: ["Сокрушающий прыжок", "Живая машина"],
-  },
-  defender: {
-    prefix: "CHA_S3",
-    branches: ["Удар чемпиона", "Бросок щита", "Штурм", "Авангард"],
-    finals: ["Встаньте за мной", "Последняя крепость"],
-  },
+  legionnary: { prefix: "WAR_S1" },
+  shaman: { prefix: "WAR_S3" },
+  "blast-medic": { prefix: "BOM_S1" },
+  infiltrator: { prefix: "BOM_S3" },
+  ranger: { prefix: "CHA_S2" },
+  destroyer: { prefix: "CHA_S1" },
+  defender: { prefix: "CHA_S3" },
 };
 
-const masteryNodeNames = ["Мощь", "Темп", "Эффективность", "Контроль", "Синергия"];
-const masteryKeys = ["Q", "W", "E", "T"] as const;
+const masteryKeys = ["q", "w", "e", "t"] as const;
 
 function createMastery(classSlug: string, definition: MasteryDefinition): BuilderMasteryConfig {
   const assetRoot = "/corepunk/builder/masteries";
+  const source = progressionData.masteries[classSlug];
   return {
     classSlug,
     icon: `${assetRoot}/${definition.prefix}.png`,
-    branches: definition.branches.map((branchName, branchIndex) => {
-      const key = masteryKeys[branchIndex];
+    branches: masteryKeys.map((sourceKey, branchIndex) => {
+      const sourceBranch = source.skills[sourceKey];
+      const assetKey = sourceKey.toUpperCase();
       return {
         id: `${classSlug}-branch-${branchIndex + 1}`,
         rootId: `${classSlug}-branch-${branchIndex + 1}-root`,
-        name: branchName,
-        description: `Развивает способность «${branchName}» и открывает новые боевые взаимодействия.`,
-        icon: `${assetRoot}/${definition.prefix}_${key}.png`,
-        nodes: masteryNodeNames.map((name, index) => ({
+        name: sourceBranch.name,
+        description: sourceBranch.description,
+        icon: `${assetRoot}/${definition.prefix}_${assetKey}.png`,
+        nodes: sourceBranch.nodes.map((node, index) => ({
           id: `${classSlug}-mastery-${branchIndex + 1}-${index + 1}`,
-          name,
-          description: `Улучшение ${index + 1} для способности «${branchName}».`,
-          icon: `${assetRoot}/${definition.prefix}_${key}${index + 1}.png`,
+          name: node.name,
+          description: node.description,
+          icon: `${assetRoot}/${definition.prefix}_${assetKey}${index + 1}.png`,
+          rankDetails: node.upgrades?.half ?? [],
+          rankThreeBonus: node.upgrades?.full?.[0]?.description ?? null,
         })),
       };
     }),
-    finals: definition.finals.map((name, index) => ({
+    finals: source.skills.r.nodes.map((node, index) => ({
       id: `${classSlug}-final-${index + 1}`,
-      name,
-      description: "Финальная специализация класса. Открывается после 20 очков распределения мастерства.",
+      name: node.name,
+      description: node.description,
       icon: `${assetRoot}/${definition.prefix}_R${index + 1}.png`,
+      rankDetails: node.upgrades?.half ?? [],
+      rankThreeBonus: node.upgrades?.full?.[0]?.description ?? null,
     })),
   };
 }

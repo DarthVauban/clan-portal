@@ -36,6 +36,7 @@ import {
   fallbackStatLabels,
   type BuilderMasteryConfig,
   type BuilderMasteryNode,
+  type BuilderProgressionScale,
 } from "@/lib/character-builder-config";
 import {
   builderArtifactSlotIds,
@@ -133,13 +134,178 @@ type MasteryEdge = {
 
 const MASTERY_ALLOCATION_LIMIT = 26;
 const MASTERY_LEVEL_LIMIT = 2;
-const MASTERY_BOARD_WIDTH = 1280;
-const MASTERY_BOARD_HEIGHT = 650;
-const MASTERY_ROOT_X = 72;
-const MASTERY_NODE_X = [230, 438, 646, 854, 1062];
-const MASTERY_ROW_Y = [82, 238, 394, 550];
-const MASTERY_FINAL_X = 1210;
-const MASTERY_FINAL_Y = [160, 472];
+const MASTERY_BOARD_WIDTH = 1540;
+const MASTERY_BOARD_HEIGHT = 830;
+const MASTERY_ROOT_X = 92;
+const MASTERY_NODE_X = [280, 510, 740, 970, 1200];
+const MASTERY_ROW_Y = [112, 314, 516, 718];
+const MASTERY_FINAL_X = 1440;
+const MASTERY_FINAL_Y = [270, 560];
+
+const progressionTokenLabels: Record<string, string> = {
+  aggro: "угроза",
+  ap: "сила атаки",
+  armor: "броня",
+  armorpntr: "пробивание брони",
+  as: "скорость атаки",
+  bld: "кровотечение",
+  blind: "ослепление",
+  blinded: "ослеплён",
+  blinding: "ослепляет",
+  bmac: "магический модификатор",
+  cd: "перезарядка",
+  cc: "контроль",
+  ccres: "сопротивление контролю",
+  crippled: "искалечен",
+  crit: "критический удар",
+  critdmg: "критический урон",
+  dash: "рывок",
+  debuff: "негативный эффект",
+  detonate: "детонация",
+  disarm: "обезоруживание",
+  disarmed: "обезоружен",
+  disarms: "обезоруживает",
+  dmg: "урон",
+  ee: "энергетический эффект",
+  et: "энергетическая цель",
+  explode: "взрыв",
+  explodes: "взрывается",
+  explosion: "взрыв",
+  explosionr: "радиус взрыва",
+  fe: "огненный эффект",
+  fear: "страх",
+  fire: "огонь",
+  fmpen: "пробивание магической защиты",
+  fppen: "пробивание физической защиты",
+  ft: "огненная цель",
+  grounded: "приземлён",
+  hasp: "сила лечения и щитов",
+  hc: "жёсткий контроль",
+  heal: "лечение",
+  healing: "лечение",
+  healred: "снижение лечения",
+  heals: "лечит",
+  health: "здоровье",
+  healthrest: "восстановление здоровья",
+  hregen: "восстановление здоровья",
+  hypnosis: "гипноз",
+  ignite: "поджог",
+  immobilization: "обездвиживание",
+  immobilized: "обездвижен",
+  immobilizes: "обездвиживает",
+  increase: "увеличение урона",
+  inheal: "входящее лечение",
+  interrupt: "прерывание",
+  interrupts: "прерывает",
+  knockback: "отбрасывание",
+  knockedback: "отброшен",
+  knocksthemback: "отбрасывает",
+  lb: "заряд молнии",
+  lifesteal: "вампиризм",
+  mana: "мана",
+  marks: "метки",
+  mcc: "шанс магического крита",
+  mcp: "сила магического крита",
+  md: "магический урон",
+  mpen: "магическое пробивание",
+  mr: "магическое сопротивление",
+  mregen: "восстановление маны",
+  ms: "скорость передвижения",
+  pcc: "шанс физического крита",
+  pcp: "сила физического крита",
+  pd: "физический урон",
+  poison: "яд",
+  ppen: "физическое пробивание",
+  pstance: "защитная стойка",
+  pushed: "оттеснён",
+  root: "укоренение",
+  rooted: "укоренён",
+  rooting: "укореняет",
+  roots: "укореняет",
+  sbp: "сила щита",
+  sc: "заряд щита",
+  shield: "щит",
+  silence: "безмолвие",
+  silenced: "лишён возможности применять способности",
+  sleep: "сон",
+  slow: "замедление",
+  slowdown: "замедление",
+  slowed: "замедлён",
+  slowing: "замедляет",
+  slowres: "сопротивление замедлению",
+  slows: "замедляет",
+  sp: "сила заклинаний",
+  specability: "специальная способность",
+  stun: "оглушение",
+  stunned: "оглушён",
+  stunning: "оглушает",
+  stuns: "оглушает",
+  taunt: "провокация",
+  taunted: "спровоцирован",
+  taunts: "провоцирует",
+  tenacity: "стойкость",
+  threat: "угроза",
+  vr: "радиус обзора",
+  wd: "урон оружия",
+  we: "эффект оружия",
+  weakened: "ослаблен",
+  wt: "цель оружия",
+};
+
+function cleanProgressionText(value: string, scale?: BuilderProgressionScale[]) {
+  const valuesByKey = new Map<string, string>();
+  for (const entry of scale ?? []) {
+    for (const [key, entryValue] of Object.entries(entry)) {
+      const current = valuesByKey.get(key);
+      valuesByKey.set(key, current ? `${current} / ${entryValue}` : entryValue);
+    }
+  }
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\{([^}]+)\}/g, (_, key: string) => valuesByKey.get(key) ?? `{${key}}`)
+    .replace(/\[([^\]]+)\]/g, (_, token: string) => progressionTokenLabels[token.toLowerCase()] ?? token)
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function ProgressionTooltip({
+  node,
+  rank,
+  maxRank,
+  scale,
+  position = "below",
+}: {
+  node: BuilderMasteryNode | { name: string; description: string; rankDetails?: BuilderMasteryNode["rankDetails"]; rankThreeBonus?: string | null };
+  rank: number;
+  maxRank: number;
+  scale?: BuilderProgressionScale[];
+  position?: "above" | "below" | "left";
+}) {
+  return (
+    <div className={`${styles.progressionTooltip} ${styles[`progressionTooltip${position[0].toUpperCase()}${position.slice(1)}`]}`} role="tooltip">
+      <header>
+        <strong>{node.name}</strong>
+        <span>{rank ? `Ранг ${rank} / ${maxRank}` : `До ${maxRank} ранга`}</span>
+      </header>
+      <p>{cleanProgressionText(node.description, scale)}</p>
+      {node.rankDetails?.map((detail, index) => (
+        <div className={styles.progressionScale} key={`${detail.description}-${index}`}>
+          <span>{cleanProgressionText(detail.description)}</span>
+          <strong>{detail.values.map(String).join(" / ")}</strong>
+        </div>
+      ))}
+      {node.rankThreeBonus && (
+        <div className={styles.progressionBonus}>
+          <span>Бонус 3 ранга</span>
+          <p>{cleanProgressionText(node.rankThreeBonus)}</p>
+        </div>
+      )}
+      <footer>ЛКМ — изучить или улучшить · ПКМ — отменить</footer>
+    </div>
+  );
+}
 
 function getMasteryGridNodes(mastery: BuilderMasteryConfig): MasteryGridNode[] {
   return mastery.branches.flatMap((branch, row) => (
@@ -206,9 +372,73 @@ function isMasteryNodeUnlockable(
   });
 }
 
-function getFinalMasteryPredecessors(mastery: BuilderMasteryConfig, finalIndex: number) {
-  const rows = finalIndex === 0 ? [0, 1] : [2, 3];
-  return rows.map((row) => mastery.branches[row].nodes[4].id);
+function hasMasteryFinalAccess(mastery: BuilderMasteryConfig, ranks: Record<string, number>) {
+  return mastery.branches.some((branch) => Boolean(ranks[branch.nodes.at(-1)?.id ?? ""]));
+}
+
+type MasteryPath = {
+  nodes: MasteryGridNode[];
+  edges: MasteryEdge[];
+  cost: number;
+};
+
+function findShortestMasteryPath(
+  targetId: string,
+  ranks: Record<string, number>,
+  nodes: MasteryGridNode[],
+  edges: MasteryEdge[],
+): MasteryPath | null {
+  const adjacency = new Map<string, Array<{ node: MasteryGridNode; edge: MasteryEdge }>>();
+  for (const node of nodes) adjacency.set(node.id, []);
+  for (const edge of edges) {
+    adjacency.get(edge.start.id)?.push({ node: edge.end, edge });
+    adjacency.get(edge.end.id)?.push({ node: edge.start, edge });
+  }
+
+  const best = new Map<string, MasteryPath>();
+  const queue: Array<{ node: MasteryGridNode; path: MasteryPath }> = [];
+  for (const node of nodes) {
+    if (ranks[node.id]) {
+      const path = { nodes: [], edges: [], cost: 0 };
+      best.set(node.id, path);
+      queue.push({ node, path });
+    } else if (node.column === 0) {
+      const path = { nodes: [node], edges: [], cost: 1 };
+      const current = best.get(node.id);
+      if (!current || path.cost < current.cost) {
+        best.set(node.id, path);
+        queue.push({ node, path });
+      }
+    }
+  }
+
+  while (queue.length > 0) {
+    queue.sort((left, right) => left.path.cost - right.path.cost || left.path.edges.length - right.path.edges.length);
+    const current = queue.shift()!;
+    if (best.get(current.node.id) !== current.path) continue;
+    if (current.node.id === targetId) return current.path;
+
+    for (const adjacent of adjacency.get(current.node.id) ?? []) {
+      const missingBoosts = ([1, 2] as const)
+        .filter((step) => !ranks[getMasteryBoostId(adjacent.edge, step)])
+        .length;
+      const missingNode = ranks[adjacent.node.id] ? 0 : 1;
+      const nextPath: MasteryPath = {
+        nodes: missingNode ? [...current.path.nodes, adjacent.node] : current.path.nodes,
+        edges: [...current.path.edges, adjacent.edge],
+        cost: current.path.cost + missingBoosts + missingNode,
+      };
+      const previous = best.get(adjacent.node.id);
+      if (
+        previous
+        && (previous.cost < nextPath.cost
+          || (previous.cost === nextPath.cost && previous.edges.length <= nextPath.edges.length))
+      ) continue;
+      best.set(adjacent.node.id, nextPath);
+      queue.push({ node: adjacent.node, path: nextPath });
+    }
+  }
+  return null;
 }
 
 function pruneMasteryRanks(mastery: BuilderMasteryConfig, candidate: Record<string, number>) {
@@ -244,13 +474,9 @@ function pruneMasteryRanks(mastery: BuilderMasteryConfig, candidate: Record<stri
     }
   }
 
-  const nonFinalAllocation = Object.entries(ranks)
-    .filter(([id, rank]) => rank > 0 && !id.includes("-final-"))
-    .length;
-  mastery.finals.forEach((final, finalIndex) => {
-    const hasPath = getFinalMasteryPredecessors(mastery, finalIndex).some((id) => ranks[id]);
-    if (!hasPath || nonFinalAllocation < 20) delete ranks[final.id];
-  });
+  if (!hasMasteryFinalAccess(mastery, ranks)) {
+    mastery.finals.forEach((final) => delete ranks[final.id]);
+  }
   return ranks;
 }
 
@@ -659,10 +885,37 @@ export function CharacterBuilder({
     });
   };
 
+  const learnMasteryPath = (nodeId: string) => {
+    setState((current) => {
+      const path = findShortestMasteryPath(nodeId, current.masteryRanks, masteryGridNodes, masteryEdges);
+      if (!path) {
+        setNotice("Не удалось построить путь к выбранному таланту.");
+        return current;
+      }
+      const allocation = getMasteryAllocation(current.masteryRanks);
+      if (allocation + path.cost > MASTERY_ALLOCATION_LIMIT) {
+        setNotice(`Для этого пути нужно ещё ${path.cost} очк., доступно ${MASTERY_ALLOCATION_LIMIT - allocation}.`);
+        return current;
+      }
+      const masteryRanks = { ...current.masteryRanks };
+      path.nodes.forEach((node) => {
+        if (!masteryRanks[node.id]) masteryRanks[node.id] = 1;
+      });
+      path.edges.forEach((edge) => {
+        masteryRanks[getMasteryBoostId(edge, 1)] = 1;
+        masteryRanks[getMasteryBoostId(edge, 2)] = 1;
+      });
+      setNotice(path.cost > 1
+        ? `Кратчайший путь построен автоматически: распределено ${path.cost} очк.`
+        : "Талант изучен.");
+      return { ...current, masteryRanks };
+    });
+  };
+
   const updateMasteryRank = (
     nodeId: string,
     direction: 1 | -1,
-    finalIndex?: number,
+    isFinal = false,
   ) => {
     setState((current) => {
       const rank = current.masteryRanks[nodeId] ?? 0;
@@ -673,20 +926,16 @@ export function CharacterBuilder({
         setNotice("Все 26 очков мастерства уже распределены.");
         return current;
       }
-      if (direction > 0 && rank === 0 && finalIndex !== undefined) {
-        const nonFinalAllocation = Object.entries(current.masteryRanks)
-          .filter(([id, value]) => value > 0 && !id.includes("-final-"))
-          .length;
-        const hasPath = getFinalMasteryPredecessors(mastery, finalIndex).some((id) => current.masteryRanks[id]);
-        if (nonFinalAllocation < 20 || !hasPath) {
-          setNotice("Финальная специализация требует 20 очков и открытый путь к последнему столбцу.");
+      if (direction > 0 && rank === 0 && isFinal) {
+        if (!hasMasteryFinalAccess(mastery, current.masteryRanks)) {
+          setNotice("Финальные таланты откроются после изучения последнего таланта любой ветки.");
           return current;
         }
       }
-      if (direction > 0 && rank === 0 && finalIndex === undefined) {
+      if (direction > 0 && rank === 0 && !isFinal) {
         const node = masteryGridNodes.find((entry) => entry.id === nodeId);
         if (!node || !isMasteryNodeUnlockable(node, current.masteryRanks, masteryEdges)) {
-          setNotice("Сначала проложите путь к таланту через два улучшения связи.");
+          setNotice("Используйте автоматическое изучение, чтобы проложить кратчайший путь.");
           return current;
         }
       }
@@ -1071,7 +1320,7 @@ export function CharacterBuilder({
       )}
 
       {activeSection === "talents" && (
-        <section className={styles.panel}>
+        <section className={styles.panel} onContextMenu={(event) => event.preventDefault()}>
           <div className={styles.panelHeading}>
             <div>
               <span className={styles.eyebrow}><Sparkles size={16} /> Развитие героя</span>
@@ -1153,17 +1402,23 @@ export function CharacterBuilder({
                                 <article
                                   className={`${styles.talentTile}${rank ? ` ${styles.talentTileActive}` : ""}${blockedByRow ? ` ${styles.talentTileBlocked}` : ""}`}
                                   key={node.id}
+                                  onContextMenu={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    if (!readOnly && rank > 0) updateTalentRank(node.id, -1);
+                                  }}
                                 >
                                   <button
                                     className={styles.talentTileMain}
                                     type="button"
                                     disabled={readOnly || blockedByRow || rank >= 5}
                                     onClick={() => updateTalentRank(node.id, 1)}
-                                    title={`${node.name}. ${node.description}`}
                                     aria-label={`${rank ? "Повысить" : "Изучить"} талант ${node.name}`}
                                   >
-                                    <LoadableImage src={node.icon} alt="" width={96} height={96} />
-                                    {rank > 0 && <span>{rank}/5</span>}
+                                    <span className={styles.talentTileImage}>
+                                      <LoadableImage src={node.icon} alt="" width={96} height={96} />
+                                    </span>
+                                    {rank > 0 && <span className={styles.talentRankBadge}>{rank}/5</span>}
                                   </button>
                                   {rank > 0 && !readOnly && (
                                     <div className={styles.talentTileActions}>
@@ -1171,6 +1426,13 @@ export function CharacterBuilder({
                                       <button type="button" onClick={() => updateTalentRank(node.id, 1)} disabled={rank >= 5} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
                                     </div>
                                   )}
+                                  <ProgressionTooltip
+                                    node={node}
+                                    rank={rank}
+                                    maxRank={5}
+                                    scale={node.scale}
+                                    position={rowIndex >= 3 ? "above" : "below"}
+                                  />
                                 </article>
                               );
                             })}
@@ -1193,14 +1455,14 @@ export function CharacterBuilder({
       )}
 
       {activeSection === "mastery" && (
-        <section className={styles.panel}>
+        <section className={styles.panel} onContextMenu={(event) => event.preventDefault()}>
           <div className={styles.panelHeading}>
             <div className={styles.masteryHeading}>
               <LoadableImage src={mastery.icon} alt="" width={72} height={72} />
               <div>
                 <span className={styles.eyebrow}><BookOpenCheck size={16} /> Классовая специализация</span>
                 <h2>Мастерство: {selectedClass?.name}</h2>
-                <p>Базовые способности изучены сразу. Между талантами нужно открыть два усиления связи; маршрут можно продолжать по горизонтали, вертикали и диагонали.</p>
+                <p>Базовые способности изучены сразу. Клик по удалённому таланту автоматически построит самый короткий путь по горизонтали, вертикали или диагонали и распределит оба усиления каждой связи.</p>
               </div>
             </div>
             <div className={styles.points}>
@@ -1213,6 +1475,7 @@ export function CharacterBuilder({
             <span><Check size={15} /> 4 стандартные способности изучены</span>
             <span><Plus size={15} /> каждое звено даёт 1 очко характеристик способности</span>
             <span>Любой талант: 1 / 3 · глобально на улучшения: 2 очка</span>
+            <span>ПКМ · отменить последнее изучение</span>
           </div>
 
           <div className={styles.masteryViewport}>
@@ -1251,21 +1514,6 @@ export function CharacterBuilder({
                     />
                   );
                 })}
-                {mastery.finals.flatMap((final, finalIndex) => (
-                  getFinalMasteryPredecessors(mastery, finalIndex).map((predecessorId) => {
-                    const predecessor = masteryGridNodes.find((node) => node.id === predecessorId)!;
-                    return (
-                      <line
-                        className={state.masteryRanks[final.id] && state.masteryRanks[predecessorId] ? styles.masteryConnectionActive : ""}
-                        key={`${final.id}-${predecessorId}-line`}
-                        x1={MASTERY_NODE_X[predecessor.column]}
-                        y1={MASTERY_ROW_Y[predecessor.row]}
-                        x2={MASTERY_FINAL_X}
-                        y2={MASTERY_FINAL_Y[finalIndex]}
-                      />
-                    );
-                  })
-                ))}
               </svg>
 
               {masteryEdges.flatMap((edge) => ([1, 2] as const).map((step) => {
@@ -1283,6 +1531,11 @@ export function CharacterBuilder({
                     key={getMasteryBoostId(edge, step)}
                     disabled={readOnly}
                     onClick={() => updateMasteryBoost(edge, step, selected ? -1 : 1)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (!readOnly && selected) updateMasteryBoost(edge, step, -1);
+                    }}
                     title={`Улучшение связи: ${edge.start.name} → ${edge.end.name}`}
                     aria-label={`${selected ? "Убрать" : "Добавить"} улучшение связи`}
                   >
@@ -1311,16 +1564,20 @@ export function CharacterBuilder({
                 const unlockable = isMasteryNodeUnlockable(node, state.masteryRanks, masteryEdges);
                 return (
                   <article
-                    className={`${styles.masteryBoardNode}${rank ? ` ${styles.masteryBoardNodeActive}` : ""}${!unlockable && !rank ? ` ${styles.masteryBoardNodeLocked}` : ""}`}
+                    className={`${styles.masteryBoardNode}${rank ? ` ${styles.masteryBoardNodeActive}` : ""}${!unlockable && !rank ? ` ${styles.masteryBoardNodeSmart}` : ""}`}
                     style={{ left: MASTERY_NODE_X[node.column], top: MASTERY_ROW_Y[node.row] }}
                     key={node.id}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (!readOnly && rank > 0) updateMasteryRank(node.id, -1);
+                    }}
                   >
                     <button
                       type="button"
                       className={styles.masteryIconButton}
-                      disabled={readOnly || (!unlockable && rank === 0) || rank >= 3}
-                      onClick={() => updateMasteryRank(node.id, 1)}
-                      title={node.description}
+                      disabled={readOnly || rank >= 3}
+                      onClick={() => rank > 0 ? updateMasteryRank(node.id, 1) : learnMasteryPath(node.id)}
                       aria-label={`${rank ? "Повысить" : "Изучить"} улучшение ${node.name}`}
                     >
                       <LoadableImage src={node.icon} alt="" width={78} height={78} />
@@ -1333,42 +1590,49 @@ export function CharacterBuilder({
                         <button type="button" onClick={() => updateMasteryRank(node.id, 1)} disabled={rank >= 3} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
                       </div>
                     )}
+                    <ProgressionTooltip
+                      node={node}
+                      rank={rank}
+                      maxRank={3}
+                      position={node.row >= 2 ? "above" : "below"}
+                    />
                   </article>
                 );
               })}
 
               {mastery.finals.map((node, finalIndex) => {
                 const rank = state.masteryRanks[node.id] ?? 0;
-                const nonFinalAllocation = Object.entries(state.masteryRanks)
-                  .filter(([id, value]) => value > 0 && !id.includes("-final-"))
-                  .length;
-                const hasPath = getFinalMasteryPredecessors(mastery, finalIndex).some((id) => state.masteryRanks[id]);
-                const unlockable = nonFinalAllocation >= 20 && hasPath;
+                const unlockable = hasMasteryFinalAccess(mastery, state.masteryRanks);
                 return (
                   <article
                     className={`${styles.masteryBoardNode} ${styles.masteryFinalNode}${rank ? ` ${styles.masteryBoardNodeActive}` : ""}${!unlockable && !rank ? ` ${styles.masteryBoardNodeLocked}` : ""}`}
                     style={{ left: MASTERY_FINAL_X, top: MASTERY_FINAL_Y[finalIndex] }}
                     key={node.id}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (!readOnly && rank > 0) updateMasteryRank(node.id, -1, true);
+                    }}
                   >
                     <button
                       type="button"
                       className={`${styles.masteryIconButton} ${styles.masteryFinalIcon}`}
                       disabled={readOnly || (!unlockable && rank === 0) || rank >= 3}
-                      onClick={() => updateMasteryRank(node.id, 1, finalIndex)}
-                      title={node.description}
+                      onClick={() => updateMasteryRank(node.id, 1, true)}
                       aria-label={`${rank ? "Повысить" : "Изучить"} финальную специализацию ${node.name}`}
                     >
                       <LoadableImage src={node.icon} alt="" width={88} height={88} />
                       <span className={styles.masteryRankBadge}>{rank ? `${rank}/3` : <Plus size={13} />}</span>
                     </button>
                     <strong>{node.name}</strong>
-                    <small>Финал · 20 очков</small>
+                    <small>Финал · открывается последним талантом ветки</small>
                     {rank > 0 && !readOnly && (
                       <div className={styles.masteryRankActions}>
-                        <button type="button" onClick={() => updateMasteryRank(node.id, -1, finalIndex)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
-                        <button type="button" onClick={() => updateMasteryRank(node.id, 1, finalIndex)} disabled={rank >= 3} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
+                        <button type="button" onClick={() => updateMasteryRank(node.id, -1, true)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
+                        <button type="button" onClick={() => updateMasteryRank(node.id, 1, true)} disabled={rank >= 3} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
                       </div>
                     )}
+                    <ProgressionTooltip node={node} rank={rank} maxRank={3} position="left" />
                   </article>
                 );
               })}

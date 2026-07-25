@@ -277,6 +277,13 @@ function normalizeMasteryRankMap(value: unknown, heroClass: string) {
     allocation += 1;
     levelPoints += Math.max(0, safeRank - 1);
   }
+  const hasFinalColumnTalent = Object.keys(migrated).some((nodeId) => (
+    new RegExp(`^${heroClass}-mastery-[1-4]-5$`).test(nodeId)
+  ));
+  if (!hasFinalColumnTalent) {
+    delete migrated[`${heroClass}-final-1`];
+    delete migrated[`${heroClass}-final-2`];
+  }
   return migrated;
 }
 

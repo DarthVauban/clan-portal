@@ -879,11 +879,16 @@
 .talentTile {
   position: relative;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(151, 164, 181, 0.15);
   border-radius: 9px;
   background: #090d12;
   transition: 160ms ease;
+}
+
+.talentTile:hover,
+.talentTile:focus-within {
+  z-index: 24;
 }
 
 .talentTileMain {
@@ -899,10 +904,12 @@
   cursor: pointer;
 }
 
-.talentTileMain > span:first-child {
+.talentTileImage {
   display: flex;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
 }
 
 .talentTileMain img {
@@ -928,10 +935,14 @@
 }
 
 .talentTileBlocked {
+  border-color: rgba(151, 164, 181, 0.08);
+}
+
+.talentTileBlocked .talentTileMain {
   opacity: 0.24;
 }
 
-.talentTileMain > span:last-child {
+.talentRankBadge {
   position: absolute;
   right: 5px;
   bottom: 5px;
@@ -973,6 +984,168 @@
 .talentTileActions button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
+}
+
+.progressionTooltip {
+  position: absolute;
+  z-index: 40;
+  width: min(350px, calc(100vw - 48px));
+  padding: 15px;
+  visibility: hidden;
+  border: 1px solid rgba(216, 166, 91, 0.44);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(216, 166, 91, 0.07), transparent 42%),
+    #0d131a;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.52);
+  color: #cbd4dc;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+}
+
+.progressionTooltip header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(151, 164, 181, 0.16);
+}
+
+.progressionTooltip header strong {
+  color: #f2f5f7;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.progressionTooltip header span {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(216, 166, 91, 0.24);
+  border-radius: 999px;
+  background: rgba(216, 166, 91, 0.08);
+  color: #e6bd7a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.progressionTooltip > p,
+.progressionBonus p {
+  margin: 11px 0 0;
+  color: #bdc8d1;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.progressionScale {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(151, 164, 181, 0.12);
+  font-size: 12px;
+}
+
+.progressionScale span {
+  color: #8f9ba7;
+}
+
+.progressionScale strong {
+  color: #e6bd7a;
+  text-align: right;
+}
+
+.progressionBonus {
+  margin-top: 11px;
+  padding: 10px 11px;
+  border-left: 2px solid #c78645;
+  border-radius: 0 8px 8px 0;
+  background: rgba(199, 134, 69, 0.08);
+}
+
+.progressionBonus > span {
+  color: #e6a75f;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.progressionBonus p {
+  margin-top: 5px;
+}
+
+.progressionTooltip footer {
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(151, 164, 181, 0.12);
+  color: #74818d;
+  font-size: 11px;
+}
+
+.progressionTooltipBelow {
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translate(-50%, -4px);
+}
+
+.progressionTooltipAbove {
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+}
+
+.progressionTooltipLeft {
+  top: 50%;
+  right: calc(100% + 14px);
+  transform: translate(4px, -50%);
+}
+
+.talentTile:hover > .progressionTooltip,
+.talentTile:focus-within > .progressionTooltip,
+.masteryBoardNode:hover > .progressionTooltip,
+.masteryBoardNode:focus-within > .progressionTooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.talentTile:hover > .progressionTooltipBelow,
+.talentTile:focus-within > .progressionTooltipBelow,
+.masteryBoardNode:hover > .progressionTooltipBelow,
+.masteryBoardNode:focus-within > .progressionTooltipBelow,
+.talentTile:hover > .progressionTooltipAbove,
+.talentTile:focus-within > .progressionTooltipAbove,
+.masteryBoardNode:hover > .progressionTooltipAbove,
+.masteryBoardNode:focus-within > .progressionTooltipAbove {
+  transform: translate(-50%, 0);
+}
+
+.masteryBoardNode:hover > .progressionTooltipLeft,
+.masteryBoardNode:focus-within > .progressionTooltipLeft {
+  transform: translate(0, -50%);
+}
+
+.selectedTalentRow > div > .talentTile:first-child .progressionTooltip {
+  right: auto;
+  left: 0;
+  transform: translate(0, -4px);
+}
+
+.selectedTalentRow > div > .talentTile:last-child .progressionTooltip {
+  right: 0;
+  left: auto;
+  transform: translate(0, -4px);
+}
+
+.selectedTalentRow > div > .talentTile:first-child:hover .progressionTooltip,
+.selectedTalentRow > div > .talentTile:first-child:focus-within .progressionTooltip,
+.selectedTalentRow > div > .talentTile:last-child:hover .progressionTooltip,
+.selectedTalentRow > div > .talentTile:last-child:focus-within .progressionTooltip {
+  transform: translate(0, 0);
 }
 
 .rankControl {
@@ -1189,11 +1362,9 @@
   height: 74px;
   place-items: center;
   padding: 4px;
-  border: 1px solid rgba(151, 164, 181, 0.18);
+  border: 1px solid rgba(151, 164, 181, 0.24);
   border-radius: 50%;
-  background:
-    url("/corepunk/builder/masteries/perk_frame_active.png") center/112% 112% no-repeat,
-    #0b1016;
+  background: linear-gradient(145deg, #151c24, #090d12);
   color: #cad3db;
   cursor: pointer;
   transition: 160ms ease;
@@ -1375,20 +1546,20 @@
   margin-top: 14px;
   overflow-x: auto;
   overflow-y: hidden;
-  border: 1px solid rgba(117, 83, 173, 0.34);
+  border: 1px solid rgba(216, 166, 91, 0.24);
   border-radius: 14px;
   background:
-    linear-gradient(rgba(69, 48, 106, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(69, 48, 106, 0.1) 1px, transparent 1px),
-    radial-gradient(circle at 50% 50%, rgba(91, 58, 145, 0.15), transparent 56%),
-    #0e0a22;
-  background-size: 40px 40px, 40px 40px, auto, auto;
-  scrollbar-color: rgba(143, 104, 202, 0.72) rgba(10, 7, 24, 0.9);
+    linear-gradient(rgba(140, 155, 169, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 155, 169, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 32% 50%, rgba(188, 126, 63, 0.07), transparent 44%),
+    #090e13;
+  background-size: 44px 44px, 44px 44px, auto, auto;
+  scrollbar-color: rgba(202, 145, 76, 0.66) rgba(7, 10, 14, 0.9);
 }
 
 .masteryBoard {
   position: relative;
-  min-width: 1280px;
+  min-width: 1540px;
 }
 
 .masteryConnections {
@@ -1402,15 +1573,15 @@
 }
 
 .masteryConnections line {
-  stroke: rgba(151, 147, 181, 0.27);
+  stroke: rgba(133, 147, 159, 0.23);
   stroke-width: 2;
   transition: 160ms ease;
 }
 
 .masteryConnections .masteryConnectionActive {
-  stroke: #f2ca32;
+  stroke: #d79b50;
   stroke-width: 2.5;
-  filter: drop-shadow(0 0 4px rgba(242, 202, 50, 0.44));
+  filter: drop-shadow(0 0 5px rgba(215, 155, 80, 0.34));
 }
 
 .masteryBoost {
@@ -1421,26 +1592,26 @@
   height: 22px;
   place-items: center;
   padding: 0;
-  border: 2px solid rgba(151, 147, 181, 0.34);
+  border: 1px solid rgba(142, 155, 167, 0.38);
   border-radius: 50%;
-  background: #0d0a1f;
-  color: #8e8aa4;
+  background: #111820;
+  color: #8794a0;
   cursor: pointer;
   transform: translate(-50%, -50%);
   transition: 140ms ease;
 }
 
 .masteryBoost:hover:not(:disabled) {
-  border-color: #e9bd38;
-  color: #f7d75f;
-  box-shadow: 0 0 10px rgba(242, 202, 50, 0.24);
+  border-color: #d7a15b;
+  color: #f0c47e;
+  box-shadow: 0 0 10px rgba(215, 155, 80, 0.22);
 }
 
 .masteryBoostActive {
-  border-color: #f2ca32;
-  background: #1a1633;
-  color: #ffe36d;
-  box-shadow: 0 0 9px rgba(242, 202, 50, 0.26);
+  border-color: #d7a15b;
+  background: #2a1d11;
+  color: #f5c982;
+  box-shadow: 0 0 9px rgba(215, 155, 80, 0.24);
 }
 
 .masteryBoost:disabled {
@@ -1453,56 +1624,55 @@
   z-index: 4;
   display: grid;
   justify-items: center;
-  width: 142px;
+  width: 170px;
   text-align: center;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -44px);
 }
 
 .masteryRoot {
-  width: 154px;
+  width: 174px;
+  transform: translate(-50%, -56px);
 }
 
 .masteryRoot .masteryRootIcon {
   width: 112px;
   height: 112px;
-  border-color: rgba(232, 194, 103, 0.72);
-  box-shadow: 0 0 24px rgba(232, 194, 103, 0.15);
+  border: 2px solid rgba(216, 166, 91, 0.68);
+  box-shadow: 0 0 0 5px rgba(216, 166, 91, 0.06), 0 12px 28px rgba(0, 0, 0, 0.3);
 }
 
 .masteryRoot strong,
 .masteryBoardNode > strong {
-  max-width: 136px;
-  margin-top: 6px;
-  overflow: hidden;
-  color: #d8d5e2;
-  font-size: 11px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 164px;
+  margin-top: 8px;
+  color: #cbd4dc;
+  font-size: 12px;
+  line-height: 1.28;
 }
 
 .masteryRoot strong {
-  color: #f0d99e;
-  font-size: 12px;
+  color: #f0d7ad;
+  font-size: 13px;
 }
 
 .masteryRoot small,
 .masteryFinalNode > small {
-  margin-top: 3px;
-  color: #77718f;
-  font-size: 9px;
+  max-width: 165px;
+  margin-top: 5px;
+  color: #7e8b97;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .masteryBoardNode .masteryIconButton {
   width: 88px;
   height: 88px;
-  border-color: rgba(166, 160, 188, 0.28);
-  background:
-    url("/corepunk/builder/masteries/perk_frame_active.png") center/112% 112% no-repeat,
-    #100c25;
+  border-color: rgba(142, 155, 167, 0.28);
+  background: linear-gradient(145deg, #151c24, #090d12);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
 }
 
 .masteryBoardNode .masteryIconButton img {
@@ -1510,8 +1680,8 @@
 }
 
 .masteryBoardNodeActive .masteryIconButton {
-  border-color: rgba(242, 202, 50, 0.62);
-  box-shadow: 0 0 19px rgba(242, 202, 50, 0.16);
+  border-color: rgba(216, 166, 91, 0.72);
+  box-shadow: 0 0 0 4px rgba(216, 166, 91, 0.06), 0 12px 28px rgba(0, 0, 0, 0.32);
 }
 
 .masteryBoardNodeActive .masteryIconButton img {
@@ -1519,33 +1689,52 @@
 }
 
 .masteryBoardNodeActive > strong {
-  color: #f3cf59;
+  color: #ebc285;
 }
 
 .masteryBoardNodeLocked {
-  opacity: 0.43;
+  opacity: 0.38;
 }
 
 .masteryBoardNodeLocked .masteryIconButton img {
   filter: grayscale(1) brightness(0.48);
 }
 
+.masteryBoardNodeSmart .masteryIconButton {
+  border-style: dashed;
+}
+
+.masteryBoardNodeSmart .masteryIconButton img {
+  filter: grayscale(1) brightness(0.58);
+}
+
+.masteryBoardNodeSmart:hover .masteryIconButton,
+.masteryBoardNodeSmart:focus-within .masteryIconButton {
+  border-style: solid;
+  border-color: rgba(216, 166, 91, 0.48);
+}
+
 .masteryBoardNode .masteryRankActions {
-  position: absolute;
-  top: 64px;
-  left: 50%;
-  z-index: 3;
-  transform: translateX(-50%);
+  position: static;
+  z-index: 5;
+  margin-top: 6px;
 }
 
 .masteryFinalNode {
-  width: 152px;
+  width: 178px;
+  transform: translate(-50%, -51px);
 }
 
 .masteryFinalNode .masteryFinalIcon {
   width: 102px;
   height: 102px;
-  border-color: rgba(219, 166, 79, 0.36);
+  border: 2px solid rgba(199, 134, 69, 0.48);
+  border-radius: 24px;
+  background: linear-gradient(145deg, #1c1712, #0b0f14);
+}
+
+.masteryFinalNode .masteryFinalIcon img {
+  border-radius: 19px;
 }
 
 .segmentedRow {
