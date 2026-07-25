@@ -6,6 +6,7 @@
   display: grid;
   gap: 20px;
   width: 100%;
+  min-width: 0;
   max-width: 1540px;
   margin: 0 auto;
   padding: 24px;
@@ -304,6 +305,8 @@
 }
 
 .panel {
+  min-width: 0;
+  max-width: 100%;
   scroll-margin-top: 92px;
   padding: 24px;
 }
@@ -568,6 +571,39 @@
   gap: 8px;
 }
 
+.panelControls {
+  display: grid;
+  justify-items: end;
+  gap: 9px;
+}
+
+.treeActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(217, 167, 95, 0.28);
+  border-radius: 9px;
+  background: rgba(217, 167, 95, 0.075);
+  color: #e7bc7a;
+  cursor: pointer;
+  font: 800 12px/1 inherit;
+  transition: 150ms ease;
+}
+
+.treeActionButton:hover:not(:disabled) {
+  border-color: rgba(217, 167, 95, 0.54);
+  background: rgba(217, 167, 95, 0.13);
+  color: #ffd99e;
+}
+
+.treeActionButton:disabled {
+  cursor: wait;
+  opacity: 0.48;
+}
+
 .points span,
 .materialSummary span {
   display: grid;
@@ -790,6 +826,18 @@
   border-top: 1px solid var(--builder-border);
 }
 
+.selectedTalentGrid[data-exporting="true"] {
+  width: 1280px;
+  margin: 0;
+  padding: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid rgba(217, 167, 95, 0.24);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(217, 167, 95, 0.08), transparent 34%),
+    #090e13;
+}
+
 .selectedTalentBranch {
   min-width: 0;
   padding: 14px;
@@ -1005,6 +1053,42 @@
   transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
 }
 
+.progressionValueSequence,
+.progressionRankValues {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.progressionValueSequence span,
+.progressionRankValues span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.progressionValueSequence i,
+.progressionRankValues i {
+  color: #64717e;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.progressionValueSequence b,
+.progressionRankValues b {
+  color: #9ba7b2;
+  font-weight: 600;
+  transition: color 120ms ease, text-shadow 120ms ease;
+}
+
+.progressionValueSequence .progressionValueActive,
+.progressionRankValues .progressionValueActive {
+  color: #e2a55f;
+  font-weight: 900;
+  text-shadow: 0 0 12px rgba(199, 134, 69, 0.28);
+}
+
 .progressionTooltip header {
   display: flex;
   align-items: flex-start;
@@ -1054,8 +1138,7 @@
   color: #8f9ba7;
 }
 
-.progressionScale strong {
-  color: #e6bd7a;
+.progressionScale > strong {
   text-align: right;
 }
 
@@ -1105,28 +1188,50 @@
   transform: translate(4px, -50%);
 }
 
+.progressionTooltipRight {
+  top: 0;
+  left: calc(100% + 14px);
+  transform: translate(-4px, 0);
+}
+
+.progressionTooltipRightAbove {
+  right: auto;
+  bottom: 0;
+  left: calc(100% + 14px);
+  transform: translate(-4px, 0);
+}
+
 .talentTile:hover > .progressionTooltip,
-.talentTile:focus-within > .progressionTooltip,
+.talentTile:has(:focus-visible) > .progressionTooltip,
 .masteryBoardNode:hover > .progressionTooltip,
-.masteryBoardNode:focus-within > .progressionTooltip {
+.masteryBoardNode:has(:focus-visible) > .progressionTooltip,
+.masteryRoot:hover > .progressionTooltip,
+.masteryRoot:focus-visible > .progressionTooltip {
   visibility: visible;
   opacity: 1;
 }
 
 .talentTile:hover > .progressionTooltipBelow,
-.talentTile:focus-within > .progressionTooltipBelow,
+.talentTile:has(:focus-visible) > .progressionTooltipBelow,
 .masteryBoardNode:hover > .progressionTooltipBelow,
-.masteryBoardNode:focus-within > .progressionTooltipBelow,
+.masteryBoardNode:has(:focus-visible) > .progressionTooltipBelow,
 .talentTile:hover > .progressionTooltipAbove,
-.talentTile:focus-within > .progressionTooltipAbove,
+.talentTile:has(:focus-visible) > .progressionTooltipAbove,
 .masteryBoardNode:hover > .progressionTooltipAbove,
-.masteryBoardNode:focus-within > .progressionTooltipAbove {
+.masteryBoardNode:has(:focus-visible) > .progressionTooltipAbove {
   transform: translate(-50%, 0);
 }
 
 .masteryBoardNode:hover > .progressionTooltipLeft,
-.masteryBoardNode:focus-within > .progressionTooltipLeft {
+.masteryBoardNode:has(:focus-visible) > .progressionTooltipLeft {
   transform: translate(0, -50%);
+}
+
+.masteryRoot:hover > .progressionTooltipRight,
+.masteryRoot:focus-visible > .progressionTooltipRight,
+.masteryRoot:hover > .progressionTooltipRightAbove,
+.masteryRoot:focus-visible > .progressionTooltipRightAbove {
+  transform: translate(0, 0);
 }
 
 .selectedTalentRow > div > .talentTile:first-child .progressionTooltip {
@@ -1142,9 +1247,9 @@
 }
 
 .selectedTalentRow > div > .talentTile:first-child:hover .progressionTooltip,
-.selectedTalentRow > div > .talentTile:first-child:focus-within .progressionTooltip,
+.selectedTalentRow > div > .talentTile:first-child:has(:focus-visible) .progressionTooltip,
 .selectedTalentRow > div > .talentTile:last-child:hover .progressionTooltip,
-.selectedTalentRow > div > .talentTile:last-child:focus-within .progressionTooltip {
+.selectedTalentRow > div > .talentTile:last-child:has(:focus-visible) .progressionTooltip {
   transform: translate(0, 0);
 }
 
@@ -1542,24 +1647,87 @@
   color: #e4b365;
 }
 
-.masteryViewport {
+.masteryPanel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.masteryFullscreenShell {
+  min-width: 0;
+  max-width: 100%;
   margin-top: 14px;
+}
+
+.treeToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(216, 166, 91, 0.22);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  background: #0d1319;
+}
+
+.treeToolbar > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.treeToolbar > div:first-child strong {
+  color: #e8edf1;
+  font-size: 13px;
+}
+
+.treeToolbar > div:first-child span {
+  overflow: hidden;
+  color: #7f8b97;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.treeToolbar > div:last-child {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.masteryViewport {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 0;
   overflow-x: auto;
   overflow-y: hidden;
   border: 1px solid rgba(216, 166, 91, 0.24);
-  border-radius: 14px;
+  border-radius: 0 0 14px 14px;
   background:
     linear-gradient(rgba(140, 155, 169, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(140, 155, 169, 0.035) 1px, transparent 1px),
     radial-gradient(circle at 32% 50%, rgba(188, 126, 63, 0.07), transparent 44%),
     #090e13;
   background-size: 44px 44px, 44px 44px, auto, auto;
+  overscroll-behavior-x: contain;
   scrollbar-color: rgba(202, 145, 76, 0.66) rgba(7, 10, 14, 0.9);
 }
 
 .masteryBoard {
   position: relative;
   min-width: 1540px;
+  contain: layout paint;
+}
+
+.masteryBoard[data-exporting="true"] {
+  background:
+    linear-gradient(rgba(140, 155, 169, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 155, 169, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 32% 50%, rgba(188, 126, 63, 0.07), transparent 44%),
+    #090e13;
+  background-size: 44px 44px, 44px 44px, auto, auto;
 }
 
 .masteryConnections {
@@ -1629,6 +1797,19 @@
   transform: translate(-50%, -44px);
 }
 
+.masteryRoot:hover,
+.masteryRoot:focus-visible,
+.masteryBoardNode:hover,
+.masteryBoardNode:has(:focus-visible) {
+  z-index: 26;
+}
+
+.masteryRoot:focus-visible {
+  outline: 1px solid rgba(217, 167, 95, 0.52);
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+
 .masteryRoot {
   width: 174px;
   transform: translate(-50%, -56px);
@@ -1648,6 +1829,19 @@
   color: #cbd4dc;
   font-size: 12px;
   line-height: 1.28;
+}
+
+.masteryNodeLabel {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 3px 7px;
+  border: 1px solid rgba(128, 143, 156, 0.1);
+  border-radius: 7px;
+  background: rgba(9, 14, 19, 0.94);
 }
 
 .masteryRoot strong {
@@ -1715,9 +1909,11 @@
 }
 
 .masteryBoardNode .masteryRankActions {
-  position: static;
+  position: absolute;
+  top: 56px;
+  left: calc(50% + 39px);
   z-index: 5;
-  margin-top: 6px;
+  margin-top: 0;
 }
 
 .masteryFinalNode {
@@ -1735,6 +1931,25 @@
 
 .masteryFinalNode .masteryFinalIcon img {
   border-radius: 19px;
+}
+
+.masteryFullscreenShell:fullscreen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100vw;
+  height: 100vh;
+  padding: 14px;
+  overflow: hidden;
+  background: #070b0f;
+}
+
+.masteryFullscreenShell:fullscreen .treeToolbar {
+  border-radius: 14px 14px 0 0;
+}
+
+.masteryFullscreenShell:fullscreen .masteryViewport {
+  height: 100%;
+  overflow: auto;
 }
 
 .segmentedRow {
@@ -2240,6 +2455,10 @@
   .materialSummary {
     align-self: flex-start;
   }
+
+  .panelControls {
+    justify-items: start;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2252,6 +2471,20 @@
     min-height: 0;
     padding: 24px 20px;
     border-radius: 14px;
+  }
+
+  .treeToolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .treeToolbar > div:last-child {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .treeActionButton {
+    width: 100%;
   }
 
   .titleInput,

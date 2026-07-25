@@ -3,6 +3,7 @@
 import {
   BookOpenCheck,
   Boxes,
+  Camera,
   Check,
   ChevronRight,
   Clipboard,
@@ -11,7 +12,9 @@ import {
   Gem,
   Layers3,
   Link2,
+  Maximize2,
   Minus,
+  Minimize2,
   PackageCheck,
   Plus,
   RefreshCcw,
@@ -25,7 +28,8 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { toPng } from "html-to-image";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { LoadableImage } from "@/components/loadable-image";
 import {
@@ -252,6 +256,16 @@ const progressionTokenLabels: Record<string, string> = {
   wt: "цель оружия",
 };
 
+function normalizeProgressionText(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\[([^\]]+)\]/g, (_, token: string) => progressionTokenLabels[token.toLowerCase()] ?? token)
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function cleanProgressionText(value: string, scale?: BuilderProgressionScale[]) {
   const valuesByKey = new Map<string, string>();
   for (const entry of scale ?? []) {
@@ -260,14 +274,67 @@ function cleanProgressionText(value: string, scale?: BuilderProgressionScale[]) 
       valuesByKey.set(key, current ? `${current} / ${entryValue}` : entryValue);
     }
   }
-  return value
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+  return normalizeProgressionText(value)
     .replace(/\{([^}]+)\}/g, (_, key: string) => valuesByKey.get(key) ?? `{${key}}`)
-    .replace(/\[([^\]]+)\]/g, (_, token: string) => progressionTokenLabels[token.toLowerCase()] ?? token)
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function ProgressionDescription({
+  value,
+  scale,
+  rank,
+}: {
+  value: string;
+  scale?: BuilderProgressionScale[];
+  rank: number;
+}) {
+  if (!scale?.length) return cleanProgressionText(value);
+  const template = normalizeProgressionText(value);
+  const parts: Array<string | ReactNode> = [];
+  const placeholderPattern = /\{([^}]+)\}/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = placeholderPattern.exec(template))) {
+    parts.push(template.slice(cursor, match.index));
+    const key = match[1];
+    const values = scale.map((entry) => entry[key]).filter((entry): entry is string => entry !== undefined);
+    if (values.length === 0) {
+      parts.push(match[0]);
+    } else {
+      parts.push(
+        <span className={styles.progressionValueSequence} key={`${key}-${match.index}`}>
+          {values.map((entry, index) => (
+            <span key={`${entry}-${index}`}>
+              {index > 0 && <i>/</i>}
+              <b className={rank === index + 1 ? styles.progressionValueActive : undefined}>{entry}</b>
+            </span>
+          ))}
+        </span>,
+      );
+    }
+    cursor = match.index + match[0].length;
+  }
+  parts.push(template.slice(cursor));
+  return <>{parts}</>;
+}
+
+function ProgressionRankValues({
+  values,
+  rank,
+}: {
+  values: Array<string | number>;
+  rank: number;
+}) {
+  return (
+    <strong className={styles.progressionRankValues}>
+      {values.map((value, index) => (
+        <span key={`${value}-${index}`}>
+          {index > 0 && <i>/</i>}
+          <b className={rank === index + 1 ? styles.progressionValueActive : undefined}>{value}</b>
+        </span>
+      ))}
+    </strong>
+  );
 }
 
 function ProgressionTooltip({
@@ -276,24 +343,28 @@ function ProgressionTooltip({
   maxRank,
   scale,
   position = "below",
+  badgeLabel,
+  footerText = "ЛКМ — изучить или улучшить · ПКМ — отменить",
 }: {
   node: BuilderMasteryNode | { name: string; description: string; rankDetails?: BuilderMasteryNode["rankDetails"]; rankThreeBonus?: string | null };
   rank: number;
   maxRank: number;
   scale?: BuilderProgressionScale[];
-  position?: "above" | "below" | "left";
+  position?: "above" | "below" | "left" | "right" | "rightAbove";
+  badgeLabel?: string;
+  footerText?: string;
 }) {
   return (
     <div className={`${styles.progressionTooltip} ${styles[`progressionTooltip${position[0].toUpperCase()}${position.slice(1)}`]}`} role="tooltip">
       <header>
         <strong>{node.name}</strong>
-        <span>{rank ? `Ранг ${rank} / ${maxRank}` : `До ${maxRank} ранга`}</span>
+        <span>{badgeLabel ?? (rank ? `Ранг ${rank} / ${maxRank}` : `До ${maxRank} ранга`)}</span>
       </header>
-      <p>{cleanProgressionText(node.description, scale)}</p>
+      <p><ProgressionDescription value={node.description} scale={scale} rank={rank} /></p>
       {node.rankDetails?.map((detail, index) => (
         <div className={styles.progressionScale} key={`${detail.description}-${index}`}>
           <span>{cleanProgressionText(detail.description)}</span>
-          <strong>{detail.values.map(String).join(" / ")}</strong>
+          <ProgressionRankValues values={detail.values} rank={rank} />
         </div>
       ))}
       {node.rankThreeBonus && (
@@ -302,9 +373,31 @@ function ProgressionTooltip({
           <p>{cleanProgressionText(node.rankThreeBonus)}</p>
         </div>
       )}
-      <footer>ЛКМ — изучить или улучшить · ПКМ — отменить</footer>
+      <footer>{footerText}</footer>
     </div>
   );
+}
+
+function sanitizeImageName(value: string) {
+  return value
+    .trim()
+    .toLocaleLowerCase("ru")
+    .replace(/[^a-zа-яё0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 70) || "билд";
+}
+
+async function waitForCaptureAssets(element: HTMLElement) {
+  if ("fonts" in document) await document.fonts.ready;
+  await Promise.all(Array.from(element.querySelectorAll("img")).map((image) => (
+    image.complete
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+        image.addEventListener("load", () => resolve(), { once: true });
+        image.addEventListener("error", () => resolve(), { once: true });
+      })
+  )));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 }
 
 function getMasteryGridNodes(mastery: BuilderMasteryConfig): MasteryGridNode[] {
@@ -775,6 +868,11 @@ export function CharacterBuilder({
   const [showSaved, setShowSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [captureTarget, setCaptureTarget] = useState<"talents" | "mastery" | null>(null);
+  const [masteryFullscreen, setMasteryFullscreen] = useState(false);
+  const talentTreeRef = useRef<HTMLDivElement>(null);
+  const masteryBoardRef = useRef<HTMLDivElement>(null);
+  const masteryFullscreenRef = useRef<HTMLDivElement>(null);
   const equipmentMap = useMemo(() => new Map(dataset.equipment.map((item) => [item.slug, item])), [dataset.equipment]);
 
   useEffect(() => {
@@ -798,6 +896,62 @@ export function CharacterBuilder({
     const timer = window.setTimeout(() => setNotice(""), 3600);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setMasteryFullscreen(document.fullscreenElement === masteryFullscreenRef.current);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const exportTreeImage = async (
+    element: HTMLDivElement | null,
+    target: "talents" | "mastery",
+    fileSuffix: string,
+  ) => {
+    if (!element || captureTarget) return;
+    setCaptureTarget(target);
+    element.dataset.exporting = "true";
+    try {
+      await waitForCaptureAssets(element);
+      const width = Math.ceil(element.scrollWidth);
+      const height = Math.ceil(element.scrollHeight);
+      const image = await toPng(element, {
+        width,
+        height,
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#090e13",
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true;
+          return node.dataset.exportIgnore !== "true"
+            && !node.classList.contains(styles.progressionTooltip);
+        },
+      });
+      const download = document.createElement("a");
+      download.href = image;
+      download.download = `${sanitizeImageName(state.title)}-${fileSuffix}.png`;
+      download.click();
+      setNotice("Изображение в высоком качестве загружено на компьютер.");
+    } catch {
+      setNotice("Не удалось создать изображение. Повторите попытку после загрузки всех иконок.");
+    } finally {
+      delete element.dataset.exporting;
+      setCaptureTarget(null);
+    }
+  };
+
+  const toggleMasteryFullscreen = async () => {
+    const element = masteryFullscreenRef.current;
+    if (!element) return;
+    try {
+      if (document.fullscreenElement === element) await document.exitFullscreen();
+      else await element.requestFullscreen();
+    } catch {
+      setNotice("Браузер не разрешил открыть дерево на весь экран.");
+    }
+  };
 
   const activeSet = state.sets[state.activeSet];
   const selectedClass = dataset.classes.find((entry) => entry.slug === state.heroClass) ?? dataset.classes[0];
@@ -1327,9 +1481,20 @@ export function CharacterBuilder({
               <h2>Ветки талантов</h2>
               <p>На уровне {state.level} доступно веток: {allowedArchetypes}. Первый ранг расходует очко распределения, следующие — очки уровня.</p>
             </div>
-            <div className={styles.points}>
-              <span>Распределение<strong>{talentAllocation} / 15</strong></span>
-              <span>Очки уровня<strong>{talentLevelPoints} / 12</strong></span>
+            <div className={styles.panelControls}>
+              <div className={styles.points}>
+                <span>Распределение<strong>{talentAllocation} / 15</strong></span>
+                <span>Очки уровня<strong>{talentLevelPoints} / 12</strong></span>
+              </div>
+              <button
+                className={styles.treeActionButton}
+                type="button"
+                disabled={selectedTalentBranches.length === 0 || captureTarget !== null}
+                onClick={() => void exportTreeImage(talentTreeRef.current, "talents", "таланты")}
+              >
+                <Camera size={17} />
+                {captureTarget === "talents" ? "Создаём PNG…" : "Скачать дерево PNG"}
+              </button>
             </div>
           </div>
           <div className={styles.archetypeGrid}>
@@ -1360,7 +1525,7 @@ export function CharacterBuilder({
             })}
           </div>
           {selectedTalentBranches.length > 0 ? (
-            <div className={styles.selectedTalentGrid}>
+            <div className={styles.selectedTalentGrid} ref={talentTreeRef}>
               {selectedTalentBranches.map((archetype) => (
                 <article
                   className={styles.selectedTalentBranch}
@@ -1373,6 +1538,7 @@ export function CharacterBuilder({
                     {!readOnly && (
                       <button
                         type="button"
+                        data-export-ignore="true"
                         onClick={() => setState((current) => ({
                           ...current,
                           selectedArchetypes: current.selectedArchetypes.filter((id) => id !== archetype.id),
@@ -1421,7 +1587,7 @@ export function CharacterBuilder({
                                     {rank > 0 && <span className={styles.talentRankBadge}>{rank}/5</span>}
                                   </button>
                                   {rank > 0 && !readOnly && (
-                                    <div className={styles.talentTileActions}>
+                                    <div className={styles.talentTileActions} data-export-ignore="true">
                                       <button type="button" onClick={() => updateTalentRank(node.id, -1)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
                                       <button type="button" onClick={() => updateTalentRank(node.id, 1)} disabled={rank >= 5} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
                                     </div>
@@ -1455,7 +1621,7 @@ export function CharacterBuilder({
       )}
 
       {activeSection === "mastery" && (
-        <section className={styles.panel} onContextMenu={(event) => event.preventDefault()}>
+        <section className={`${styles.panel} ${styles.masteryPanel}`} onContextMenu={(event) => event.preventDefault()}>
           <div className={styles.panelHeading}>
             <div className={styles.masteryHeading}>
               <LoadableImage src={mastery.icon} alt="" width={72} height={72} />
@@ -1478,11 +1644,39 @@ export function CharacterBuilder({
             <span>ПКМ · отменить последнее изучение</span>
           </div>
 
-          <div className={styles.masteryViewport}>
-            <div
-              className={styles.masteryBoard}
-              style={{ width: MASTERY_BOARD_WIDTH, height: MASTERY_BOARD_HEIGHT }}
-            >
+          <div className={styles.masteryFullscreenShell} ref={masteryFullscreenRef}>
+            <div className={styles.treeToolbar} data-export-ignore="true">
+              <div>
+                <strong>Интерактивное дерево мастерства</strong>
+                <span>Прокручивайте дерево горизонтально или откройте его на весь экран.</span>
+              </div>
+              <div>
+                <button
+                  className={styles.treeActionButton}
+                  type="button"
+                  disabled={captureTarget !== null}
+                  onClick={() => void exportTreeImage(masteryBoardRef.current, "mastery", "мастерство")}
+                >
+                  <Camera size={17} />
+                  {captureTarget === "mastery" ? "Создаём PNG…" : "Скачать PNG"}
+                </button>
+                <button
+                  className={styles.treeActionButton}
+                  type="button"
+                  aria-pressed={masteryFullscreen}
+                  onClick={() => void toggleMasteryFullscreen()}
+                >
+                  {masteryFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+                  {masteryFullscreen ? "Свернуть" : "На весь экран"}
+                </button>
+              </div>
+            </div>
+            <div className={styles.masteryViewport}>
+              <div
+                className={styles.masteryBoard}
+                ref={masteryBoardRef}
+                style={{ width: MASTERY_BOARD_WIDTH, height: MASTERY_BOARD_HEIGHT }}
+              >
               <svg
                 className={styles.masteryConnections}
                 viewBox={`0 0 ${MASTERY_BOARD_WIDTH} ${MASTERY_BOARD_HEIGHT}`}
@@ -1518,7 +1712,12 @@ export function CharacterBuilder({
 
               {masteryEdges.flatMap((edge) => ([1, 2] as const).map((step) => {
                 const selected = Boolean(state.masteryRanks[getMasteryBoostId(edge, step)]);
-                const ratio = step / 3;
+                const rowDirection = Math.sign(edge.end.row - edge.start.row);
+                const ratio = rowDirection === 0
+                  ? step / 3
+                  : rowDirection > 0
+                    ? (step === 1 ? 0.48 : 0.70)
+                    : (step === 1 ? 0.30 : 0.52);
                 const left = MASTERY_NODE_X[edge.start.column]
                   + (MASTERY_NODE_X[edge.end.column] - MASTERY_NODE_X[edge.start.column]) * ratio;
                 const top = MASTERY_ROW_Y[edge.start.row]
@@ -1549,6 +1748,7 @@ export function CharacterBuilder({
                   className={styles.masteryRoot}
                   style={{ left: MASTERY_ROOT_X, top: MASTERY_ROW_Y[row] }}
                   key={branch.id}
+                  tabIndex={0}
                 >
                   <span className={`${styles.masteryIconButton} ${styles.masteryRootIcon}`}>
                     <LoadableImage src={branch.icon} alt="" width={104} height={104} />
@@ -1556,6 +1756,14 @@ export function CharacterBuilder({
                   </span>
                   <strong>{branch.name}</strong>
                   <small>Базовая способность</small>
+                  <ProgressionTooltip
+                    node={branch}
+                    rank={0}
+                    maxRank={1}
+                    position={row >= 2 ? "rightAbove" : "right"}
+                    badgeLabel="Стандартная"
+                    footerText="Способность изучена по умолчанию"
+                  />
                 </article>
               ))}
 
@@ -1583,9 +1791,9 @@ export function CharacterBuilder({
                       <LoadableImage src={node.icon} alt="" width={78} height={78} />
                       <span className={styles.masteryRankBadge}>{rank ? `${rank}/3` : <Plus size={13} />}</span>
                     </button>
-                    <strong>{node.name}</strong>
+                    <strong className={styles.masteryNodeLabel}>{node.name}</strong>
                     {rank > 0 && !readOnly && (
-                      <div className={styles.masteryRankActions}>
+                      <div className={styles.masteryRankActions} data-export-ignore="true">
                         <button type="button" onClick={() => updateMasteryRank(node.id, -1)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
                         <button type="button" onClick={() => updateMasteryRank(node.id, 1)} disabled={rank >= 3} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
                       </div>
@@ -1627,7 +1835,7 @@ export function CharacterBuilder({
                     <strong>{node.name}</strong>
                     <small>Финал · открывается последним талантом ветки</small>
                     {rank > 0 && !readOnly && (
-                      <div className={styles.masteryRankActions}>
+                      <div className={styles.masteryRankActions} data-export-ignore="true">
                         <button type="button" onClick={() => updateMasteryRank(node.id, -1, true)} aria-label={`Уменьшить ранг: ${node.name}`}><Minus size={13} /></button>
                         <button type="button" onClick={() => updateMasteryRank(node.id, 1, true)} disabled={rank >= 3} aria-label={`Повысить ранг: ${node.name}`}><Plus size={13} /></button>
                       </div>
@@ -1636,6 +1844,7 @@ export function CharacterBuilder({
                   </article>
                 );
               })}
+              </div>
             </div>
           </div>
         </section>

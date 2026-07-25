@@ -16,6 +16,7 @@
     "translate:quest-chains": "node scripts/translate-corepunk-quest-chains.mjs"
   },
   "dependencies": {
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "pg": "^8.22.0",
