@@ -55,6 +55,7 @@ const requestNavigation = [
 ];
 
 const utilityNavigation = [
+  { href: "/character-builder", label: "Character Builder", icon: Sparkles },
   { href: "/audit-log", label: "Журнал учета", icon: ScrollText, restricted: true },
   { href: "/craft-calculator", label: "Калькулятор крафта", icon: Calculator, restricted: true },
   { href: "/blocked-users", label: "Заблокированные", icon: ShieldX, absoluteOnly: true },
@@ -299,11 +300,15 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const revoked = isPlayerRevoked(state, LOCAL_PLAYER_ID);
   const collectiveAccess = absoluteRights || Boolean(membership);
   const canRenamePortal = absoluteRights && auth.stage === "registered";
-  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership") || pathname.startsWith("/quests") || pathname.startsWith("/patch-notes");
+  const pendingAllowedRoute = pathname === "/" || pathname.startsWith("/requests/membership") || pathname.startsWith("/quests") || pathname.startsWith("/patch-notes") || pathname.startsWith("/character-builder");
   const pendingRestrictedRoute = !collectiveAccess && !pendingAllowedRoute;
   const visiblePrimaryNavigation = collectiveAccess ? primaryNavigation : primaryNavigation.filter((item) => item.href === "/");
   const visibleRequestNavigation = collectiveAccess ? requestNavigation : requestNavigation.filter((item) => item.href === "/requests/membership");
-  const visibleUtilityNavigation = collectiveAccess ? utilityNavigation.filter((item) => item.href !== "/profile" && (!("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights)) : [];
+  const visibleUtilityNavigation = utilityNavigation.filter((item) => (
+    item.href !== "/profile"
+    && (!("restricted" in item) || !item.restricted || collectiveAccess)
+    && (!("absoluteOnly" in item) || !item.absoluteOnly || absoluteRights)
+  ));
   const assignedPlayerIds = useMemo(() => new Set(state.collectives.flatMap((collective) => collective.members.map((member) => member.playerId))), [state.collectives]);
   const blockedUsersRestrictedRoute = pathname.startsWith("/blocked-users") && !absoluteRights;
   const profileName = profile.displayName.trim() || auth.discordNickname || "Профиль";
@@ -519,6 +524,10 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     closeMenu();
     router.replace("/");
   };
+
+  if (pathname === "/patch-notes/quests-july-2026" || pathname.startsWith("/character-builder/shared/")) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
