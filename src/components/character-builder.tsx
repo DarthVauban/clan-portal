@@ -1084,10 +1084,10 @@ function EditableMaterialPanel({
       <div className={styles.segmentedRow}>
         <div className={styles.segmented}>
           <button className={view === "total" ? styles.segmentActive : ""} onClick={() => setView("total")} type="button">
-            Полная раскладка
+            Базовые ресурсы
           </button>
           <button className={view === "direct" ? styles.segmentActive : ""} onClick={() => setView("direct")} type="button">
-            Прямой рецепт
+            Компоненты рецепта
           </button>
         </div>
         <CustomSelect
@@ -1127,8 +1127,8 @@ function ReadOnlyMaterialPanel({
         </div>
       </div>
       <div className={styles.segmented}>
-        <button className={view === "total" ? styles.segmentActive : ""} onClick={() => setView("total")} type="button">Полная раскладка</button>
-        <button className={view === "direct" ? styles.segmentActive : ""} onClick={() => setView("direct")} type="button">Прямой рецепт</button>
+        <button className={view === "total" ? styles.segmentActive : ""} onClick={() => setView("total")} type="button">Базовые ресурсы</button>
+        <button className={view === "direct" ? styles.segmentActive : ""} onClick={() => setView("direct")} type="button">Компоненты рецепта</button>
       </div>
       <MaterialsTable entries={materials[view]} />
     </section>

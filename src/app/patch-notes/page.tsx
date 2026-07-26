@@ -11,6 +11,24 @@ export const metadata: Metadata = {
 
 const releases = [
   {
+    id: "character-builder-july-2026",
+    date: "26 июля 2026",
+    dateTime: "2026-07-26",
+    period: "Большое обновление инструментов",
+    title: "Конструктор персонажа: от экипировки до стоимости билда",
+    summary: "Полноценный билдер Corepunk объединяет экипировку, живой расчёт характеристик, таланты, мастерство, материалы, сохранение и публичные ссылки.",
+    href: "/patch-notes-character-builder-july-2026.html",
+    stats: ["7 классов", "4 раздела", "2 комплекта оружия"],
+    highlights: [
+      "Базовые характеристики каждого доступного класса",
+      "Грейды и типы крафта оружия и артефактов",
+      "Живой расчёт характеристик по формулам v0.114",
+      "Интерактивные деревья талантов и мастерства",
+      "Расчёт базовых ресурсов и компонентов рецепта",
+      "Сохранение билдов и публичные ссылки",
+    ],
+  },
+  {
     id: "quest-center-july-2026",
     date: "25 июля 2026",
     dateTime: "2026-07-25",
@@ -59,7 +77,7 @@ export default function PatchNotesPage() {
         </div>
         <div className={styles.latestBadge}>
           <Sparkles size={15} />
-          Последнее обновление: 25 июля
+          Последнее обновление: 26 июля
         </div>
       </section>
 
@@ -72,12 +90,12 @@ export default function PatchNotesPage() {
         <div>
           <CalendarDays size={18} />
           <span>Последний релиз</span>
-          <strong>25.07.2026</strong>
+          <strong>26.07.2026</strong>
         </div>
         <div>
           <FileText size={18} />
           <span>Новых разделов</span>
-          <strong>3</strong>
+          <strong>4</strong>
         </div>
       </section>
 
@@ -87,7 +105,7 @@ export default function PatchNotesPage() {
             <span>Архив</span>
             <h2>Все обновления</h2>
           </div>
-          <small>{releases.length} публикация</small>
+          <small>{releases.length} публикации</small>
         </header>
 
         <div className={styles.releaseList}>
@@ -119,7 +137,26 @@ export default function PatchNotesPage() {
                 </footer>
               </div>
 
-              {release.id === "quest-center-july-2026" ? (
+              {release.id === "character-builder-july-2026" ? (
+                <div className={`${styles.releasePreview} ${styles.builderPreview}`} aria-hidden="true">
+                  <div className={styles.previewBrand}>
+                    <Image src="/clan-logo.png" alt="" width={68} height={68} />
+                    <div><strong>Конструктор персонажа</strong><span>Обновление инструментов Corepunk</span></div>
+                  </div>
+                  <div className={styles.builderPreviewClass}>
+                    <Image src="/game-assets/classes/legionnary.png" alt="" width={52} height={52} />
+                    <div><strong>Легионер</strong><small>Комплект I · Эпический</small></div>
+                    <b>v0.114</b>
+                  </div>
+                  <div className={styles.builderPreviewStats}>
+                    <span><Image src="/game-assets/stats/ap.png" alt="" width={22} height={22} /><small>Сила атаки</small><strong>200</strong></span>
+                    <span><Image src="/game-assets/stats/health.png" alt="" width={22} height={22} /><small>Здоровье</small><strong>3 583</strong></span>
+                    <span><Image src="/game-assets/stats/armor.png" alt="" width={22} height={22} /><small>Броня</small><strong>60</strong></span>
+                    <span><Image src="/game-assets/stats/mana.png" alt="" width={22} height={22} /><small>Мана</small><strong>875</strong></span>
+                  </div>
+                  <p>Интерактивные примеры внутри</p>
+                </div>
+              ) : release.id === "quest-center-july-2026" ? (
                 <div className={`${styles.releasePreview} ${styles.questPreview}`} aria-hidden="true">
                   <div className={styles.previewBrand}>
                     <Image src="/clan-logo.png" alt="" width={68} height={68} />
