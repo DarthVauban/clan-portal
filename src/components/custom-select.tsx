@@ -9,6 +9,7 @@ export type CustomSelectOption = {
   value: string;
   label: string;
   disabled?: boolean;
+  icon?: ReactNode;
 };
 
 type CustomSelectProps = {
@@ -74,6 +75,7 @@ export function CustomSelect({
   const selectedIndex = useMemo(() => options.findIndex((option) => option.value === value), [options, value]);
   const [highlightedIndex, setHighlightedIndex] = useState(() => Math.max(selectedIndex, firstEnabledIndex(options)));
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
+  const displayIcon = startIcon ?? selectedOption?.icon;
 
   const closeMenu = useCallback(() => {
     setOpen(false);
@@ -236,7 +238,10 @@ export function CustomSelect({
             onClick={() => chooseOption(option)}
             key={option.value || `empty-${index}`}
           >
-            <span>{option.label}</span>
+            <span className={styles.optionLabel}>
+              {option.icon && <span className={styles.optionIcon}>{option.icon}</span>}
+              <span>{option.label}</span>
+            </span>
             {selected && <Check className={styles.check} size={13} aria-hidden="true" />}
           </button>
         );
@@ -249,7 +254,7 @@ export function CustomSelect({
       <button
         ref={triggerRef}
         type="button"
-        className={`${styles.trigger}${open ? ` ${styles.triggerOpen}` : ""}${startIcon ? ` ${styles.triggerWithIcon}` : ""}`}
+        className={`${styles.trigger}${open ? ` ${styles.triggerOpen}` : ""}${displayIcon ? ` ${styles.triggerWithIcon}` : ""}`}
         onClick={() => (open ? closeMenu() : openMenu())}
         onKeyDown={handleKeyDown}
         disabled={disabled}
@@ -259,7 +264,7 @@ export function CustomSelect({
         aria-label={ariaLabel ?? placeholder}
         data-testid={testId}
       >
-        {startIcon && <span className={styles.startIcon}>{startIcon}</span>}
+        {displayIcon && <span className={styles.startIcon}>{displayIcon}</span>}
         <span className={`${styles.value}${selectedOption ? "" : ` ${styles.placeholder}`}`}>
           {selectedOption?.label ?? placeholder}
         </span>

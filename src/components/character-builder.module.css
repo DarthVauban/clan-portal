@@ -2356,24 +2356,18 @@
 
 .pickerStatWorkspace {
   display: grid;
-  grid-template-columns: minmax(300px, 0.9fr) minmax(440px, 1.6fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
   border-top: 1px solid var(--builder-border);
   background: #0d1218;
 }
 
-.primaryStatEditor,
-.secondaryStatEditor {
+.primaryStatEditor {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   padding: 17px 20px;
-}
-
-.secondaryStatEditor {
-  border-left: 1px solid var(--builder-border);
-  background: linear-gradient(135deg, rgba(217, 167, 95, 0.035), transparent 54%);
 }
 
 .statEditorHeading {
@@ -2420,8 +2414,7 @@
   text-align: right;
 }
 
-.statEditorGrid,
-.selectedSecondaryStats {
+.statEditorGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
@@ -2521,67 +2514,247 @@
   box-shadow: 0 0 7px rgba(217, 167, 95, 0.32), inset 0 0 0 1px rgba(8, 13, 18, 0.5);
 }
 
-.secondaryStatGroups {
+.artifactConfigModal {
   display: grid;
-  gap: 10px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(1080px, 100%);
+  max-height: min(900px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid rgba(217, 167, 95, 0.28);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 12% 0, rgba(217, 167, 95, 0.1), transparent 28rem),
+    #0e141a;
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.58);
 }
 
-.secondaryStatGroup {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
-  align-items: start;
-  gap: 10px;
+.artifactConfigHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(151, 164, 181, 0.14);
+  background: rgba(6, 10, 14, 0.42);
 }
 
-.secondaryStatGroup > strong {
-  padding-top: 9px;
-  color: #7e8b98;
-  font-size: 11px;
-  letter-spacing: 0.07em;
+.artifactConfigHeader > button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--builder-border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #9ba6b1;
+  cursor: pointer;
+}
+
+.artifactConfigHeader > button:hover {
+  border-color: rgba(217, 167, 95, 0.38);
+  color: #f0c681;
+}
+
+.artifactConfigIdentity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.artifactConfigImage {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  border: 1px solid rgba(217, 167, 95, 0.25);
+  border-radius: 13px;
+  background: rgba(217, 167, 95, 0.06);
+}
+
+.artifactConfigIdentity > span:last-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.artifactConfigIdentity small {
+  color: #d6a65e;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.secondaryStatGroup > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.artifactConfigIdentity strong {
+  overflow: hidden;
+  color: #edf2f6;
+  font-size: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.secondaryStatGroup button {
+.artifactConfigIdentity em {
+  color: #8996a3;
+  font-size: 13px;
+  font-style: normal;
+}
+
+.artifactConfigBody {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 22px;
+}
+
+.artifactPrimarySection,
+.artifactSecondarySection {
+  padding: 18px;
+  border: 1px solid rgba(151, 164, 181, 0.14);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.018), transparent 60%),
+    rgba(5, 9, 13, 0.46);
+}
+
+.artifactSecondarySection {
+  border-color: rgba(217, 167, 95, 0.18);
+  background:
+    linear-gradient(135deg, rgba(217, 167, 95, 0.045), transparent 54%),
+    rgba(5, 9, 13, 0.5);
+}
+
+.artifactSectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 15px;
+}
+
+.artifactSectionHeading > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.artifactSectionHeading > div > span:last-child {
+  display: grid;
+  gap: 4px;
+}
+
+.artifactSectionHeading strong {
+  color: #e5ebf0;
+  font-size: 16px;
+}
+
+.artifactSectionHeading small,
+.artifactSectionHeading p {
+  color: #7f8c99;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.artifactSectionHeading p {
+  max-width: 410px;
+  margin: 0;
+  text-align: right;
+}
+
+.artifactSectionNumber {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 35px;
-  padding: 0 9px;
-  border: 1px solid var(--builder-border);
-  border-radius: 8px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(217, 167, 95, 0.28);
+  border-radius: 10px;
+  background: rgba(217, 167, 95, 0.08);
+  color: #efc17a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.artifactPrimaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.artifactPrimaryGrid .statValueEditor,
+.artifactSecondarySlot .statValueEditor {
+  min-height: 74px;
+  background: rgba(9, 14, 19, 0.82);
+}
+
+.artifactSecondarySlots {
+  display: grid;
+  gap: 9px;
+}
+
+.artifactSecondarySlot {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.82fr) minmax(0, 1.18fr);
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(151, 164, 181, 0.13);
+  border-radius: 11px;
+  background: rgba(7, 11, 15, 0.58);
+}
+
+.artifactSecondarySelect {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.artifactSecondarySelect > span {
+  color: #8d99a6;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.artifactSecondaryPlaceholder {
+  display: flex;
+  align-items: center;
+  min-height: 74px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(151, 164, 181, 0.16);
+  border-radius: 10px;
+  color: #697582;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.artifactConfigFooter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 22px;
+  border-top: 1px solid rgba(151, 164, 181, 0.14);
   background: #0b1016;
-  color: #9aa6b1;
-  cursor: pointer;
-  font: 700 12px/1.25 inherit;
 }
 
-.secondaryStatGroup button:disabled {
-  cursor: not-allowed;
-  opacity: 0.32;
+.artifactConfigFooter > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.secondaryStatGroup button:not(:disabled):hover,
-.secondaryStatActive {
-  border-color: rgba(217, 167, 95, 0.4) !important;
-  background: var(--builder-gold-soft) !important;
-  color: #efc37c !important;
-}
-
-.secondaryStatGroup img {
-  flex: 0 0 auto;
-  object-fit: contain;
-}
-
-.selectedSecondaryStats {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(217, 167, 95, 0.13);
+.artifactConfigFooter > span {
+  color: #788592;
+  font-size: 12px;
+  text-align: right;
 }
 
 .savedModal {
@@ -2686,8 +2859,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .statEditorGrid,
-  .selectedSecondaryStats {
+  .statEditorGrid {
     grid-template-columns: 1fr;
   }
 
@@ -2950,15 +3122,9 @@
     overflow: visible;
   }
 
-  .primaryStatEditor,
-  .secondaryStatEditor {
+  .primaryStatEditor {
     overflow: visible;
     padding: 14px;
-  }
-
-  .secondaryStatEditor {
-    border-top: 1px solid var(--builder-border);
-    border-left: 0;
   }
 
   .statEditorHeading {
@@ -2970,15 +3136,6 @@
   .statEditorHeading small {
     max-width: none;
     text-align: left;
-  }
-
-  .secondaryStatGroup {
-    grid-template-columns: 1fr;
-    gap: 5px;
-  }
-
-  .secondaryStatGroup > strong {
-    padding-top: 0;
   }
 
   .statValueEditor {
@@ -2998,6 +3155,67 @@
   .pickerInspectorSummary {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .artifactConfigModal {
+    max-height: calc(100vh - 16px);
+    border-radius: 13px;
+  }
+
+  .artifactConfigHeader {
+    padding: 14px;
+  }
+
+  .artifactConfigImage {
+    width: 62px;
+    height: 62px;
+  }
+
+  .artifactConfigIdentity strong {
+    font-size: 17px;
+  }
+
+  .artifactConfigIdentity small {
+    font-size: 10px;
+  }
+
+  .artifactConfigBody {
+    padding: 12px;
+  }
+
+  .artifactPrimarySection,
+  .artifactSecondarySection {
+    padding: 13px;
+  }
+
+  .artifactSectionHeading {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .artifactSectionHeading p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .artifactPrimaryGrid,
+  .artifactSecondarySlot {
+    grid-template-columns: 1fr;
+  }
+
+  .artifactConfigFooter {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .artifactConfigFooter > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .artifactConfigFooter > span {
+    text-align: left;
   }
 
   .savedBuild {

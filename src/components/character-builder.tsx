@@ -109,7 +109,9 @@ const recipeByQuality: Record<BuilderQuality, "regular" | "upgraded" | "overcloc
   epic: "overclocked",
 };
 
-const secondaryStatOptions = [...new Set(builderStatGroups.flatMap((group) => [...group.stats]))];
+const primaryOverviewStats = ["ap", "sp", "health", "mana", "armor", "mr"] as const;
+const artifactSecondaryStatOptions = [...new Set(builderStatGroups.flatMap((group) => [...group.stats]))]
+  .filter((stat) => ![...primaryOverviewStats, "wd"].includes(stat as (typeof primaryOverviewStats)[number] | "wd"));
 
 const sections: Array<{ id: BuilderSection; label: string; icon: typeof Swords }> = [
   { id: "gear", label: "Экипировка", icon: Swords },
@@ -964,6 +966,7 @@ export function CharacterBuilder({
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerTier, setPickerTier] = useState("all");
   const [pickerQuality, setPickerQuality] = useState<BuilderQuality>("epic");
+  const [artifactEditorSlot, setArtifactEditorSlot] = useState<BuilderArtifactSlotId | null>(null);
   const [activeStatGroup, setActiveStatGroup] = useState<(typeof builderStatGroups)[number]["id"]>("physical");
   const [showSaved, setShowSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1117,7 +1120,18 @@ export function CharacterBuilder({
   const pickerSelection = pickerSlot ? getSelection(state, pickerSlot) : null;
   const pickerItem = pickerSelection ? equipmentMap.get(pickerSelection.itemSlug) ?? null : null;
   const pickerVariation = pickerItem && pickerSelection ? getVariation(pickerItem, pickerSelection.quality) : null;
-  const pickerSecondaryLimit = getSecondaryStatLimit(pickerItem, pickerSelection?.quality ?? pickerQuality);
+  const pickerHasInlineEditor = Boolean(pickerSelection && pickerSlot && !isArtifactSlot(pickerSlot));
+  const artifactEditorSelection = artifactEditorSlot ? state.artifacts[artifactEditorSlot] : null;
+  const artifactEditorItem = artifactEditorSelection
+    ? equipmentMap.get(artifactEditorSelection.itemSlug) ?? null
+    : null;
+  const artifactEditorVariation = artifactEditorItem && artifactEditorSelection
+    ? getVariation(artifactEditorItem, artifactEditorSelection.quality)
+    : null;
+  const artifactSecondaryLimit = getSecondaryStatLimit(
+    artifactEditorItem,
+    artifactEditorSelection?.quality ?? "uncommon",
+  );
   const activeStats = builderStatGroups.find((group) => group.id === activeStatGroup)?.stats ?? builderStatGroups[0].stats;
   const statRanges = useMemo(() => {
     const ranges: Record<string, { minimum: number; maximum: number }> = {};
@@ -1149,6 +1163,25 @@ export function CharacterBuilder({
           },
         },
       };
+    });
+  };
+
+  const updateArtifactSecondaryStat = (index: number, nextStat: string) => {
+    if (!artifactEditorSlot || !artifactEditorSelection) return;
+    const slots = Array.from(
+      { length: artifactSecondaryLimit },
+      (_, slotIndex) => artifactEditorSelection.secondaryStats[slotIndex] ?? "",
+    );
+    const previousStat = slots[index] ?? "";
+    slots[index] = nextStat;
+    const secondaryStats = slots.filter(Boolean).slice(0, artifactSecondaryLimit);
+    const secondaryStatValues = { ...artifactEditorSelection.secondaryStatValues };
+    if (previousStat && !secondaryStats.includes(previousStat)) delete secondaryStatValues[previousStat];
+    if (nextStat && secondaryStatValues[nextStat] === undefined) secondaryStatValues[nextStat] = 0;
+    updateSelection(artifactEditorSlot, {
+      ...artifactEditorSelection,
+      secondaryStats,
+      secondaryStatValues,
     });
   };
 
@@ -1369,6 +1402,10 @@ export function CharacterBuilder({
         disabled={readOnly}
         onClick={() => {
           if (!readOnly) {
+            if (selection && isArtifactSlot(slotId)) {
+              setArtifactEditorSlot(slotId);
+              return;
+            }
             setPickerSlot(slotId);
             setPickerQuality(selection?.quality ?? "epic");
           }
@@ -1590,7 +1627,7 @@ export function CharacterBuilder({
                 </div>
               </div>
               <div className={styles.statsOverview}>
-                {(["health", "mana", "armor", "wd"] as const).map((stat) => (
+                {primaryOverviewStats.map((stat) => (
                   <StatValue key={stat} stat={stat} value={stats[stat] ?? 0} dataset={dataset} />
                 ))}
               </div>
@@ -2037,7 +2074,7 @@ export function CharacterBuilder({
 
       {pickerSlot && !readOnly && (
         <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setPickerSlot(null)}>
-          <section className={`${styles.pickerModal}${pickerSelection ? ` ${styles.pickerModalEditing}` : ""}`} role="dialog" aria-modal="true" aria-label={`Выбор: ${slotMeta[pickerSlot].label}`} onMouseDown={(event) => event.stopPropagation()}>
+          <section className={`${styles.pickerModal}${pickerHasInlineEditor ? ` ${styles.pickerModalEditing}` : ""}`} role="dialog" aria-modal="true" aria-label={`Выбор: ${slotMeta[pickerSlot].label}`} onMouseDown={(event) => event.stopPropagation()}>
             <header className={styles.modalHeader}>
               <div><span className={styles.eyebrow}>Выбор экипировки</span><h2>{slotMeta[pickerSlot].label}</h2></div>
               <button type="button" onClick={() => setPickerSlot(null)} aria-label="Закрыть"><X size={22} /></button>
@@ -2052,6 +2089,7 @@ export function CharacterBuilder({
                 onChange={(value) => {
                   const quality = value as BuilderQuality;
                   setPickerQuality(quality);
+                  if (isArtifactSlot(pickerSlot)) return;
                   if (!pickerSelection || !pickerItem) return;
                   const secondaryLimit = getSecondaryStatLimit(pickerItem, quality);
                   const secondaryStats = pickerSelection.secondaryStats.slice(0, secondaryLimit);
@@ -2103,16 +2141,28 @@ export function CharacterBuilder({
                     type="button"
                     key={item.slug}
                     onClick={() => {
-                      updateSelection(pickerSlot, {
+                      const sameVariation = equipped && pickerSelection?.quality === pickerQuality;
+                      const secondaryLimit = getSecondaryStatLimit(item, pickerQuality);
+                      const secondaryStats = equipped
+                        ? (pickerSelection?.secondaryStats ?? []).slice(0, secondaryLimit || 5)
+                        : [];
+                      const nextSelection: BuilderItemSelection = {
                         itemSlug: item.slug,
                         quality: pickerQuality,
                         roll: equipped ? pickerSelection?.roll ?? 100 : 100,
-                        secondaryStats: equipped ? pickerSelection?.secondaryStats ?? [] : [],
-                        primaryStatValues: equipped
+                        secondaryStats,
+                        primaryStatValues: sameVariation
                           ? pickerSelection?.primaryStatValues ?? createPrimaryStatValues(item, pickerQuality)
                           : createPrimaryStatValues(item, pickerQuality),
-                        secondaryStatValues: equipped ? pickerSelection?.secondaryStatValues ?? {} : {},
-                      });
+                        secondaryStatValues: equipped
+                          ? Object.fromEntries(secondaryStats.map((stat) => [stat, pickerSelection?.secondaryStatValues[stat] ?? 0]))
+                          : {},
+                      };
+                      updateSelection(pickerSlot, nextSelection);
+                      if (isArtifactSlot(pickerSlot)) {
+                        setArtifactEditorSlot(pickerSlot);
+                        setPickerSlot(null);
+                      }
                     }}
                   >
                     <span className={styles.pickerItemImage}><ItemImage src={variation?.image} alt={item.name} size={58} /></span>
@@ -2127,7 +2177,7 @@ export function CharacterBuilder({
               })}
               {pickerItems.length === 0 && <div className={styles.emptyState}><Search size={28} /><strong>Ничего не найдено</strong><span>Измените запрос или фильтры.</span></div>}
             </div>
-            {pickerSelection && (
+            {pickerHasInlineEditor && pickerSelection && (
               <>
                 <div className={styles.pickerStatWorkspace}>
                   <section className={styles.primaryStatEditor}>
@@ -2160,78 +2210,6 @@ export function CharacterBuilder({
                     </div>
                   </section>
 
-                  {slotMeta[pickerSlot].type === "implant" && (
-                    <section className={styles.secondaryStatEditor}>
-                      <div className={styles.statEditorHeading}>
-                        <div>
-                          <span>Дополнительные характеристики</span>
-                          <strong>{pickerSelection.secondaryStats.length} / {pickerSecondaryLimit}</strong>
-                        </div>
-                        <small>
-                          {pickerItem?.tier === 3
-                            ? "Артефакты 3-го тира всегда получают не более трёх дополнительных характеристик."
-                            : `${qualityLabels[pickerSelection.quality]} артефакт ${pickerItem?.tier ?? "—"}-го тира: доступно до ${pickerSecondaryLimit}.`}
-                        </small>
-                      </div>
-                      <div className={styles.secondaryStatGroups}>
-                        {builderStatGroups.map((group) => {
-                          const primaryStats = new Set((pickerVariation?.stats ?? []).map((stat) => stat.type));
-                          const options = group.stats.filter((stat) => secondaryStatOptions.includes(stat) && !primaryStats.has(stat));
-                          if (options.length === 0) return null;
-                          return (
-                            <div key={group.id} className={styles.secondaryStatGroup}>
-                              <strong>{group.label}</strong>
-                              <div>
-                                {options.map((stat) => {
-                                  const selected = pickerSelection.secondaryStats.includes(stat);
-                                  const disabled = !selected && pickerSelection.secondaryStats.length >= pickerSecondaryLimit;
-                                  return (
-                                    <button
-                                      type="button"
-                                      disabled={disabled}
-                                      className={selected ? styles.secondaryStatActive : ""}
-                                      key={stat}
-                                      onClick={() => {
-                                        const secondaryStats = selected
-                                          ? pickerSelection.secondaryStats.filter((entry) => entry !== stat)
-                                          : [...pickerSelection.secondaryStats, stat].slice(0, pickerSecondaryLimit);
-                                        const secondaryStatValues = { ...pickerSelection.secondaryStatValues };
-                                        if (selected) delete secondaryStatValues[stat];
-                                        else secondaryStatValues[stat] = 0;
-                                        updateSelection(pickerSlot, { ...pickerSelection, secondaryStats, secondaryStatValues });
-                                      }}
-                                    >
-                                      <LoadableImage src={getStatImage(dataset, stat)} alt="" width={20} height={20} />
-                                      <span>{fallbackStatLabels[stat] || dataset.stats[stat]?.label || stat.toUpperCase()}</span>
-                                      {selected && <Check size={15} />}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {pickerSelection.secondaryStats.length > 0 && (
-                        <div className={styles.selectedSecondaryStats}>
-                          {pickerSelection.secondaryStats.map((stat) => (
-                            <StatValueEditor
-                              key={stat}
-                              dataset={dataset}
-                              stat={stat}
-                              value={pickerSelection.secondaryStatValues[stat] ?? 0}
-                              minimum={statRanges[stat]?.minimum ?? 0}
-                              maximum={statRanges[stat]?.maximum ?? 100}
-                              onChange={(value) => updateSelection(pickerSlot, {
-                                ...pickerSelection,
-                                secondaryStatValues: { ...pickerSelection.secondaryStatValues, [stat]: value },
-                              })}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  )}
                 </div>
                 <footer className={styles.pickerInspector}>
                   <div className={styles.pickerInspectorSummary}>
@@ -2244,6 +2222,174 @@ export function CharacterBuilder({
                 </footer>
               </>
             )}
+          </section>
+        </div>
+      )}
+
+      {artifactEditorSlot && artifactEditorSelection && artifactEditorItem && !readOnly && (
+        <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setArtifactEditorSlot(null)}>
+          <section
+            className={styles.artifactConfigModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Настройка артефакта: ${artifactEditorItem.name}`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className={styles.artifactConfigHeader}>
+              <div className={styles.artifactConfigIdentity}>
+                <span className={styles.artifactConfigImage}>
+                  <ItemImage src={artifactEditorVariation?.image} alt={artifactEditorItem.name} size={68} />
+                </span>
+                <span>
+                  <small>Настройка артефакта · {slotMeta[artifactEditorSlot].label}</small>
+                  <strong>{artifactEditorItem.name}</strong>
+                  <em>Тир {artifactEditorItem.tier} · {qualityLabels[artifactEditorSelection.quality]}</em>
+                </span>
+              </div>
+              <button type="button" onClick={() => setArtifactEditorSlot(null)} aria-label="Закрыть">
+                <X size={22} />
+              </button>
+            </header>
+
+            <div className={styles.artifactConfigBody}>
+              <section className={styles.artifactPrimarySection}>
+                <div className={styles.artifactSectionHeading}>
+                  <div>
+                    <span className={styles.artifactSectionNumber}>01</span>
+                    <span>
+                      <strong>Основные характеристики</strong>
+                      <small>Всегда присутствуют на выбранном артефакте</small>
+                    </span>
+                  </div>
+                  <p>Введите фактические значения — изменения сразу попадут в живой расчёт.</p>
+                </div>
+                <div className={styles.artifactPrimaryGrid}>
+                  {(artifactEditorVariation?.stats ?? []).map((stat) => (
+                    <StatValueEditor
+                      key={stat.type}
+                      dataset={dataset}
+                      stat={stat.type}
+                      value={artifactEditorSelection.primaryStatValues[stat.type]
+                        ?? stat.min + (stat.max - stat.min) * (artifactEditorSelection.roll / 100)}
+                      minimum={stat.min}
+                      maximum={stat.max}
+                      onChange={(value) => updateSelection(artifactEditorSlot, {
+                        ...artifactEditorSelection,
+                        primaryStatValues: {
+                          ...artifactEditorSelection.primaryStatValues,
+                          [stat.type]: value,
+                        },
+                      })}
+                    />
+                  ))}
+                  {(artifactEditorVariation?.stats.length ?? 0) === 0 && (
+                    <div className={styles.statEditorEmpty}>
+                      У выбранной версии артефакта нет основных характеристик.
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className={styles.artifactSecondarySection}>
+                <div className={styles.artifactSectionHeading}>
+                  <div>
+                    <span className={styles.artifactSectionNumber}>02</span>
+                    <span>
+                      <strong>Дополнительные характеристики</strong>
+                      <small>{artifactSecondaryLimit} слота для этого тира и качества</small>
+                    </span>
+                  </div>
+                  <p>
+                    {artifactEditorItem.tier === 3
+                      ? "Для артефактов 3-го тира доступно не более трёх вторичных характеристик."
+                      : `${qualityLabels[artifactEditorSelection.quality]} артефакт ${artifactEditorItem.tier}-го тира: доступно ${artifactSecondaryLimit}.`}
+                  </p>
+                </div>
+
+                <div className={styles.artifactSecondarySlots}>
+                  {Array.from({ length: artifactSecondaryLimit }, (_, index) => {
+                    const selectedStat = artifactEditorSelection.secondaryStats[index] ?? "";
+                    const options = [
+                      ...(selectedStat ? [{ value: "", label: "Не выбрано" }] : []),
+                      ...artifactSecondaryStatOptions
+                        .filter((stat) => stat === selectedStat || !artifactEditorSelection.secondaryStats.includes(stat))
+                        .map((stat) => ({
+                          value: stat,
+                          label: fallbackStatLabels[stat] || dataset.stats[stat]?.label || stat.toUpperCase(),
+                          icon: <LoadableImage src={getStatImage(dataset, stat)} alt="" width={20} height={20} />,
+                        })),
+                    ];
+                    const range = selectedStat ? statRanges[selectedStat] : null;
+                    return (
+                      <article className={styles.artifactSecondarySlot} key={index}>
+                        <div className={styles.artifactSecondarySelect}>
+                          <span>Доп. характеристика {index + 1}</span>
+                          <CustomSelect
+                            value={selectedStat}
+                            options={options}
+                            onChange={(value) => updateArtifactSecondaryStat(index, value)}
+                            placeholder="Выберите характеристику"
+                            ariaLabel={`Дополнительная характеристика ${index + 1}`}
+                            disabled={index > 0 && !artifactEditorSelection.secondaryStats[index - 1]}
+                            size="regular"
+                          />
+                        </div>
+                        {selectedStat ? (
+                          <StatValueEditor
+                            dataset={dataset}
+                            stat={selectedStat}
+                            value={artifactEditorSelection.secondaryStatValues[selectedStat] ?? 0}
+                            minimum={range?.minimum ?? 0}
+                            maximum={range?.maximum ?? 100}
+                            onChange={(value) => updateSelection(artifactEditorSlot, {
+                              ...artifactEditorSelection,
+                              secondaryStatValues: {
+                                ...artifactEditorSelection.secondaryStatValues,
+                                [selectedStat]: value,
+                              },
+                            })}
+                          />
+                        ) : (
+                          <div className={styles.artifactSecondaryPlaceholder}>
+                            После выбора характеристики здесь появятся значение и ромбы качества.
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
+
+            <footer className={styles.artifactConfigFooter}>
+              <div>
+                <button
+                  className={styles.secondaryButton}
+                  type="button"
+                  onClick={() => {
+                    setPickerSlot(artifactEditorSlot);
+                    setPickerQuality(artifactEditorSelection.quality);
+                    setArtifactEditorSlot(null);
+                  }}
+                >
+                  <RefreshCcw size={17} /> Выбрать другой
+                </button>
+                <button
+                  className={styles.textButton}
+                  type="button"
+                  onClick={() => {
+                    updateSelection(artifactEditorSlot, null);
+                    setArtifactEditorSlot(null);
+                  }}
+                >
+                  <Trash2 size={16} /> Снять артефакт
+                </button>
+              </div>
+              <span>Все параметры сохраняются вместе с билдом.</span>
+              <button className={styles.primaryButton} type="button" onClick={() => setArtifactEditorSlot(null)}>
+                <Check size={17} /> Готово
+              </button>
+            </footer>
           </section>
         </div>
       )}
