@@ -2200,6 +2200,10 @@
   box-shadow: 0 32px 90px rgba(0, 0, 0, 0.55);
 }
 
+.pickerModalWithStatFilters {
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+}
+
 .pickerModalEditing {
   grid-template-rows: auto auto auto minmax(150px, 0.8fr) minmax(240px, 1.2fr) auto;
 }
@@ -2242,10 +2246,81 @@
 
 .pickerFilters {
   display: grid;
-  grid-template-columns: 1fr minmax(190px, 250px) minmax(160px, 210px);
+  grid-template-columns: 1fr minmax(160px, 210px) minmax(170px, 220px) minmax(140px, 190px);
   gap: 10px;
   padding: 14px 22px;
   border-bottom: 1px solid var(--builder-border);
+}
+
+.pickerStatFilters {
+  display: grid;
+  gap: 10px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--builder-border);
+  background: rgba(7, 11, 15, 0.28);
+}
+
+.pickerStatFilterHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #929eaa;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.pickerStatFilterHeading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pickerStatFilterHeading button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--builder-gold);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pickerStatFilterOptions {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.pickerStatFilterOptions > button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 1px solid var(--builder-border);
+  border-radius: 9px;
+  background: #0c1117;
+  color: #8b97a4;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pickerStatFilterOptions > button:hover,
+.pickerStatFilterOptions > .pickerStatFilterActive {
+  border-color: rgba(217, 167, 95, 0.38);
+  background: var(--builder-gold-soft);
+  color: #efc685;
+}
+
+.pickerStatFilterOptions img {
+  object-fit: contain;
+}
+
+.pickerStatFilterOptions strong {
+  color: #667382;
+  font-size: 11px;
 }
 
 .searchField {
@@ -3245,6 +3320,10 @@
 
   .pickerFilters {
     grid-template-columns: 1fr;
+    padding: 12px 14px;
+  }
+
+  .pickerStatFilters {
     padding: 12px 14px;
   }
 

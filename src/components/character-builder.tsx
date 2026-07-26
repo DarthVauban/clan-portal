@@ -52,13 +52,16 @@ import {
 import {
   builderArtifactSlotIds,
   builderArtifactSecondaryStats,
+  builderCraftVariants,
   builderQualities,
   builderWeaponSlotIds,
   createDefaultCharacterBuild,
+  getBuilderModificationSlotLimit,
   getSecondaryStatSlotKey,
   getSecondaryStatValue,
   normalizeCharacterBuildState,
   type BuilderArtifactSlotId,
+  type BuilderCraftVariant,
   type BuilderEquipmentItem,
   type BuilderItemEffect,
   type BuilderItemSelection,
@@ -89,8 +92,9 @@ type MaterialEntry = BuilderReferenceItem & {
 
 type BuilderSection = "gear" | "talents" | "mastery" | "materials";
 
-const DRAFT_KEY = "clan-portal:character-builder-draft:v5";
+const DRAFT_KEY = "clan-portal:character-builder-draft:v6";
 const LEGACY_DRAFT_KEYS = [
+  "clan-portal:character-builder-draft:v5",
   "clan-portal:character-builder-draft:v4",
   "clan-portal:character-builder-draft:v3",
   "clan-portal:character-builder-draft:v2",
@@ -99,9 +103,12 @@ const LEGACY_DRAFT_KEYS = [
 
 const slotMeta: Record<BuilderSlotId, { label: string; shortLabel: string; type: BuilderEquipmentItem["type"] }> = {
   "weapon-primary": { label: "Оружие", shortLabel: "Оружие", type: "weapon" },
-  "chip-1": { label: "Чип 1", shortLabel: "Чип 1", type: "chip" },
-  "chip-2": { label: "Чип 2", shortLabel: "Чип 2", type: "chip" },
-  "chip-3": { label: "Чип 3", shortLabel: "Чип 3", type: "chip" },
+  "chip-1": { label: "Главный чип", shortLabel: "Главный чип", type: "chip" },
+  "chip-2": { label: "Вторичный чип 1", shortLabel: "Доп. чип 1", type: "chip" },
+  "chip-3": { label: "Вторичный чип 2", shortLabel: "Доп. чип 2", type: "chip" },
+  "chip-4": { label: "Вторичный чип 3", shortLabel: "Доп. чип 3", type: "chip" },
+  "chip-5": { label: "Вторичный чип 4", shortLabel: "Доп. чип 4", type: "chip" },
+  "chip-6": { label: "Вторичный чип 5", shortLabel: "Доп. чип 5", type: "chip" },
   "implant-1": { label: "Артефакт 1", shortLabel: "Артефакт 1", type: "implant" },
   "implant-2": { label: "Артефакт 2", shortLabel: "Артефакт 2", type: "implant" },
   "implant-3": { label: "Артефакт 3", shortLabel: "Артефакт 3", type: "implant" },
@@ -111,15 +118,16 @@ const slotMeta: Record<BuilderSlotId, { label: string; shortLabel: string; type:
 };
 
 const qualityLabels: Record<BuilderQuality, string> = {
-  uncommon: "Обычный",
-  rare: "Улучшенный",
-  epic: "Разогнанный",
+  common: "Обычный",
+  uncommon: "Необычный",
+  rare: "Редкий",
+  epic: "Эпический",
 };
 
-const recipeByQuality: Record<BuilderQuality, "regular" | "upgraded" | "overclocked"> = {
-  uncommon: "regular",
-  rare: "upgraded",
-  epic: "overclocked",
+const craftVariantLabels: Record<BuilderCraftVariant, string> = {
+  regular: "Обычный",
+  upgraded: "Улучшенный",
+  overclocked: "Разогнанный",
 };
 
 const primaryOverviewStats = ["ap", "sp", "health", "mana", "armor", "mr"] as const;
@@ -147,12 +155,13 @@ function getStatImage(dataset: CharacterBuilderDataset, stat: string) {
   return dataset.stats[assetStat]?.image || `/game-assets/stats/${assetStat}.png`;
 }
 
-function getSecondaryStatLimit(item: BuilderEquipmentItem | null, quality: BuilderQuality) {
+function getSecondaryStatLimit(
+  item: BuilderEquipmentItem | null,
+  quality: BuilderQuality,
+  craftVariant: BuilderCraftVariant,
+) {
   if (!item || item.type !== "implant") return 0;
-  if (item.tier >= 3) return 3;
-  if (quality === "epic") return 5;
-  if (quality === "rare") return 4;
-  return 3;
+  return getBuilderModificationSlotLimit(item.tier, quality, craftVariant);
 }
 
 function createPrimaryStatValues(item: BuilderEquipmentItem, quality: BuilderQuality, roll = 100) {
@@ -704,14 +713,30 @@ function buildMaterialTotals(
   };
 
   const selections = [
-    ...setIds.flatMap((setId) => Object.values(state.sets[setId])),
+    ...setIds.flatMap((setId) => {
+      const equipmentSet = state.sets[setId];
+      const weaponSelection = equipmentSet["weapon-primary"];
+      const weapon = weaponSelection ? equipmentMap.get(weaponSelection.itemSlug) ?? null : null;
+      const secondaryChipLimit = weaponSelection && weapon
+        ? getBuilderModificationSlotLimit(
+          weapon.tier,
+          weaponSelection.quality,
+          weaponSelection.craftVariant,
+        )
+        : 0;
+      const visibleSlots = builderWeaponSlotIds.slice(
+        0,
+        weaponSelection && weapon ? secondaryChipLimit + 2 : 1,
+      );
+      return visibleSlots.map((slotId) => equipmentSet[slotId]);
+    }),
     ...Object.values(state.artifacts),
   ];
 
   for (const selection of selections) {
     if (!selection) continue;
     const item = equipmentMap.get(selection.itemSlug);
-    const recipe = item?.recipes.find((entry) => entry.id === recipeByQuality[selection.quality]);
+    const recipe = item?.recipes.find((entry) => entry.id === selection.craftVariant);
     if (!item || !recipe) continue;
     for (const ingredient of recipe.ingredients) {
       add(direct, ingredient.slug, ingredient.quantity);
@@ -1128,6 +1153,8 @@ export function CharacterBuilder({
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerTier, setPickerTier] = useState("all");
   const [pickerQuality, setPickerQuality] = useState<BuilderQuality>("epic");
+  const [pickerCraftVariant, setPickerCraftVariant] = useState<BuilderCraftVariant>("overclocked");
+  const [pickerStatFilters, setPickerStatFilters] = useState<string[]>([]);
   const [equipmentEditorSlot, setEquipmentEditorSlot] = useState<BuilderSlotId | null>(null);
   const [activeStatGroup, setActiveStatGroup] = useState<(typeof builderStatGroups)[number]["id"]>("physical");
   const [showSaved, setShowSaved] = useState(false);
@@ -1243,6 +1270,21 @@ export function CharacterBuilder({
   };
 
   const activeSet = state.sets[state.activeSet];
+  const activeWeaponSelection = activeSet["weapon-primary"];
+  const activeWeaponItem = activeWeaponSelection
+    ? equipmentMap.get(activeWeaponSelection.itemSlug) ?? null
+    : null;
+  const activeWeaponSecondaryChipLimit = activeWeaponSelection && activeWeaponItem
+    ? getBuilderModificationSlotLimit(
+      activeWeaponItem.tier,
+      activeWeaponSelection.quality,
+      activeWeaponSelection.craftVariant,
+    )
+    : 0;
+  const visibleWeaponSlotIds = builderWeaponSlotIds.slice(
+    0,
+    activeWeaponSelection && activeWeaponItem ? activeWeaponSecondaryChipLimit + 2 : 1,
+  );
   const selectedClass = dataset.classes.find((entry) => entry.slug === state.heroClass) ?? dataset.classes[0];
   const mastery = builderMasteries[state.heroClass] ?? builderMasteries.legionnary;
   const allowedArchetypes = 3;
@@ -1251,7 +1293,10 @@ export function CharacterBuilder({
   const masteryEdges = useMemo(() => getMasteryEdges(mastery), [mastery]);
 
   const stats = useMemo(() => {
-    const selections = [...Object.values(activeSet), ...Object.values(state.artifacts)].flatMap((selection) => {
+    const selections = [
+      ...visibleWeaponSlotIds.map((slotId) => activeSet[slotId]),
+      ...Object.values(state.artifacts),
+    ].flatMap((selection) => {
       if (!selection) return [];
       const item = equipmentMap.get(selection.itemSlug);
       return item ? [{ item, selection }] : [];
@@ -1267,6 +1312,7 @@ export function CharacterBuilder({
     state.artifacts,
     state.heroClass,
     state.selectedArchetypes,
+    visibleWeaponSlotIds,
   ]);
 
   const talentAllocation = Object.values(state.talentRanks).filter((rank) => rank > 0).length;
@@ -1296,6 +1342,7 @@ export function CharacterBuilder({
   const artifactSecondaryLimit = getSecondaryStatLimit(
     equipmentEditorItem,
     equipmentEditorSelection?.quality ?? "uncommon",
+    equipmentEditorSelection?.craftVariant ?? "regular",
   );
   const activeStats = builderStatGroups.find((group) => group.id === activeStatGroup)?.stats ?? builderStatGroups[0].stats;
   const updateSelection = (slotId: BuilderSlotId, selection: BuilderItemSelection | null) => {
@@ -1303,14 +1350,28 @@ export function CharacterBuilder({
       if (isArtifactSlot(slotId)) {
         return { ...current, artifacts: { ...current.artifacts, [slotId]: selection } };
       }
+      const nextSet = {
+        ...current.sets[current.activeSet],
+        [slotId as BuilderWeaponSlotId]: selection,
+      };
+      if (slotId === "weapon-primary") {
+        const weapon = selection ? equipmentMap.get(selection.itemSlug) ?? null : null;
+        const secondaryChipLimit = selection && weapon
+          ? getBuilderModificationSlotLimit(weapon.tier, selection.quality, selection.craftVariant)
+          : 0;
+        const allowedSlots = new Set(builderWeaponSlotIds.slice(
+          0,
+          selection && weapon ? secondaryChipLimit + 2 : 1,
+        ));
+        for (const weaponSlotId of builderWeaponSlotIds) {
+          if (!allowedSlots.has(weaponSlotId)) nextSet[weaponSlotId] = null;
+        }
+      }
       return {
         ...current,
         sets: {
           ...current.sets,
-          [current.activeSet]: {
-            ...current.sets[current.activeSet],
-            [slotId as BuilderWeaponSlotId]: selection,
-          },
+          [current.activeSet]: nextSet,
         },
       };
     });
@@ -1531,6 +1592,26 @@ export function CharacterBuilder({
     setNotice("Билд удалён.");
   };
 
+  const pickerArtifactStatOptions = useMemo(() => {
+    const statItems = new Map<string, Set<string>>();
+    for (const item of dataset.equipment) {
+      if (item.type !== "implant") continue;
+      if (pickerTier !== "all" && String(item.tier) !== pickerTier) continue;
+      const variation = item.variations.find((entry) => entry.quality === pickerQuality);
+      if (!variation) continue;
+      for (const stat of new Set(variation.stats.map((entry) => entry.type))) {
+        statItems.set(stat, new Set([...(statItems.get(stat) ?? []), item.slug]));
+      }
+    }
+    return [...statItems.entries()]
+      .map(([stat, items]) => ({
+        stat,
+        count: items.size,
+        label: fallbackStatLabels[stat] || dataset.stats[stat]?.label || stat.toUpperCase(),
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label, "ru"));
+  }, [dataset.equipment, dataset.stats, pickerQuality, pickerTier]);
+
   const pickerItems = useMemo(() => {
     if (!pickerSlot) return [];
     const target = slotMeta[pickerSlot];
@@ -1543,12 +1624,25 @@ export function CharacterBuilder({
         if (item.mastery && item.mastery !== state.heroClass) return false;
       }
       if (pickerTier !== "all" && String(item.tier) !== pickerTier) return false;
-      if (!item.variations.some((variation) => variation.quality === pickerQuality)) return false;
+      const variation = item.variations.find((entry) => entry.quality === pickerQuality);
+      if (!variation) return false;
+      if (
+        item.type === "implant"
+        && !pickerStatFilters.every((stat) => variation.stats.some((entry) => entry.type === stat))
+      ) return false;
       return !normalizedSearch
         || item.name.toLocaleLowerCase("ru").includes(normalizedSearch)
         || item.englishName.toLocaleLowerCase("en").includes(normalizedSearch);
     }).slice(0, 80);
-  }, [dataset.equipment, pickerQuality, pickerSearch, pickerSlot, pickerTier, state.heroClass]);
+  }, [
+    dataset.equipment,
+    pickerQuality,
+    pickerSearch,
+    pickerSlot,
+    pickerStatFilters,
+    pickerTier,
+    state.heroClass,
+  ]);
 
   const renderGearSlot = (slotId: BuilderSlotId) => {
     const selection = getSelection(state, slotId);
@@ -1568,6 +1662,8 @@ export function CharacterBuilder({
             }
             setPickerSlot(slotId);
             setPickerQuality("epic");
+            setPickerCraftVariant("overclocked");
+            setPickerStatFilters([]);
           }
         }}
       >
@@ -1579,7 +1675,7 @@ export function CharacterBuilder({
           <strong>{item?.name || "Выбрать предмет"}</strong>
           {selection && (
             <em>
-              {qualityLabels[selection.quality]}
+              {qualityLabels[selection.quality]} · {craftVariantLabels[selection.craftVariant]}
               {item?.type === "implant" ? ` · ${selection.secondaryStats.length} доп. хар.` : ""}
             </em>
           )}
@@ -1739,7 +1835,7 @@ export function CharacterBuilder({
                   </div>
                 </div>
                 <div className={`${styles.slotGrid} ${styles.weaponSlotGrid}`}>
-                  {builderWeaponSlotIds.map(renderGearSlot)}
+                  {visibleWeaponSlotIds.map(renderGearSlot)}
                 </div>
               </div>
 
@@ -2215,7 +2311,13 @@ export function CharacterBuilder({
 
       {pickerSlot && !readOnly && (
         <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setPickerSlot(null)}>
-          <section className={styles.pickerModal} role="dialog" aria-modal="true" aria-label={`Выбор: ${slotMeta[pickerSlot].label}`} onMouseDown={(event) => event.stopPropagation()}>
+          <section
+            className={`${styles.pickerModal}${slotMeta[pickerSlot].type === "implant" ? ` ${styles.pickerModalWithStatFilters}` : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Выбор: ${slotMeta[pickerSlot].label}`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <header className={styles.modalHeader}>
               <div><span className={styles.eyebrow}>Выбор экипировки</span><h2>{slotMeta[pickerSlot].label}</h2></div>
               <button type="button" onClick={() => setPickerSlot(null)} aria-label="Закрыть"><X size={22} /></button>
@@ -2227,15 +2329,32 @@ export function CharacterBuilder({
               </label>
               <CustomSelect
                 value={pickerQuality}
-                onChange={(value) => setPickerQuality(value as BuilderQuality)}
+                onChange={(value) => {
+                  setPickerQuality(value as BuilderQuality);
+                  setPickerStatFilters([]);
+                }}
                 options={builderQualities.map((quality) => ({ value: quality, label: qualityLabels[quality] }))}
-                ariaLabel="Качество предмета"
+                ariaLabel="Грейд предмета"
                 startIcon={<Gem size={16} />}
                 size="regular"
               />
               <CustomSelect
+                value={pickerCraftVariant}
+                onChange={(value) => setPickerCraftVariant(value as BuilderCraftVariant)}
+                options={builderCraftVariants.map((variant) => ({
+                  value: variant,
+                  label: craftVariantLabels[variant],
+                }))}
+                ariaLabel="Тип крафта предмета"
+                startIcon={<Sparkles size={16} />}
+                size="regular"
+              />
+              <CustomSelect
                 value={pickerTier}
-                onChange={setPickerTier}
+                onChange={(value) => {
+                  setPickerTier(value);
+                  setPickerStatFilters([]);
+                }}
                 options={[
                   { value: "all", label: "Все тиры" },
                   ...[1, 2, 3].map((tier) => ({ value: String(tier), label: `Тир ${tier}` })),
@@ -2245,6 +2364,48 @@ export function CharacterBuilder({
                 size="regular"
               />
             </div>
+            {slotMeta[pickerSlot].type === "implant" && (
+              <div className={styles.pickerStatFilters}>
+                <div className={styles.pickerStatFilterHeading}>
+                  <span>
+                    <Zap size={16} />
+                    Фильтр по характеристикам
+                  </span>
+                  {pickerStatFilters.length > 0 && (
+                    <button type="button" onClick={() => setPickerStatFilters([])}>
+                      Сбросить
+                    </button>
+                  )}
+                </div>
+                <div className={styles.pickerStatFilterOptions}>
+                  {pickerArtifactStatOptions.map((option) => {
+                    const active = pickerStatFilters.includes(option.stat);
+                    return (
+                      <button
+                        key={option.stat}
+                        type="button"
+                        className={active ? styles.pickerStatFilterActive : ""}
+                        aria-pressed={active}
+                        onClick={() => setPickerStatFilters((current) => (
+                          active
+                            ? current.filter((stat) => stat !== option.stat)
+                            : [...current, option.stat]
+                        ))}
+                      >
+                        <LoadableImage
+                          src={getStatImage(dataset, option.stat)}
+                          alt=""
+                          width={19}
+                          height={19}
+                        />
+                        <span>{option.label}</span>
+                        <strong>{option.count}</strong>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className={styles.pickerResultHeader}>
               <span>Найдено: <strong>{pickerItems.length}{pickerItems.length === 80 ? "+" : ""}</strong></span>
               {pickerSelection && (
@@ -2267,13 +2428,21 @@ export function CharacterBuilder({
                     key={item.slug}
                     onClick={() => {
                       const sameVariation = equipped && pickerSelection?.quality === pickerQuality;
-                      const secondaryLimit = getSecondaryStatLimit(item, pickerQuality);
+                      const secondaryLimit = getSecondaryStatLimit(
+                        item,
+                        pickerQuality,
+                        pickerCraftVariant,
+                      );
                       const secondaryStats = equipped
-                        ? (pickerSelection?.secondaryStats ?? []).slice(0, secondaryLimit || 5)
+                        ? (pickerSelection?.secondaryStats ?? []).slice(
+                          0,
+                          item.type === "implant" ? secondaryLimit : 5,
+                        )
                         : [];
                       const nextSelection: BuilderItemSelection = {
                         itemSlug: item.slug,
                         quality: pickerQuality,
+                        craftVariant: pickerCraftVariant,
                         roll: equipped ? pickerSelection?.roll ?? 100 : 100,
                         secondaryStats,
                         primaryStatValues: sameVariation
@@ -2298,7 +2467,9 @@ export function CharacterBuilder({
                     <span className={styles.pickerItemText}>
                       <strong>{item.name}</strong>
                       <small>{item.englishName}</small>
-                      <em>Тир {item.tier} · {qualityLabels[pickerQuality]}</em>
+                      <em>
+                        Тир {item.tier} · {qualityLabels[pickerQuality]} · {craftVariantLabels[pickerCraftVariant]}
+                      </em>
                     </span>
                     {equipped ? <Check size={19} /> : <Plus size={19} />}
                   </button>
@@ -2333,7 +2504,10 @@ export function CharacterBuilder({
                         : "Настройка артефакта"} · {slotMeta[equipmentEditorSlot].label}
                   </small>
                   <strong>{equipmentEditorItem.name}</strong>
-                  <em>Тир {equipmentEditorItem.tier} · {qualityLabels[equipmentEditorSelection.quality]}</em>
+                  <em>
+                    Тир {equipmentEditorItem.tier} · {qualityLabels[equipmentEditorSelection.quality]}
+                    {" · "}{craftVariantLabels[equipmentEditorSelection.craftVariant]}
+                  </em>
                 </span>
               </div>
               <button type="button" onClick={() => setEquipmentEditorSlot(null)} aria-label="Закрыть">
@@ -2436,13 +2610,13 @@ export function CharacterBuilder({
                       <span className={styles.artifactSectionNumber}>02</span>
                       <span>
                         <strong>Дополнительные характеристики</strong>
-                        <small>{artifactSecondaryLimit} слота для этого тира и качества</small>
+                        <small>{artifactSecondaryLimit} слота для этого тира, грейда и типа крафта</small>
                       </span>
                     </div>
                     <p>
                       {equipmentEditorItem.tier === 3
                         ? "Для артефактов 3-го тира доступно не более трёх вторичных характеристик."
-                        : `${qualityLabels[equipmentEditorSelection.quality]} артефакт ${equipmentEditorItem.tier}-го тира: доступно ${artifactSecondaryLimit}.`}
+                        : `${qualityLabels[equipmentEditorSelection.quality]}, ${craftVariantLabels[equipmentEditorSelection.craftVariant].toLocaleLowerCase("ru")} артефакт ${equipmentEditorItem.tier}-го тира: доступно ${artifactSecondaryLimit}.`}
                     </p>
                   </div>
 
@@ -2509,6 +2683,8 @@ export function CharacterBuilder({
                   onClick={() => {
                     setPickerSlot(equipmentEditorSlot);
                     setPickerQuality(equipmentEditorSelection.quality);
+                    setPickerCraftVariant(equipmentEditorSelection.craftVariant);
+                    setPickerStatFilters([]);
                     setEquipmentEditorSlot(null);
                   }}
                 >

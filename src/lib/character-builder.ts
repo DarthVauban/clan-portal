@@ -1,10 +1,35 @@
-export const CHARACTER_BUILD_SCHEMA_VERSION = 5;
+export const CHARACTER_BUILD_SCHEMA_VERSION = 6;
 
 export const builderSetIds = ["one", "two"] as const;
 export type BuilderSetId = (typeof builderSetIds)[number];
 
-export const builderQualities = ["uncommon", "rare", "epic"] as const;
+export const builderQualities = ["common", "uncommon", "rare", "epic"] as const;
 export type BuilderQuality = (typeof builderQualities)[number];
+
+export const builderCraftVariants = ["regular", "upgraded", "overclocked"] as const;
+export type BuilderCraftVariant = (typeof builderCraftVariants)[number];
+
+const builderQualitySlotCounts: Record<BuilderQuality, number> = {
+  common: 0,
+  uncommon: 1,
+  rare: 2,
+  epic: 3,
+};
+
+const builderCraftVariantSlotBonuses: Record<BuilderCraftVariant, number> = {
+  regular: 0,
+  upgraded: 1,
+  overclocked: 2,
+};
+
+export function getBuilderModificationSlotLimit(
+  tier: number,
+  quality: BuilderQuality,
+  craftVariant: BuilderCraftVariant,
+) {
+  const craftBonus = tier < 3 ? builderCraftVariantSlotBonuses[craftVariant] : 0;
+  return Math.min(5, builderQualitySlotCounts[quality] + craftBonus);
+}
 
 export const builderArtifactSecondaryStats = [
   "pcc",
@@ -34,6 +59,9 @@ export const builderWeaponSlotIds = [
   "chip-1",
   "chip-2",
   "chip-3",
+  "chip-4",
+  "chip-5",
+  "chip-6",
 ] as const;
 export type BuilderWeaponSlotId = (typeof builderWeaponSlotIds)[number];
 
@@ -130,6 +158,7 @@ export type CharacterBuilderDataset = {
 export type BuilderItemSelection = {
   itemSlug: string;
   quality: BuilderQuality;
+  craftVariant: BuilderCraftVariant;
   roll: number;
   secondaryStats: string[];
   primaryStatValues: Record<string, number>;
@@ -238,6 +267,15 @@ function normalizeSelection(value: unknown): BuilderItemSelection | null {
   const quality = builderQualities.includes(candidate.quality as BuilderQuality)
     ? candidate.quality as BuilderQuality
     : "epic";
+  const legacyCraftVariant: Record<BuilderQuality, BuilderCraftVariant> = {
+    common: "regular",
+    uncommon: "regular",
+    rare: "upgraded",
+    epic: "overclocked",
+  };
+  const craftVariant = builderCraftVariants.includes(candidate.craftVariant as BuilderCraftVariant)
+    ? candidate.craftVariant as BuilderCraftVariant
+    : legacyCraftVariant[quality];
   if (!itemSlug) return null;
   const secondaryStats = Array.isArray(candidate.secondaryStats)
     ? candidate.secondaryStats
@@ -253,6 +291,7 @@ function normalizeSelection(value: unknown): BuilderItemSelection | null {
   return {
     itemSlug,
     quality,
+    craftVariant,
     roll: boundedInteger(candidate.roll, 0, 100, 100),
     secondaryStats,
     primaryStatValues: normalizeStatValueMap(candidate.primaryStatValues),

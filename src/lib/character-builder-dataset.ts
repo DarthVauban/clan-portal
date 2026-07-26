@@ -25,7 +25,7 @@ import type {
 } from "@/lib/character-builder";
 
 const equipmentTypes = new Set(["weapon", "implant", "chip", "rune"]);
-const qualityOrder: BuilderQuality[] = ["uncommon", "rare", "epic"];
+const qualityOrder: BuilderQuality[] = ["common", "uncommon", "rare", "epic"];
 
 function scaleNumber(value: string | number | undefined) {
   const number = Number(value);

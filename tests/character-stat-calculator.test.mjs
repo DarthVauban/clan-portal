@@ -11,6 +11,7 @@ import {
 } from "../src/lib/character-stat-calculator.ts";
 import {
   createDefaultCharacterBuild,
+  getBuilderModificationSlotLimit,
   getSecondaryStatSlotKey,
   getSecondaryStatValue,
   normalizeCharacterBuildState,
@@ -20,6 +21,7 @@ function selection(itemSlug, secondaryStats = [], secondaryStatValues = {}) {
   return {
     itemSlug,
     quality: "uncommon",
+    craftVariant: "regular",
     roll: 100,
     secondaryStats,
     primaryStatValues: {},
@@ -283,4 +285,30 @@ test("legacy stat-keyed artifact values migrate without removing duplicate affix
     migrated.secondaryStats.map((_, index) => getSecondaryStatValue(migrated, index)),
     [45, 45, 45],
   );
+});
+
+test("grade and craft type independently control modification slots", () => {
+  assert.equal(getBuilderModificationSlotLimit(2, "epic", "regular"), 3);
+  assert.equal(getBuilderModificationSlotLimit(2, "epic", "upgraded"), 4);
+  assert.equal(getBuilderModificationSlotLimit(2, "epic", "overclocked"), 5);
+  assert.equal(getBuilderModificationSlotLimit(2, "common", "regular"), 0);
+  assert.equal(getBuilderModificationSlotLimit(2, "common", "upgraded"), 1);
+  assert.equal(getBuilderModificationSlotLimit(2, "common", "overclocked"), 2);
+  assert.equal(getBuilderModificationSlotLimit(3, "epic", "regular"), 3);
+  assert.equal(getBuilderModificationSlotLimit(3, "epic", "upgraded"), 3);
+  assert.equal(getBuilderModificationSlotLimit(3, "epic", "overclocked"), 3);
+});
+
+test("v5 equipment selections migrate the old combined quality into craft type", () => {
+  const draft = createDefaultCharacterBuild();
+  draft.schemaVersion = 5;
+  const legacySelection = selection("legacy-weapon");
+  legacySelection.quality = "rare";
+  delete legacySelection.craftVariant;
+  draft.sets.one["weapon-primary"] = legacySelection;
+
+  const normalized = normalizeCharacterBuildState(draft);
+  assert.equal(normalized.schemaVersion, 6);
+  assert.equal(normalized.sets.one["weapon-primary"].quality, "rare");
+  assert.equal(normalized.sets.one["weapon-primary"].craftVariant, "upgraded");
 });

@@ -248,7 +248,7 @@ export const fallbackStatLabels: Record<string, string> = {
   health: "Здоровье",
   mana: "Мана",
   armor: "Броня",
-  mr: "Маг. сопротивление",
+  mr: "Маг. Защ",
   wd: "Урон оружия",
   pcp: "Сила физического критического удара",
   pcc: "Шанс физического критического удара",
