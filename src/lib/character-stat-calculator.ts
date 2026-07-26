@@ -185,6 +185,14 @@ function safeNumber(value: number | undefined, fallback = 0) {
   return Number.isFinite(value) ? Number(value) : fallback;
 }
 
+function getSelectionSecondaryStatValue(selection: BuilderItemSelection, index: number) {
+  const slotValue = selection.secondaryStatValues[`slot:${index}`];
+  if (Number.isFinite(slotValue)) return Number(slotValue);
+  const legacyStat = selection.secondaryStats[index];
+  const legacyValue = legacyStat ? selection.secondaryStatValues[legacyStat] : undefined;
+  return Number.isFinite(legacyValue) ? Number(legacyValue) : 0;
+}
+
 function add(target: Record<string, number>, stat: string, value: number) {
   target[stat] = (target[stat] ?? 0) + value;
 }
@@ -236,6 +244,8 @@ function convertArtifactRating(stat: string, rating: number) {
       return hyperbolicPercent(rating, 400);
     case "costred":
       return hyperbolicPercent(rating, 500);
+    case "as":
+      return hyperbolicPercent(rating, 400);
     case "lifesteal":
     case "abilitysteal":
       return hyperbolicPercent(rating, 800);
@@ -342,6 +352,7 @@ function getApproximateIntrinsicStats(
 }
 
 export function calculateCharacterStats({
+  heroClass,
   level,
   intrinsicStats,
   selections,
@@ -366,15 +377,15 @@ export function calculateCharacterStats({
     }
 
     if (item.type === "implant") {
-      for (const stat of selection.secondaryStats) {
+      selection.secondaryStats.forEach((stat, index) => {
         const range = getArtifactSecondaryRange(stat);
         const value = clamp(
-          safeNumber(selection.secondaryStatValues[stat]),
+          safeNumber(getSelectionSecondaryStatValue(selection, index)),
           0,
           range.maximum,
         );
         add(sources.artifactRating, stat, value);
-      }
+      });
     }
 
     collectEffect(sources, variation, selection);
@@ -439,8 +450,13 @@ export function calculateCharacterStats({
 
   const baseAttackSpeed = weaponAttackSpeed ?? intrinsic.as ?? 0;
   values.asrating = sources.artifactRating.as ?? 0;
-  // The confirmed normal soft cap is +60%; no current post-cap curve is known.
-  values.as = baseAttackSpeed * (1 + clamp(sources.directPercent.as ?? 0, 0, 60) / 100);
+  const attackSpeedFromRating = baseAttackSpeed
+    * (1 + convertArtifactRating("as", values.asrating) / 100);
+  const attackSpeedCap = ["shaman", "infiltrator"].includes(heroClass) ? 3.5 : 2.5;
+  values.as = Math.min(
+    attackSpeedCap,
+    attackSpeedFromRating * (1 + (sources.directPercent.as ?? 0) / 100),
+  );
 
   const armorReduction = defenseReductionPercent(values.armor ?? 0);
   const magicReduction = defenseReductionPercent(values.mr ?? 0);

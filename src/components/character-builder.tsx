@@ -54,6 +54,8 @@ import {
   builderQualities,
   builderWeaponSlotIds,
   createDefaultCharacterBuild,
+  getSecondaryStatSlotKey,
+  getSecondaryStatValue,
   normalizeCharacterBuildState,
   type BuilderArtifactSlotId,
   type BuilderEquipmentItem,
@@ -86,8 +88,9 @@ type MaterialEntry = BuilderReferenceItem & {
 
 type BuilderSection = "gear" | "talents" | "mastery" | "materials";
 
-const DRAFT_KEY = "clan-portal:character-builder-draft:v4";
+const DRAFT_KEY = "clan-portal:character-builder-draft:v5";
 const LEGACY_DRAFT_KEYS = [
+  "clan-portal:character-builder-draft:v4",
   "clan-portal:character-builder-draft:v3",
   "clan-portal:character-builder-draft:v2",
   "clan-portal:character-builder-draft:v1",
@@ -1263,10 +1266,15 @@ export function CharacterBuilder({
     );
     const previousStat = slots[index] ?? "";
     slots[index] = nextStat;
-    const secondaryStats = slots.filter(Boolean).slice(0, artifactSecondaryLimit);
-    const secondaryStatValues = { ...equipmentEditorSelection.secondaryStatValues };
-    if (previousStat && !secondaryStats.includes(previousStat)) delete secondaryStatValues[previousStat];
-    if (nextStat && secondaryStatValues[nextStat] === undefined) secondaryStatValues[nextStat] = 0;
+    const secondaryStats = (nextStat ? slots : slots.slice(0, index))
+      .filter(Boolean)
+      .slice(0, artifactSecondaryLimit);
+    const secondaryStatValues = Object.fromEntries(secondaryStats.map((_, slotIndex) => [
+      getSecondaryStatSlotKey(slotIndex),
+      slotIndex === index && previousStat !== nextStat
+        ? 0
+        : getSecondaryStatValue(equipmentEditorSelection, slotIndex),
+    ]));
     updateSelection(equipmentEditorSlot, {
       ...equipmentEditorSelection,
       secondaryStats,
@@ -2230,7 +2238,10 @@ export function CharacterBuilder({
                           ? pickerSelection?.primaryStatValues ?? createPrimaryStatValues(item, pickerQuality)
                           : createPrimaryStatValues(item, pickerQuality),
                         secondaryStatValues: equipped
-                          ? Object.fromEntries(secondaryStats.map((stat) => [stat, pickerSelection?.secondaryStatValues[stat] ?? 0]))
+                          ? Object.fromEntries(secondaryStats.map((_, index) => [
+                            getSecondaryStatSlotKey(index),
+                            pickerSelection ? getSecondaryStatValue(pickerSelection, index) : 0,
+                          ]))
                           : {},
                         effectValues: sameVariation
                           ? pickerSelection?.effectValues ?? createEffectValues(item, pickerQuality)
@@ -2392,7 +2403,6 @@ export function CharacterBuilder({
                       const options = [
                         ...(selectedStat ? [{ value: "", label: "Не выбрано" }] : []),
                         ...artifactSecondaryStatOptions
-                          .filter((stat) => stat === selectedStat || !equipmentEditorSelection.secondaryStats.includes(stat))
                           .map((stat) => ({
                             value: stat,
                             label: fallbackStatLabels[stat] || dataset.stats[stat]?.label || stat.toUpperCase(),
@@ -2418,14 +2428,14 @@ export function CharacterBuilder({
                             <StatValueEditor
                               dataset={dataset}
                               stat={selectedStat}
-                              value={equipmentEditorSelection.secondaryStatValues[selectedStat] ?? 0}
+                              value={getSecondaryStatValue(equipmentEditorSelection, index)}
                               minimum={range?.minimum ?? 0}
                               maximum={range?.maximum ?? 100}
                               onChange={(value) => updateSelection(equipmentEditorSlot, {
                                 ...equipmentEditorSelection,
                                 secondaryStatValues: {
                                   ...equipmentEditorSelection.secondaryStatValues,
-                                  [selectedStat]: value,
+                                  [getSecondaryStatSlotKey(index)]: value,
                                 },
                               })}
                             />

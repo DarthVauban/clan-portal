@@ -8,6 +8,12 @@ import {
   hyperbolicPercent,
   multiplicativeReductionPercent,
 } from "../src/lib/character-stat-calculator.ts";
+import {
+  createDefaultCharacterBuild,
+  getSecondaryStatSlotKey,
+  getSecondaryStatValue,
+  normalizeCharacterBuildState,
+} from "../src/lib/character-builder.ts";
 
 function selection(itemSlug, secondaryStats = [], secondaryStatValues = {}) {
   return {
@@ -30,6 +36,7 @@ test("v0.114 control points stay stable", () => {
   assert.equal(historicalPenetrationPercent(300), 30);
   assert.equal(historicalPenetrationPercent(900), 50);
   assert.equal(multiplicativeReductionPercent([30, 20]), 44);
+  assert.equal(hyperbolicPercent(600, 400), 60);
 });
 
 test("artifact one-roll limits match the documented baskets", () => {
@@ -112,4 +119,69 @@ test("ratings aggregate once while weapon bonuses remain direct", () => {
   assert.equal(result.values.pcp, 150);
   assert.equal(result.values.pdecrease, 50);
   assert.equal(Number(result.values.mdecrease.toFixed(2)), 59.09);
+});
+
+test("repeated artifact affixes keep independent slot values", () => {
+  const artifact = {
+    slug: "repeated-roll-artifact",
+    name: "Repeated roll artifact",
+    englishName: "Repeated roll artifact",
+    type: "implant",
+    slot: null,
+    mastery: null,
+    tier: 2,
+    profession: null,
+    description: "",
+    descriptionEffect: "",
+    recipes: [],
+    variations: [{
+      slug: "repeated-roll-artifact-epic",
+      quality: "epic",
+      image: null,
+      stats: [],
+      effects: [],
+    }],
+  };
+  const repeatedSelection = selection(
+    artifact.slug,
+    ["as", "as", "as", "as", "as"],
+    {
+      [getSecondaryStatSlotKey(0)]: 60,
+      [getSecondaryStatSlotKey(1)]: 50,
+      [getSecondaryStatSlotKey(2)]: 40,
+      [getSecondaryStatSlotKey(3)]: 30,
+      [getSecondaryStatSlotKey(4)]: 20,
+    },
+  );
+  repeatedSelection.quality = "epic";
+
+  const result = calculateCharacterStats({
+    heroClass: "ranger",
+    level: 20,
+    intrinsicStats: { as: 70 },
+    selectedArchetypes: [],
+    selections: [{ item: artifact, selection: repeatedSelection }],
+  });
+
+  assert.equal(result.artifactRatings.as, 200);
+  assert.equal(result.values.asrating, 200);
+  assert.equal(result.values.as, 0.9333);
+});
+
+test("legacy stat-keyed artifact values migrate without removing duplicate affixes", () => {
+  const draft = createDefaultCharacterBuild();
+  draft.artifacts["implant-1"] = selection(
+    "legacy-artifact",
+    ["pcc", "pcc", "pcc"],
+    { pcc: 45 },
+  );
+
+  const normalized = normalizeCharacterBuildState(draft);
+  const migrated = normalized.artifacts["implant-1"];
+  assert.ok(migrated);
+  assert.deepEqual(migrated.secondaryStats, ["pcc", "pcc", "pcc"]);
+  assert.deepEqual(
+    migrated.secondaryStats.map((_, index) => getSecondaryStatValue(migrated, index)),
+    [45, 45, 45],
+  );
 });

@@ -1,4 +1,4 @@
-export const CHARACTER_BUILD_SCHEMA_VERSION = 4;
+export const CHARACTER_BUILD_SCHEMA_VERSION = 5;
 
 export const builderSetIds = ["one", "two"] as const;
 export type BuilderSetId = (typeof builderSetIds)[number];
@@ -137,6 +137,18 @@ export type BuilderItemSelection = {
   effectValues: Record<string, number>;
 };
 
+export function getSecondaryStatSlotKey(index: number) {
+  return `slot:${Math.max(0, Math.floor(index))}`;
+}
+
+export function getSecondaryStatValue(selection: BuilderItemSelection, index: number) {
+  const slotValue = selection.secondaryStatValues[getSecondaryStatSlotKey(index)];
+  if (Number.isFinite(slotValue)) return Number(slotValue);
+  const legacyStat = selection.secondaryStats[index];
+  const legacyValue = legacyStat ? selection.secondaryStatValues[legacyStat] : undefined;
+  return Number.isFinite(legacyValue) ? Number(legacyValue) : 0;
+}
+
 export type BuilderEquipmentSet = Record<BuilderWeaponSlotId, BuilderItemSelection | null>;
 export type BuilderArtifactSet = Record<BuilderArtifactSlotId, BuilderItemSelection | null>;
 
@@ -228,18 +240,23 @@ function normalizeSelection(value: unknown): BuilderItemSelection | null {
     : "epic";
   if (!itemSlug) return null;
   const secondaryStats = Array.isArray(candidate.secondaryStats)
-    ? [...new Set(candidate.secondaryStats
+    ? candidate.secondaryStats
       .map((stat) => boundedString(stat, 40))
-      .filter((stat) => builderArtifactSecondaryStats.includes(stat as (typeof builderArtifactSecondaryStats)[number])))]
+      .filter((stat) => builderArtifactSecondaryStats.includes(stat as (typeof builderArtifactSecondaryStats)[number]))
       .slice(0, 5)
     : [];
+  const normalizedSecondaryStatValues = normalizeStatValueMap(candidate.secondaryStatValues);
+  const secondaryStatValues = Object.fromEntries(secondaryStats.map((stat, index) => {
+    const slotKey = getSecondaryStatSlotKey(index);
+    return [slotKey, normalizedSecondaryStatValues[slotKey] ?? normalizedSecondaryStatValues[stat] ?? 0];
+  }));
   return {
     itemSlug,
     quality,
     roll: boundedInteger(candidate.roll, 0, 100, 100),
     secondaryStats,
     primaryStatValues: normalizeStatValueMap(candidate.primaryStatValues),
-    secondaryStatValues: normalizeStatValueMap(candidate.secondaryStatValues),
+    secondaryStatValues,
     effectValues: normalizeStatValueMap(candidate.effectValues),
   };
 }
