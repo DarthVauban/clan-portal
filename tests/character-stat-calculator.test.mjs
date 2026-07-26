@@ -102,7 +102,7 @@ test("ratings aggregate once while weapon bonuses remain direct", () => {
   weaponSelection.primaryStatValues = { wd: 999, as: 999, pcc: 999, fppen: 999 };
 
   const result = calculateCharacterStats({
-    intrinsicStats: { health: 1000, armor: 180, mr: 260, as: 1 },
+    intrinsicStats: { ap: 10, health: 1000, armor: 180, mr: 260, as: 1 },
     selectedArchetypes: ["tank", "hunter"],
     selections: [
       { item: weapon, selection: weaponSelection },
@@ -120,6 +120,45 @@ test("ratings aggregate once while weapon bonuses remain direct", () => {
   assert.equal(result.values.pcp, 150);
   assert.equal(result.values.pdecrease, 50);
   assert.equal(Number(result.values.mdecrease.toFixed(2)), 59.09);
+});
+
+test("clean base attack power is replaced by equipped weapon damage", () => {
+  const cleanResult = calculateCharacterStats({
+    intrinsicStats: { ap: 10, as: 0.7 },
+    selectedArchetypes: [],
+    selections: [],
+  });
+  assert.equal(cleanResult.values.ap, 10);
+
+  const weapon = {
+    slug: "replacement-ap-weapon",
+    name: "Replacement AP weapon",
+    englishName: "Replacement AP weapon",
+    type: "weapon",
+    slot: null,
+    mastery: null,
+    tier: 1,
+    profession: null,
+    description: "",
+    descriptionEffect: "",
+    recipes: [],
+    variations: [{
+      slug: "replacement-ap-weapon-uncommon",
+      quality: "uncommon",
+      image: null,
+      stats: [
+        { type: "wd", min: 75, max: 75 },
+        { type: "as", min: 0.7, max: 0.7 },
+      ],
+      effects: [],
+    }],
+  };
+  const weaponResult = calculateCharacterStats({
+    intrinsicStats: { ap: 10, as: 0.7 },
+    selectedArchetypes: [],
+    selections: [{ item: weapon, selection: selection(weapon.slug) }],
+  });
+  assert.equal(weaponResult.values.ap, 75);
 });
 
 test("repeated artifact affixes keep independent slot values", () => {

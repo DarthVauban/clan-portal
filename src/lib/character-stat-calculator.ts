@@ -428,10 +428,9 @@ export function calculateCharacterStats({
       + (sources.directFlat[stat] ?? 0);
   }
 
-  // In the current combat model the equipped weapon's damage becomes the
-  // character's base attack power. Explicit AP bonuses are still added on top.
-  values.ap = (intrinsic.ap ?? 0)
-    + (weaponDamage ?? 0)
+  // A clean hero has 10 base AP. Equipping a weapon replaces that base with
+  // Weapon Damage; explicit AP bonuses are then added on top.
+  values.ap = (weaponDamage ?? intrinsic.ap ?? 0)
     + (sources.mainFlat.ap ?? 0)
     + (sources.directFlat.ap ?? 0);
 
