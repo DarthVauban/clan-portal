@@ -827,6 +827,35 @@
       font-size: 9px;
     }
 
+    .class-weapon-card {
+      display: grid;
+      gap: 6px;
+      margin-top: 14px;
+      padding: 11px;
+      border: 1px solid rgba(210, 173, 120, 0.14);
+      border-radius: 8px;
+      background: rgba(176, 138, 96, 0.035);
+    }
+
+    .class-weapon-card > span {
+      color: #69737a;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .class-weapon-card strong {
+      color: #dfc18c;
+      font-size: 11px;
+    }
+
+    .class-weapon-card small {
+      color: #758087;
+      font-size: 9px;
+      line-height: 1.45;
+    }
+
     .chip-summary {
       display: flex;
       justify-content: space-between;
@@ -1080,7 +1109,7 @@
     }
 
     .progression-panel {
-      min-height: 380px;
+      min-height: 480px;
       margin-top: 15px;
       padding: 18px;
       border: 1px solid var(--line);
@@ -1088,6 +1117,46 @@
       background:
         radial-gradient(circle at 50% 20%, rgba(176, 138, 96, 0.065), transparent 18rem),
         rgba(8, 11, 14, 0.72);
+    }
+
+    .progression-intro {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .progression-intro strong,
+    .progression-intro span {
+      display: block;
+    }
+
+    .progression-intro strong {
+      color: #dfddd7;
+      font-size: 12px;
+    }
+
+    .progression-intro span {
+      max-width: 650px;
+      margin-top: 6px;
+      color: #737d83;
+      font-size: 9px;
+      line-height: 1.6;
+    }
+
+    .progression-intro em {
+      flex: 0 0 auto;
+      padding: 7px 9px;
+      color: #cda96f;
+      border: 1px solid rgba(210, 173, 120, 0.18);
+      border-radius: 6px;
+      background: rgba(176, 138, 96, 0.055);
+      font-size: 8px;
+      font-style: normal;
+      white-space: nowrap;
     }
 
     .talent-columns {
@@ -1103,65 +1172,283 @@
       background: rgba(255, 255, 255, 0.014);
     }
 
-    .talent-branch h3 {
-      margin: 0 0 12px;
+    .talent-branch__head {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      min-height: 48px;
+      padding-bottom: 11px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .talent-branch__head > img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+    }
+
+    .talent-branch__head h3,
+    .talent-branch__head p {
+      margin: 0;
+    }
+
+    .talent-branch__head h3 {
       color: #dadbd7;
       font-size: 11px;
-      text-align: center;
+    }
+
+    .talent-branch__head p {
+      margin-top: 4px;
+      color: #687279;
+      font-size: 8px;
+      line-height: 1.35;
     }
 
     .talent-row {
+      position: relative;
       display: grid;
-      grid-template-columns: repeat(3, 38px);
+      grid-template-columns: repeat(3, 48px);
       justify-content: center;
       gap: 8px;
-      margin-top: 11px;
+      margin-top: 12px;
+      padding-left: 19px;
     }
 
-    .talent-node,
-    .mastery-node {
-      width: 38px;
-      height: 38px;
+    .talent-row::before {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      color: #4f5960;
+      font-size: 8px;
+      content: attr(data-tier);
+      transform: translateY(-50%);
+    }
+
+    .talent-node {
+      position: relative;
+      width: 48px;
+      height: 48px;
       display: grid;
       place-items: center;
-      color: #6f787d;
+      padding: 2px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
-      background: #10151a;
-      font-size: 9px;
+      background: #0c1116;
+      cursor: pointer;
+      filter: saturate(0.42);
+      opacity: 0.58;
+      transition: 0.18s ease;
     }
 
-    .talent-node.active,
-    .mastery-node.active {
-      color: #f0cd91;
+    .talent-node:hover {
+      filter: saturate(0.8);
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+
+    .talent-node img {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+
+    .talent-node b {
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      min-width: 17px;
+      height: 17px;
+      display: none;
+      place-items: center;
+      color: #12100b;
+      border: 2px solid #11161a;
+      border-radius: 50%;
+      background: #e0b978;
+      font-size: 8px;
+    }
+
+    .talent-node.active {
       border-color: rgba(210, 173, 120, 0.42);
       background: rgba(176, 138, 96, 0.13);
-      box-shadow: 0 0 20px rgba(176, 138, 96, 0.08);
+      box-shadow: 0 0 22px rgba(176, 138, 96, 0.16);
+      filter: saturate(1);
+      opacity: 1;
     }
 
-    .mastery-map {
+    .talent-node.active b {
       display: grid;
-      grid-template-columns: repeat(6, 42px);
-      justify-content: center;
-      gap: 18px 34px;
-      padding-top: 44px;
+    }
+
+    .mastery-heading {
+      display: grid;
+      grid-template-columns: 66px minmax(0, 1fr);
+      align-items: center;
+      gap: 13px;
+      margin-bottom: 16px;
+      padding: 12px;
+      border: 1px solid rgba(210, 173, 120, 0.16);
+      border-radius: 8px;
+      background: rgba(176, 138, 96, 0.045);
+    }
+
+    .mastery-heading img {
+      width: 66px;
+      height: 66px;
+      object-fit: contain;
+    }
+
+    .mastery-heading strong,
+    .mastery-heading span {
+      display: block;
+    }
+
+    .mastery-heading strong {
+      color: #e3dfd8;
+      font-size: 13px;
+    }
+
+    .mastery-heading span {
+      margin-top: 6px;
+      color: #727c83;
+      font-size: 9px;
+      line-height: 1.55;
+    }
+
+    .mastery-tree {
+      display: grid;
+      gap: 9px;
+    }
+
+    .mastery-branch-demo {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      align-items: center;
+      gap: 18px;
+      min-width: 720px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.012);
+    }
+
+    .mastery-skill {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mastery-skill img {
+      width: 46px;
+      height: 46px;
+      border: 1px solid rgba(210, 173, 120, 0.18);
+      border-radius: 9px;
+      object-fit: cover;
+    }
+
+    .mastery-skill strong,
+    .mastery-skill small {
+      display: block;
+    }
+
+    .mastery-skill strong {
+      color: #d7d8d5;
+      font-size: 10px;
+    }
+
+    .mastery-skill small {
+      margin-top: 4px;
+      color: #626d74;
+      font-size: 8px;
+    }
+
+    .mastery-path {
+      display: grid;
+      grid-template-columns: repeat(5, 48px);
+      justify-content: space-between;
+      gap: 24px;
     }
 
     .mastery-node {
       position: relative;
-      width: 42px;
-      height: 42px;
+      z-index: 1;
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      padding: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      background: #0c1116;
+      cursor: pointer;
+      filter: grayscale(0.65);
+      opacity: 0.52;
+      transition: 0.18s ease;
     }
 
-    .mastery-node:not(:nth-child(6n))::after {
+    .mastery-node img {
+      width: 100%;
+      height: 100%;
+      border-radius: 7px;
+      object-fit: cover;
+    }
+
+    .mastery-node::before {
       position: absolute;
       z-index: -1;
       top: 50%;
-      left: 100%;
-      width: 35px;
+      right: 100%;
+      width: 27px;
       height: 1px;
-      background: rgba(176, 138, 96, 0.18);
+      background: rgba(111, 122, 129, 0.22);
       content: "";
+    }
+
+    .mastery-node:first-child::before {
+      display: none;
+    }
+
+    .mastery-node:hover {
+      opacity: 0.88;
+      transform: translateY(-2px);
+    }
+
+    .mastery-node.active {
+      border-color: rgba(210, 173, 120, 0.44);
+      box-shadow: 0 0 22px rgba(176, 138, 96, 0.14);
+      filter: none;
+      opacity: 1;
+    }
+
+    .mastery-node.active::before {
+      background: rgba(216, 175, 111, 0.5);
+    }
+
+    .mastery-finals {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px dashed rgba(210, 173, 120, 0.2);
+      border-radius: 8px;
+      background: rgba(176, 138, 96, 0.025);
+    }
+
+    .mastery-finals > span {
+      margin-right: 4px;
+      color: #68737a;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .mastery-finals .mastery-node:first-of-type::before {
+      display: none;
     }
 
     .progression-summary {
@@ -1552,12 +1839,20 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .mastery-map {
-        grid-template-columns: repeat(4, 42px);
+      .progression-intro {
+        display: grid;
       }
 
-      .mastery-node:not(:nth-child(6n))::after {
-        display: none;
+      .progression-intro em {
+        justify-self: start;
+      }
+
+      .progression-panel {
+        padding: 12px;
+      }
+
+      .mastery-tree {
+        overflow-x: auto;
       }
 
       .commit-row {
@@ -1584,6 +1879,15 @@
       .equipment-controls,
       .live-stats {
         grid-template-columns: 1fr;
+      }
+
+      .talent-row {
+        grid-template-columns: repeat(3, 44px);
+      }
+
+      .talent-node {
+        width: 44px;
+        height: 44px;
       }
 
       .hero-class {
@@ -1664,7 +1968,8 @@
           <p>
             На портале появился полноценный конструктор Corepunk. Он объединяет экипировку,
             живой расчёт характеристик, таланты, мастерство, стоимость крафта и сохранение
-            публичных билдов в одном последовательном сценарии.
+            публичных билдов. Каждый экран работает на общих данных: смена класса, оружия
+            или одного значения предмета сразу пересчитывает итоговый билд.
           </p>
           <div class="hero__actions">
             <a class="button" href="/character-builder">Открыть конструктор <span aria-hidden="true">→</span></a>
@@ -1697,8 +2002,8 @@
             </div>
             <div class="hero-equipment">
               <div class="hero-item">
-                <img src="/game-assets/items/weapon/weapon-cyber-gladiator-sword-epic.png" alt="" width="48" height="48" />
-                <div><strong>Кибергладиаторский меч</strong><span>Тир 2 · Эпический</span></div>
+                <img src="/game-assets/items/weapon/weapon-thunderclap-spear-epic.png" alt="" width="48" height="48" />
+                <div><strong>Громовое копьё</strong><span>Оружие Легионера · Тир 2 · Эпический</span></div>
               </div>
               <div class="hero-item">
                 <img src="/game-assets/items/implant/implant-arcane-buster-t3-epic.png" alt="" width="48" height="48" />
@@ -1706,7 +2011,7 @@
               </div>
             </div>
             <div class="hero-stats">
-              <div><img src="/game-assets/stats/ap.png" alt="" /><span>Сила атаки</span><strong>200</strong></div>
+              <div><img src="/game-assets/stats/ap.png" alt="" /><span>Сила атаки</span><strong>33,3</strong></div>
               <div><img src="/game-assets/stats/health.png" alt="" /><span>Здоровье</span><strong>3 583</strong></div>
               <div><img src="/game-assets/stats/armor.png" alt="" /><span>Броня</span><strong>60</strong></div>
               <div><img src="/game-assets/stats/mana.png" alt="" /><span>Мана</span><strong>875</strong></div>
@@ -1749,8 +2054,10 @@
             <h2>Предметы учитывают класс, грейд и тип крафта</h2>
           </div>
           <p>
-            Выбор класса задаёт чистую базу характеристик. Оружие и чипы сохраняются
-            в двух переключаемых комплектах, а шесть артефактов остаются общими.
+            Выбор класса задаёт чистую базу характеристик и показывает оружие его
+            специализации. Грейд определяет базовое число модификаций, а тип крафта
+            отдельно добавляет слоты улучшенному или разогнанному предмету. Два оружейных
+            комплекта сохраняются независимо, шесть артефактов остаются общими.
           </p>
         </div>
 
@@ -1809,10 +2116,10 @@
               </div>
 
               <div class="selected-item">
-                <img src="/game-assets/items/weapon/weapon-cyber-gladiator-sword-epic.png" alt="" />
+                <img src="/game-assets/items/weapon/weapon-thunderclap-spear-epic.png" alt="" data-selected-weapon-image />
                 <div>
-                  <strong>Кибергладиаторский меч</strong>
-                  <small>Одноручный меч · оружие</small>
+                  <strong data-selected-weapon-name>Громовое копьё</strong>
+                  <small data-selected-weapon-kind>Копьё · оружие Легионера</small>
                   <span data-item-caption>Тир 2 · Эпический · Разогнанный</span>
                 </div>
               </div>
@@ -1833,7 +2140,7 @@
               <span class="demo-caption">Базовые характеристики</span>
               <div class="live-class">
                 <img src="/game-assets/classes/legionnary.png" alt="" data-live-class-image />
-                <div><strong data-live-class-name>Легионер</strong><span>Чистый билд · уровень 20</span></div>
+                <div><strong data-live-class-name>Легионер</strong><span>Чистый билд · без экипировки</span></div>
               </div>
               <div class="live-stats">
                 <div class="live-stat"><img src="/game-assets/stats/ap.png" alt="" /><span>Сила атаки</span><strong data-stat="ap">10</strong></div>
@@ -1843,14 +2150,19 @@
                 <div class="live-stat"><img src="/game-assets/stats/mr.png" alt="" /><span>Маг. Защ</span><strong data-stat="mr">40</strong></div>
                 <div class="live-stat"><img src="/game-assets/stats/as.png" alt="" /><span>Скорость атаки</span><strong data-stat="as">0,7</strong></div>
               </div>
+              <div class="class-weapon-card">
+                <span>Оружейная специализация класса</span>
+                <strong data-live-weapon-name>Громовое копьё</strong>
+                <small data-live-weapon-range>Урон оружия: 10–33,3 · скорость атаки: 0,6–1</small>
+              </div>
             </aside>
           </div>
         </div>
 
         <div class="feature-strip">
-          <div><strong>Два комплекта оружия</strong><span>Переключение между двумя наборами без дублирования артефактов.</span></div>
-          <div><strong>Фильтры артефактов</strong><span>Поиск по тиру, грейду, типу крафта и комбинации основных характеристик.</span></div>
-          <div><strong>Точные значения</strong><span>Фактические параметры предмета можно ввести вручную и сразу увидеть результат.</span></div>
+          <div><strong>Два комплекта оружия</strong><span>В каждом наборе отдельно хранятся оружие, главный чип и доступные вторичные чипы. Переключение не затрагивает общий комплект артефактов.</span></div>
+          <div><strong>Грейд и тип крафта</strong><span>Это независимые параметры. У T2-оружия обычный тип даёт до трёх вторичных чипов, улучшенный — до четырёх, разогнанный — до пяти.</span></div>
+          <div><strong>Артефакты и точные значения</strong><span>Фильтры ищут предметы по характеристикам, а редактор принимает реальные значения основных и дополнительных статов без привязки к проценту ролла.</span></div>
         </div>
       </section>
 
@@ -1862,7 +2174,9 @@
           </div>
           <p>
             Базовые значения класса, оружие, чипы, артефакты и бонусы архетипов
-            собираются в один результат. Источник каждого типа бонуса учитывается отдельно.
+            собираются в один результат по формулам версии 0.114. Прямые значения,
+            рейтинги и проценты не смешиваются: каждый источник проходит собственный
+            этап преобразования, после чего применяется ограничение характеристики.
           </p>
         </div>
 
@@ -1890,10 +2204,15 @@
             <div class="formula-list">
               <article><strong>Защита</strong><span>Броня и магическая защита переводятся в снижение урона по гиперболической кривой.</span></article>
               <article><strong>Рейтинги артефактов</strong><span>Шанс крита, пробивание, сопротивления и вампиризм не складываются как прямые проценты.</span></article>
-              <article><strong>Сила атаки</strong><span>Урон выбранного оружия заменяет стандартные <b>10 AP</b> чистого персонажа.</span></article>
+              <article><strong>Сила атаки</strong><span>Урон выбранного оружия заменяет стандартные <b>10 силы атаки</b> чистого персонажа.</span></article>
               <article><strong>Ограничения</strong><span>Скорость атаки любого класса без внешних эффектов ограничена значением <b>2,5</b>.</span></article>
             </div>
           </div>
+        </div>
+        <div class="feature-strip">
+          <div><strong>Оружие заменяет базовую силу атаки</strong><span>Чистый персонаж начинается с 10 силы атаки. После экипировки итоговое значение берётся из фактического урона оружия, а не ошибочно складывается с базовой десяткой.</span></div>
+          <div><strong>Связанный ролл оружия</strong><span>Урон и скорость атаки находятся на одной обратной шкале конкретного предмета. Ручное изменение одного значения пропорционально двигает второе в допустимом диапазоне.</span></div>
+          <div><strong>Рейтинги и ограничения</strong><span>Защиты и рейтинги преобразуются по своим кривым. После всех обычных бонусов скорость атаки ограничивается значением 2,5 для каждого класса.</span></div>
         </div>
       </section>
 
@@ -1904,8 +2223,10 @@
             <h2>Таланты и мастерство собираются визуально</h2>
           </div>
           <p>
-            Можно выбрать до трёх архетипов, распределить очки по рядам талантов
-            и построить путь в большом дереве мастерства. Обе схемы экспортируются в PNG.
+            В билд можно добавить до трёх архетипов. Каждый из них содержит пять рядов
+            с тремя взаимоисключающими талантами и отдельными уровнями прокачки.
+            Мастерство загружается именно для выбранного класса, учитывает узлы и усиления
+            связей, а к далёкой цели автоматически строит кратчайший доступный путь.
           </p>
         </div>
 
@@ -1919,51 +2240,182 @@
           </div>
           <div class="progression-demo">
             <div class="progression-panel" data-progression-panel="talents">
+              <div class="progression-intro">
+                <div>
+                  <strong>Три выбранных архетипа · 45 реальных талантов</strong>
+                  <span>Нажмите на любую иконку. В одном ряду можно оставить только один талант: новый выбор автоматически снимает предыдущий. В полном конструкторе выбранный талант также можно повышать по уровням.</span>
+                </div>
+                <em>Интерактивный выбор</em>
+              </div>
               <div class="talent-columns">
                 <article class="talent-branch">
-                  <h3>Воин</h3>
-                  <div class="talent-row"><span class="talent-node active">1</span><span class="talent-node">2</span><span class="talent-node">3</span></div>
-                  <div class="talent-row"><span class="talent-node">4</span><span class="talent-node active">5</span><span class="talent-node">6</span></div>
-                  <div class="talent-row"><span class="talent-node active">7</span><span class="talent-node">8</span><span class="talent-node">9</span></div>
-                  <div class="talent-row"><span class="talent-node">10</span><span class="talent-node active">11</span><span class="talent-node">12</span></div>
-                  <div class="talent-row"><span class="talent-node">13</span><span class="talent-node">14</span><span class="talent-node active">15</span></div>
+                  <div class="talent-branch__head">
+                    <img src="/corepunk/builder/talents/icons/warrior.png" alt="" />
+                    <div><h3>Воин</h3><p>Урон и постоянное давление · +5% к урону</p></div>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 1">
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Прочность штабелирования"><img src="/corepunk/builder/talents/warrior/w1v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Динамическое увеличение урона"><img src="/corepunk/builder/talents/warrior/w1v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Буйный натиск"><img src="/corepunk/builder/talents/warrior/w1v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 2">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Мастерство нанесения нескольких ударов"><img src="/corepunk/builder/talents/warrior/w2v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Здоровая агрессия"><img src="/corepunk/builder/talents/warrior/w2v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Прилив адреналина"><img src="/corepunk/builder/talents/warrior/w2v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 3">
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Лезвие палача"><img src="/corepunk/builder/talents/warrior/w3v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Стойкая ярость"><img src="/corepunk/builder/talents/warrior/w3v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Антиисцеление"><img src="/corepunk/builder/talents/warrior/w3v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 4">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Боевой дух"><img src="/corepunk/builder/talents/warrior/w4v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Увеличение жизненной силы"><img src="/corepunk/builder/talents/warrior/w4v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Расширение возможностей серии убийств"><img src="/corepunk/builder/talents/warrior/w4v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 5">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Катализатор заряда"><img src="/corepunk/builder/talents/warrior/w5v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Истинный удар"><img src="/corepunk/builder/talents/warrior/w5v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Карнаж Драйв"><img src="/corepunk/builder/talents/warrior/w5v3.png" alt="" /><b>1</b></button>
+                  </div>
                 </article>
                 <article class="talent-branch">
-                  <h3>Ассасин</h3>
-                  <div class="talent-row"><span class="talent-node">1</span><span class="talent-node active">2</span><span class="talent-node">3</span></div>
-                  <div class="talent-row"><span class="talent-node active">4</span><span class="talent-node">5</span><span class="talent-node">6</span></div>
-                  <div class="talent-row"><span class="talent-node">7</span><span class="talent-node active">8</span><span class="talent-node">9</span></div>
-                  <div class="talent-row"><span class="talent-node">10</span><span class="talent-node">11</span><span class="talent-node active">12</span></div>
-                  <div class="talent-row"><span class="talent-node active">13</span><span class="talent-node">14</span><span class="talent-node">15</span></div>
+                  <div class="talent-branch__head">
+                    <img src="/corepunk/builder/talents/icons/assassin.png" alt="" />
+                    <div><h3>Убийца</h3><p>Критические атаки и пробивание · +5% к крит. шансу</p></div>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 1">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Скрытая точность"><img src="/corepunk/builder/talents/assassin/as1v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Танец теней"><img src="/corepunk/builder/talents/assassin/as1v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Теневой удар"><img src="/corepunk/builder/talents/assassin/as1v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 2">
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Кровожадный край"><img src="/corepunk/builder/talents/assassin/as2v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Пронзительный натиск"><img src="/corepunk/builder/talents/assassin/as2v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Критическое воздействие"><img src="/corepunk/builder/talents/assassin/as2v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 3">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Инстинкт охотника"><img src="/corepunk/builder/talents/assassin/as3v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Удар в спину"><img src="/corepunk/builder/talents/assassin/as3v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Неожиданная атака"><img src="/corepunk/builder/talents/assassin/as3v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 4">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Призрачные рефлексы"><img src="/corepunk/builder/talents/assassin/as4v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Убийца великанов"><img src="/corepunk/builder/talents/assassin/as4v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Ярость клинка"><img src="/corepunk/builder/talents/assassin/as4v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 5">
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Критстакер"><img src="/corepunk/builder/talents/assassin/as5v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Мастер клинка"><img src="/corepunk/builder/talents/assassin/as5v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Подрывной удар"><img src="/corepunk/builder/talents/assassin/as5v3.png" alt="" /><b>1</b></button>
+                  </div>
                 </article>
                 <article class="talent-branch">
-                  <h3>Охотник</h3>
-                  <div class="talent-row"><span class="talent-node">1</span><span class="talent-node">2</span><span class="talent-node active">3</span></div>
-                  <div class="talent-row"><span class="talent-node">4</span><span class="talent-node active">5</span><span class="talent-node">6</span></div>
-                  <div class="talent-row"><span class="talent-node active">7</span><span class="talent-node">8</span><span class="talent-node">9</span></div>
-                  <div class="talent-row"><span class="talent-node">10</span><span class="talent-node active">11</span><span class="talent-node">12</span></div>
-                  <div class="talent-row"><span class="talent-node">13</span><span class="talent-node">14</span><span class="talent-node active">15</span></div>
+                  <div class="talent-branch__head">
+                    <img src="/corepunk/builder/talents/icons/hunter.png" alt="" />
+                    <div><h3>Охотник</h3><p>Темп атак и дистанция · +10% к скорости атаки</p></div>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 1">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Героический всплеск"><img src="/corepunk/builder/talents/hunter/ar1v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Безжалостное нападение"><img src="/corepunk/builder/talents/hunter/ar1v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Стремительный натиск"><img src="/corepunk/builder/talents/hunter/ar1v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 2">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Кошачьи рефлексы"><img src="/corepunk/builder/talents/hunter/ar2v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Прыжки и скачки"><img src="/corepunk/builder/talents/hunter/ar2v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Освобождённый"><img src="/corepunk/builder/talents/hunter/ar2v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 3">
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Инстинкт исследователя"><img src="/corepunk/builder/talents/hunter/ar3v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Энергия хищника"><img src="/corepunk/builder/talents/hunter/ar3v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Мастер побега"><img src="/corepunk/builder/talents/hunter/ar3v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 4">
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Прилив скорости"><img src="/corepunk/builder/talents/hunter/ar4v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Маленький, но могучий"><img src="/corepunk/builder/talents/hunter/ar4v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Охотничий азарт"><img src="/corepunk/builder/talents/hunter/ar4v3.png" alt="" /><b>1</b></button>
+                  </div>
+                  <div class="talent-row" data-tier="Ряд 5">
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Снайперская точность"><img src="/corepunk/builder/talents/hunter/ar5v1.png" alt="" /><b>1</b></button>
+                    <button class="talent-node" type="button" data-talent-node aria-pressed="false" title="Мастерство дистанции"><img src="/corepunk/builder/talents/hunter/ar5v2.png" alt="" /><b>1</b></button>
+                    <button class="talent-node active" type="button" data-talent-node aria-pressed="true" title="Стационарный стрелок"><img src="/corepunk/builder/talents/hunter/ar5v3.png" alt="" /><b>1</b></button>
+                  </div>
                 </article>
               </div>
-              <div class="progression-summary"><span>Распределение: <strong>15 / 15</strong></span><span>Очки уровня: <strong>12 / 12</strong></span></div>
+              <div class="progression-summary"><span>Выбрано талантов: <strong>15 / 15</strong></span><span>Один талант в каждом из пяти рядов трёх архетипов</span></div>
             </div>
 
             <div class="progression-panel" data-progression-panel="mastery" hidden>
-              <div class="mastery-map">
-                <span class="mastery-node active">1</span><span class="mastery-node active">2</span><span class="mastery-node active">3</span><span class="mastery-node">4</span><span class="mastery-node">5</span><span class="mastery-node">F</span>
-                <span class="mastery-node">1</span><span class="mastery-node active">2</span><span class="mastery-node active">3</span><span class="mastery-node active">4</span><span class="mastery-node">5</span><span class="mastery-node">F</span>
-                <span class="mastery-node">1</span><span class="mastery-node">2</span><span class="mastery-node active">3</span><span class="mastery-node active">4</span><span class="mastery-node active">5</span><span class="mastery-node active">F</span>
-                <span class="mastery-node">1</span><span class="mastery-node">2</span><span class="mastery-node">3</span><span class="mastery-node active">4</span><span class="mastery-node">5</span><span class="mastery-node">F</span>
+              <div class="progression-intro">
+                <div>
+                  <strong>Настоящее мастерство Легионера</strong>
+                  <span>Нажмите на узел внутри способности: демонстрация активирует весь предшествующий путь. В полном дереве алгоритм сравнивает связи между ветками и добавляет недостающие узлы и промежуточные усиления по маршруту с минимальной стоимостью.</span>
+                </div>
+                <em>Кратчайший путь</em>
               </div>
-              <div class="progression-summary"><span>Распределено: <strong>26 / 26</strong></span><span>Кратчайший путь строится автоматически</span></div>
+              <div class="mastery-heading">
+                <img src="/corepunk/builder/masteries/WAR_S1.png" alt="" />
+                <div>
+                  <strong>Легионер · дерево классового мастерства</strong>
+                  <span>Четыре базовые способности, по пять вариантов развития каждой и два финальных улучшения предельной способности.</span>
+                </div>
+              </div>
+              <div class="mastery-tree">
+                <div class="mastery-branch-demo" data-mastery-branch>
+                  <div class="mastery-skill"><img src="/corepunk/builder/masteries/WAR_S1_Q.png" alt="" /><div><strong>Удар щитом</strong><small>Контроль · уязвимость · прерывание</small></div></div>
+                  <div class="mastery-path">
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="1" title="Калечащий удар"><img src="/corepunk/builder/masteries/WAR_S1_Q1.png" alt="" /></button>
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="2" title="Восстановление маны"><img src="/corepunk/builder/masteries/WAR_S1_Q2.png" alt="" /></button>
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="3" title="Точный удар"><img src="/corepunk/builder/masteries/WAR_S1_Q3.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="4" title="Зеркальный щит"><img src="/corepunk/builder/masteries/WAR_S1_Q4.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="5" title="Землетрясение"><img src="/corepunk/builder/masteries/WAR_S1_Q5.png" alt="" /></button>
+                  </div>
+                </div>
+                <div class="mastery-branch-demo" data-mastery-branch>
+                  <div class="mastery-skill"><img src="/corepunk/builder/masteries/WAR_S1_W.png" alt="" /><div><strong>Катапульта</strong><small>Бросок цели · массовый урон · оглушение</small></div></div>
+                  <div class="mastery-path">
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="1" title="Передача импульса"><img src="/corepunk/builder/masteries/WAR_S1_W1.png" alt="" /></button>
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="2" title="Ударное ядро"><img src="/corepunk/builder/masteries/WAR_S1_W2.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="3" title="Доминирование"><img src="/corepunk/builder/masteries/WAR_S1_W3.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="4" title="Идеальный бросок"><img src="/corepunk/builder/masteries/WAR_S1_W4.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="5" title="Последующий пик"><img src="/corepunk/builder/masteries/WAR_S1_W5.png" alt="" /></button>
+                  </div>
+                </div>
+                <div class="mastery-branch-demo" data-mastery-branch>
+                  <div class="mastery-skill"><img src="/corepunk/builder/masteries/WAR_S1_E.png" alt="" /><div><strong>Бросок копья</strong><small>Дальний удар · провокация · пробивание</small></div></div>
+                  <div class="mastery-path">
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="1" title="Беспощадная провокация"><img src="/corepunk/builder/masteries/WAR_S1_E1.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="2" title="Первоначальное воздействие"><img src="/corepunk/builder/masteries/WAR_S1_E2.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="3" title="Пронзающее копьё"><img src="/corepunk/builder/masteries/WAR_S1_E3.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="4" title="Холодное оружие"><img src="/corepunk/builder/masteries/WAR_S1_E4.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="5" title="Выпад с копьём"><img src="/corepunk/builder/masteries/WAR_S1_E5.png" alt="" /></button>
+                  </div>
+                </div>
+                <div class="mastery-branch-demo" data-mastery-branch>
+                  <div class="mastery-skill"><img src="/corepunk/builder/masteries/WAR_S1_T.png" alt="" /><div><strong>Железная кожа</strong><small>Броня · магическая защита · сила атаки</small></div></div>
+                  <div class="mastery-path">
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="1" title="Обновление боя"><img src="/corepunk/builder/masteries/WAR_S1_T1.png" alt="" /></button>
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="2" title="Запах крови"><img src="/corepunk/builder/masteries/WAR_S1_T2.png" alt="" /></button>
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="3" title="Мастерство штабелирования"><img src="/corepunk/builder/masteries/WAR_S1_T3.png" alt="" /></button>
+                    <button class="mastery-node active" type="button" data-mastery-node data-step="4" title="Укреплённый барьер"><img src="/corepunk/builder/masteries/WAR_S1_T4.png" alt="" /></button>
+                    <button class="mastery-node" type="button" data-mastery-node data-step="5" title="Эксперт по метанию"><img src="/corepunk/builder/masteries/WAR_S1_T5.png" alt="" /></button>
+                  </div>
+                </div>
+              </div>
+              <div class="mastery-finals">
+                <span>Финал · Неудержимый</span>
+                <button class="mastery-node" type="button" data-mastery-final title="Устойчивая энергия"><img src="/corepunk/builder/masteries/WAR_S1_R1.png" alt="" /></button>
+                <button class="mastery-node active" type="button" data-mastery-final title="Защита от жертвоприношений"><img src="/corepunk/builder/masteries/WAR_S1_R2.png" alt="" /></button>
+              </div>
+              <div class="progression-summary"><span>Активно узлов в демо: <strong data-mastery-count>11</strong></span><span>Полное дерево можно развернуть на весь экран и экспортировать в PNG</span></div>
             </div>
           </div>
         </div>
 
         <div class="feature-strip">
-          <div><strong>Один талант в ряду</strong><span>Интерфейс блокирует конфликтующий выбор и контролирует лимиты.</span></div>
-          <div><strong>Автоматический путь</strong><span>Клик по далёкому узлу мастерства прокладывает кратчайший доступный маршрут.</span></div>
-          <div><strong>Экспорт в PNG</strong><span>Выбранное дерево можно сохранить как изображение в высоком качестве.</span></div>
+          <div><strong>Архетипы и уровни</strong><span>До трёх веток по пять рядов. В каждом ряду выбирается один из трёх талантов, после чего его можно дополнительно усилить доступными очками уровня.</span></div>
+          <div><strong>Узлы, связи и путь</strong><span>Мастерство хранит ранги узлов и усилений между ними. Клик по далёкой цели достраивает самый дешёвый связный маршрут, а удаление узла очищает недоступный остаток.</span></div>
+          <div><strong>Просмотр и экспорт</strong><span>Большое дерево открывается на весь экран с автоматическим масштабированием. Таланты и мастерство сохраняются в PNG с загруженными игровыми иконками.</span></div>
         </div>
       </section>
 
@@ -1975,7 +2427,9 @@
           </div>
           <p>
             Выберите активный или оба оружейных комплекта, а затем переключитесь
-            между прямыми компонентами рецептов и полностью разложенными базовыми ресурсами.
+            между компонентами рецептов и полностью разложенными базовыми ресурсами.
+            Расчёт учитывает выбранный грейд, тип крафта и количество каждого предмета
+            во всех включённых слотах билда.
           </p>
         </div>
 
@@ -2012,6 +2466,11 @@
             </aside>
           </div>
         </div>
+        <div class="feature-strip">
+          <div><strong>Компоненты рецепта</strong><span>Показывается то, что нужно положить в рецепт напрямую: готовые заготовки, наборы улучшения и ресурсы, не требующие промежуточного крафта.</span></div>
+          <div><strong>Базовые ресурсы</strong><span>Каждый крафтовый компонент рекурсивно раскрывается до исходного сырья. Одинаковые позиции из оружия, чипов и артефактов объединяются в общий итог.</span></div>
+          <div><strong>Покрытие банком</strong><span>Для редактируемого билда требуемое количество сравнивается с доступными остатками коллектива с учётом ресурсов, уже зарезервированных активными заявками.</span></div>
+        </div>
       </section>
 
       <section class="release-block" id="sharing" data-nav-section>
@@ -2023,6 +2482,8 @@
           <p>
             Черновик автоматически остаётся в браузере. Авторизованный игрок может
             хранить до 30 билдов в профиле и отправлять публичную версию другим игрокам.
+            Перед созданием ссылки текущие изменения синхронизируются, поэтому получатель
+            всегда открывает последнюю сохранённую конфигурацию в режиме просмотра.
           </p>
         </div>
 
@@ -2050,10 +2511,15 @@
             </div>
           </div>
         </div>
+        <div class="feature-strip">
+          <div><strong>Локальный черновик</strong><span>Состояние автоматически записывается в браузер после каждого изменения и восстанавливается при следующем открытии конструктора.</span></div>
+          <div><strong>Сохранённые билды</strong><span>В профиле можно создавать, обновлять и удалять до 30 конфигураций. Название, класс, экипировка, таланты, мастерство и заметки хранятся вместе.</span></div>
+          <div><strong>Публичный просмотр</strong><span>Ссылка открывает отдельную версию без прав редактирования. Если системный буфер обмена недоступен, адрес остаётся выделенным для ручного копирования.</span></div>
+        </div>
       </section>
 
       <section class="commit-block" id="commits" data-nav-section aria-labelledby="commits-title">
-        <span class="section-number">Релиз · Main</span>
+        <span class="section-number">Релиз · основная ветка</span>
         <h2 id="commits-title">Конструктор прошёл полный цикл доработки</h2>
         <div class="commit-list">
           <div class="commit-row"><code>6550621</code><strong>Расчёт экипировки, формулы оружия и ограничение скорости атаки</strong><span>Основа</span></div>
@@ -2111,30 +2577,86 @@
     observedSections.forEach((section) => sectionObserver.observe(section));
 
     const classes = {
-      legionnary: { name: "Легионер", image: "/game-assets/classes/legionnary.png", ap: 10, health: 3583, mana: 875, armor: 60, mr: 40, as: 0.7 },
-      shaman: { name: "Шаман", image: "/game-assets/classes/shaman.png", ap: 10, health: 3527, mana: 927, armor: 60, mr: 45, as: 1.5 },
-      ranger: { name: "Рейнджер", image: "/game-assets/classes/ranger.png", ap: 10, health: 3198, mana: 875, armor: 40, mr: 40, as: 0.7 },
-      "blast-medic": { name: "Взрывной медик", image: "/game-assets/classes/blast-medic.png", ap: 10, health: 3171, mana: 1029, armor: 40, mr: 50, as: 0.6 },
-      infiltrator: { name: "Инфильтратор", image: "/game-assets/classes/infiltrator.png", ap: 10, health: 3477, mana: 927, armor: 55, mr: 40, as: 1.1 },
-      destroyer: { name: "Разрушитель", image: "/game-assets/classes/destroyer.png", ap: 10, health: 3328, mana: 875, armor: 50, mr: 50, as: 0.5 },
-      defender: { name: "Защитник", image: "/game-assets/classes/defender.png", ap: 10, health: 3530, mana: 875, armor: 55, mr: 45, as: 0.7 }
+      legionnary: {
+        name: "Легионер",
+        image: "/game-assets/classes/legionnary.png",
+        ap: 10, health: 3583, mana: 875, armor: 60, mr: 40, as: 0.7,
+        weapon: {
+          name: "Громовое копьё",
+          kind: "Копьё · оружие Легионера",
+          imageBase: "/game-assets/items/weapon/weapon-thunderclap-spear",
+          range: "Урон оружия: 10–33,3 · скорость атаки: 0,6–1"
+        }
+      },
+      shaman: {
+        name: "Шаман",
+        image: "/game-assets/classes/shaman.png",
+        ap: 10, health: 3527, mana: 927, armor: 60, mr: 45, as: 1.5,
+        weapon: {
+          name: "Громовой кастет",
+          kind: "Кастет · оружие Шамана",
+          imageBase: "/game-assets/items/weapon/weapon-thunderclap-knuckle",
+          range: "Урон оружия: 7,1–25 · скорость атаки: 0,8–1,4"
+        }
+      },
+      ranger: {
+        name: "Рейнджер",
+        image: "/game-assets/classes/ranger.png",
+        ap: 10, health: 3198, mana: 875, armor: 40, mr: 40, as: 0.7,
+        weapon: {
+          name: "Кибергладиаторский лук",
+          kind: "Лук · оружие Рейнджера",
+          imageBase: "/game-assets/items/weapon/weapon-cyber-gladiator-bow",
+          range: "Урон оружия: 22,2–80 · скорость атаки: 0,5–0,9"
+        }
+      },
+      "blast-medic": {
+        name: "Взрывной медик",
+        image: "/game-assets/classes/blast-medic.png",
+        ap: 10, health: 3171, mana: 1029, armor: 40, mr: 50, as: 0.6,
+        weapon: {
+          name: "Кибергладиаторская пусковая установка",
+          kind: "Гранатомёт · оружие Взрывного медика",
+          imageBase: "/game-assets/items/weapon/weapon-cyber-gladiator-launcher",
+          range: "Урон оружия: 25–100 · скорость атаки: 0,4–0,8"
+        }
+      },
+      infiltrator: {
+        name: "Инфильтратор",
+        image: "/game-assets/classes/infiltrator.png",
+        ap: 10, health: 3477, mana: 927, armor: 55, mr: 40, as: 1.1,
+        weapon: {
+          name: "Ронинский кинжал",
+          kind: "Кинжал · оружие Инфильтратора",
+          imageBase: "/game-assets/items/weapon/weapon-ronin-dagger",
+          range: "Урон оружия: 8,3–28,6 · скорость атаки: 0,7–1,2"
+        }
+      },
+      destroyer: {
+        name: "Разрушитель",
+        image: "/game-assets/classes/destroyer.png",
+        ap: 10, health: 3328, mana: 875, armor: 50, mr: 50, as: 0.5,
+        weapon: {
+          name: "Кибергладиаторский меч",
+          kind: "Двуручный меч · оружие Разрушителя",
+          imageBase: "/game-assets/items/weapon/weapon-cyber-gladiator-sword",
+          range: "Урон оружия: 22,2–80 · скорость атаки: 0,5–0,9"
+        }
+      },
+      defender: {
+        name: "Защитник",
+        image: "/game-assets/classes/defender.png",
+        ap: 10, health: 3530, mana: 875, armor: 55, mr: 45, as: 0.7,
+        weapon: {
+          name: "Ярость рассвета",
+          kind: "Клинок · оружие Защитника",
+          imageBase: "/game-assets/items/weapon/weapon-dawns-fury",
+          range: "Урон оружия: 12,5–50 · скорость атаки: 0,4–0,8"
+        }
+      }
     };
 
     const formatNumber = (value) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(value);
-
-    document.querySelectorAll("[data-class]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const selected = classes[button.dataset.class];
-        document.querySelectorAll("[data-class]").forEach((entry) => {
-          entry.dataset.active = String(entry === button);
-        });
-        document.querySelector("[data-live-class-image]").src = selected.image;
-        document.querySelector("[data-live-class-name]").textContent = selected.name;
-        ["ap", "health", "mana", "armor", "mr", "as"].forEach((stat) => {
-          document.querySelector(`[data-stat="${stat}"]`).textContent = formatNumber(selected[stat]);
-        });
-      });
-    });
 
     const gradeLabels = {
       common: "Обычный",
@@ -2149,8 +2671,37 @@
     };
     const gradeSlots = { common: 0, uncommon: 1, rare: 2, epic: 3 };
     const craftSlots = { regular: 0, upgraded: 1, overclocked: 2 };
+    let selectedClassSlug = "legionnary";
     let selectedGrade = "epic";
     let selectedCraft = "overclocked";
+
+    const getWeaponImage = (weapon) =>
+      weapon.imageBase + (selectedGrade === "common" ? "" : "-" + selectedGrade) + ".png";
+
+    const renderSelectedClass = () => {
+      const selected = classes[selectedClassSlug];
+      document.querySelector("[data-live-class-image]").src = selected.image;
+      document.querySelector("[data-live-class-name]").textContent = selected.name;
+      document.querySelector("[data-selected-weapon-image]").src = getWeaponImage(selected.weapon);
+      document.querySelector("[data-selected-weapon-name]").textContent = selected.weapon.name;
+      document.querySelector("[data-selected-weapon-kind]").textContent = selected.weapon.kind;
+      document.querySelector("[data-live-weapon-name]").textContent = selected.weapon.name;
+      document.querySelector("[data-live-weapon-range]").textContent = selected.weapon.range;
+      ["ap", "health", "mana", "armor", "mr", "as"].forEach((stat) => {
+        document.querySelector(`[data-stat="${stat}"]`).textContent = formatNumber(selected[stat]);
+      });
+    };
+
+    document.querySelectorAll("[data-class]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedClassSlug = button.dataset.class;
+        document.querySelectorAll("[data-class]").forEach((entry) => {
+          entry.dataset.active = String(entry === button);
+        });
+        renderSelectedClass();
+        showToast("Выбрано оружие специализации: " + classes[selectedClassSlug].weapon.name + ".");
+      });
+    });
 
     const renderChipSlots = () => {
       const secondaryCount = Math.min(5, gradeSlots[selectedGrade] + craftSlots[selectedCraft]);
@@ -2165,6 +2716,7 @@
         secondaryCount + " " + (secondaryCount === 1 ? "вторичный чип" : secondaryCount < 5 ? "вторичных чипа" : "вторичных чипов");
       document.querySelector("[data-item-caption]").textContent =
         "Тир 2 · " + gradeLabels[selectedGrade] + " · " + craftLabels[selectedCraft];
+      renderSelectedClass();
     };
 
     document.querySelector("[data-grade-tabs]").addEventListener("click", (event) => {
@@ -2210,6 +2762,45 @@
         panel.hidden = panel.dataset.progressionPanel !== button.dataset.progression;
       });
     });
+
+    document.querySelectorAll("[data-talent-node]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const row = button.closest(".talent-row");
+        row.querySelectorAll("[data-talent-node]").forEach((entry) => {
+          const isSelected = entry === button;
+          entry.classList.toggle("active", isSelected);
+          entry.setAttribute("aria-pressed", String(isSelected));
+        });
+        showToast("Выбран талант: " + button.title + ".");
+      });
+    });
+
+    const updateMasteryCount = () => {
+      document.querySelector("[data-mastery-count]").textContent =
+        document.querySelectorAll("[data-mastery-node].active, [data-mastery-final].active").length;
+    };
+
+    document.querySelectorAll("[data-mastery-node]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const selectedStep = Number(button.dataset.step);
+        button.closest("[data-mastery-branch]").querySelectorAll("[data-mastery-node]").forEach((entry) => {
+          entry.classList.toggle("active", Number(entry.dataset.step) <= selectedStep);
+        });
+        updateMasteryCount();
+        showToast("Путь построен до узла «" + button.title + "».");
+      });
+    });
+
+    document.querySelectorAll("[data-mastery-final]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-mastery-final]").forEach((entry) => {
+          entry.classList.toggle("active", entry === button);
+        });
+        updateMasteryCount();
+        showToast("Выбрано финальное улучшение: " + button.title + ".");
+      });
+    });
+    updateMasteryCount();
 
     const materialViews = {
       base: [
