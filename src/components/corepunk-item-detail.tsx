@@ -52,6 +52,18 @@ function qualityLabel(quality: string) {
   return qualityLabels[quality] ?? quality;
 }
 
+function getItemScaleRange(item: CorepunkItem) {
+  if (!["common", "uncommon", "rare", "epic"].includes(item.quality)) return null;
+  const scale = item.scales?.find((entry) => entry.identifier === "default")
+    ?? item.scales?.[0]
+    ?? item.scale;
+  const range = scale?.[item.quality as "common" | "uncommon" | "rare" | "epic"];
+  if (!range) return null;
+  const minimum = Number(range.min);
+  const maximum = Number(range.max);
+  return Number.isFinite(minimum) && Number.isFinite(maximum) ? { minimum, maximum } : null;
+}
+
 function getStoredCatalogHref() {
   if (typeof window === "undefined") return "/items";
   const raw = sessionStorage.getItem(CATALOG_RESTORE_KEY);
@@ -200,6 +212,8 @@ export function CorepunkItemDetail({
     .sort((a, b) => qualityOrder.indexOf(a.quality) - qualityOrder.indexOf(b.quality));
   const [selectedSlug, setSelectedSlug] = useState(item.slug);
   const selectedItem = variations.find((variation) => variation.slug === selectedSlug) ?? item;
+  const selectedChipScale = selectedItem.type === "chip" ? getItemScaleRange(selectedItem) : null;
+  const selectedChipStat = selectedItem.tags?.find((tag) => dataset.media.stats[tag.name]?.downloaded)?.name;
   const mainImage = dataset.media.items[selectedItem.slug];
   const relatedItems = getDirectRecipeItems(item, dataset);
   const professionAsset = selectedItem.profession ? dataset.media.professions[selectedItem.profession] : undefined;
@@ -303,6 +317,31 @@ export function CorepunkItemDetail({
               <div className={styles.effectCard}>
                 {selectedItem.description && <p>{selectedItem.description}</p>}
                 {selectedItem.descriptionEffect && <RichDescription text={selectedItem.descriptionEffect} dataset={dataset} />}
+              </div>
+            </section>
+          )}
+
+          {selectedChipScale && (
+            <section className={styles.detailSection}>
+              <div className={styles.sectionTitle}>
+                <span>Значение свойства</span>
+                <small>{qualityLabel(selectedItem.quality)}</small>
+              </div>
+              <div className={styles.chipScalePanel}>
+                <span>
+                  {selectedChipStat
+                    ? <LoadableImage src={dataset.media.stats[selectedChipStat].local} alt="" width={30} height={30} />
+                    : <Sparkles size={24} />}
+                </span>
+                <div>
+                  <small>Диапазон для выбранного качества</small>
+                  <strong>
+                    {selectedChipScale.minimum === selectedChipScale.maximum
+                      ? selectedChipScale.minimum
+                      : `${selectedChipScale.minimum} – ${selectedChipScale.maximum}`}
+                  </strong>
+                  <em>Подставляется в значение [scale] в описании свойства чипа.</em>
+                </div>
               </div>
             </section>
           )}

@@ -99,6 +99,7 @@ async function loadDatabase(): Promise<LoadedDatabase> {
       englishName: row.name_en,
       description: row.description_ru,
       descriptionEffect: row.description_effect_ru,
+      englishDescriptionEffect: row.description_effect_en,
       baseSlug: row.base_slug ?? undefined,
       ingredients: [],
       recipes: [],

@@ -2,7 +2,13 @@ import "server-only";
 
 import itemDatasetJson from "@/data/corepunk-items.json";
 import { corepunkClasses } from "@/lib/corepunk-classes";
-import type { CorepunkItem, CorepunkItemDataset, MediaAsset } from "@/lib/corepunk-item-data";
+import type {
+  CorepunkItem,
+  CorepunkItemDataset,
+  ItemNamedScale,
+  ItemQualityScale,
+  MediaAsset,
+} from "@/lib/corepunk-item-data";
 import { localizeCorepunkItem, localizeStatAssets } from "@/lib/corepunk-localization";
 import {
   getAllItems,
@@ -12,6 +18,7 @@ import {
 } from "@/lib/corepunk-item-repository";
 import type {
   BuilderIngredient,
+  BuilderItemEffect,
   BuilderQuality,
   BuilderRecipe,
   CharacterBuilderDataset,
@@ -19,6 +26,49 @@ import type {
 
 const equipmentTypes = new Set(["weapon", "implant", "chip", "rune"]);
 const qualityOrder: BuilderQuality[] = ["uncommon", "rare", "epic"];
+
+function scaleNumber(value: string | number | undefined) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function getChipStatEffect(englishDescription: string) {
+  const normalized = englishDescription
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const match = normalized.match(/^(Increase|Decrease)\s+(?:weapon\s+|ability\s+)?\[([a-z0-9_-]+)\](?!\s+to\s+\[)/i);
+  if (!match) return { statType: null, direction: 1 as const };
+  return {
+    statType: match[2].toLowerCase(),
+    direction: match[1].toLowerCase() === "decrease" ? -1 as const : 1 as const,
+  };
+}
+
+function getChipScales(item: CorepunkItem): ItemNamedScale[] {
+  if (item.scales?.length) return item.scales;
+  if (!item.scale) return [];
+  return [{ ...item.scale, identifier: "default" }];
+}
+
+function mapChipEffects(item: CorepunkItem, quality: BuilderQuality): BuilderItemEffect[] {
+  if (item.type !== "chip") return [];
+  const { statType, direction } = getChipStatEffect(item.englishDescriptionEffect ?? item.descriptionEffect);
+  const suffix = /\[scale\]\s*%/i.test(item.englishDescriptionEffect ?? item.descriptionEffect) ? "%" : "";
+  return getChipScales(item).flatMap((scale) => {
+    const range = scale[quality as keyof ItemQualityScale];
+    if (!range || typeof range !== "object" || !("min" in range) || !("max" in range)) return [];
+    return [{
+      id: scale.identifier || "default",
+      description: item.descriptionEffect,
+      statType,
+      direction,
+      min: scaleNumber(range.min),
+      max: scaleNumber(range.max),
+      suffix,
+    }];
+  });
+}
 
 type BuilderSource = {
   allItems: CorepunkItem[];
@@ -93,6 +143,7 @@ export async function getCharacterBuilderDataset(): Promise<CharacterBuilderData
         quality,
         image: imageMap[variation.slug] ?? imageMap[slug] ?? null,
         stats: variation.stats.map((stat) => ({ type: stat.type, min: stat.min, max: stat.max })),
+        effects: mapChipEffects(variation, quality),
       }];
     });
     if (variations.length === 0) {
@@ -101,6 +152,7 @@ export async function getCharacterBuilderDataset(): Promise<CharacterBuilderData
         quality: "uncommon",
         image: imageMap[item.slug] ?? null,
         stats: item.stats.map((stat) => ({ type: stat.type, min: stat.min, max: stat.max })),
+        effects: mapChipEffects(item, "uncommon"),
       });
     }
     return [{

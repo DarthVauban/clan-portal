@@ -1,10 +1,33 @@
-export const CHARACTER_BUILD_SCHEMA_VERSION = 3;
+export const CHARACTER_BUILD_SCHEMA_VERSION = 4;
 
 export const builderSetIds = ["one", "two"] as const;
 export type BuilderSetId = (typeof builderSetIds)[number];
 
 export const builderQualities = ["uncommon", "rare", "epic"] as const;
 export type BuilderQuality = (typeof builderQualities)[number];
+
+export const builderArtifactSecondaryStats = [
+  "pcc",
+  "pcp",
+  "fppen",
+  "ppen",
+  "bleed",
+  "mcc",
+  "mcp",
+  "fmpen",
+  "mpen",
+  "cast",
+  "corruption",
+  "as",
+  "cd",
+  "costred",
+  "ccres",
+  "slowres",
+  "hregen",
+  "mregen",
+  "lifesteal",
+  "abilitysteal",
+] as const;
 
 export const builderWeaponSlotIds = [
   "weapon-primary",
@@ -44,6 +67,17 @@ export type BuilderItemVariation = {
   quality: BuilderQuality;
   image: string | null;
   stats: Array<{ type: string; min: number; max: number }>;
+  effects: BuilderItemEffect[];
+};
+
+export type BuilderItemEffect = {
+  id: string;
+  description: string;
+  statType: string | null;
+  direction: 1 | -1;
+  min: number;
+  max: number;
+  suffix: string;
 };
 
 export type BuilderEquipmentItem = {
@@ -100,6 +134,7 @@ export type BuilderItemSelection = {
   secondaryStats: string[];
   primaryStatValues: Record<string, number>;
   secondaryStatValues: Record<string, number>;
+  effectValues: Record<string, number>;
 };
 
 export type BuilderEquipmentSet = Record<BuilderWeaponSlotId, BuilderItemSelection | null>;
@@ -193,7 +228,10 @@ function normalizeSelection(value: unknown): BuilderItemSelection | null {
     : "epic";
   if (!itemSlug) return null;
   const secondaryStats = Array.isArray(candidate.secondaryStats)
-    ? [...new Set(candidate.secondaryStats.map((stat) => boundedString(stat, 40)).filter(Boolean))].slice(0, 5)
+    ? [...new Set(candidate.secondaryStats
+      .map((stat) => boundedString(stat, 40))
+      .filter((stat) => builderArtifactSecondaryStats.includes(stat as (typeof builderArtifactSecondaryStats)[number])))]
+      .slice(0, 5)
     : [];
   return {
     itemSlug,
@@ -202,6 +240,7 @@ function normalizeSelection(value: unknown): BuilderItemSelection | null {
     secondaryStats,
     primaryStatValues: normalizeStatValueMap(candidate.primaryStatValues),
     secondaryStatValues: normalizeStatValueMap(candidate.secondaryStatValues),
+    effectValues: normalizeStatValueMap(candidate.effectValues),
   };
 }
 

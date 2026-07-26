@@ -28,6 +28,24 @@ export type ItemRecipe = {
   ingredients: ItemIngredient[];
 };
 
+export type ItemScaleRange = {
+  id?: number;
+  min: string | number;
+  max: string | number;
+};
+
+export type ItemQualityScale = {
+  id?: number;
+  common?: ItemScaleRange;
+  uncommon?: ItemScaleRange;
+  rare?: ItemScaleRange;
+  epic?: ItemScaleRange;
+};
+
+export type ItemNamedScale = ItemQualityScale & {
+  identifier: string;
+};
+
 export type CorepunkItem = {
   id: number | string;
   documentId: string;
@@ -41,6 +59,7 @@ export type CorepunkItem = {
   professionLevel: string | null;
   level: number;
   descriptionEffect: string;
+  englishDescriptionEffect?: string;
   tier: number;
   upgradable: boolean;
   description: string;
@@ -54,8 +73,8 @@ export type CorepunkItem = {
   specialEffect: null | { id: number; title: string; descriptionEffect: string };
   recipes: ItemRecipe[];
   price: null | { id: number; type: string; amount: string };
-  scale?: unknown;
-  scales?: unknown[];
+  scale?: ItemQualityScale | null;
+  scales?: ItemNamedScale[];
   requirements?: unknown;
   baseSlug?: string;
   synthesizedQualityVariant?: boolean;

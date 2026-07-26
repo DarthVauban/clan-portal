@@ -54,9 +54,11 @@ export function translateCorepunkText(value: string | null | undefined) {
 
 export function localizeCorepunkItem(item: CorepunkItem): CorepunkItem {
   const englishName = item.englishName ?? item.name;
+  const englishDescriptionEffect = item.englishDescriptionEffect ?? item.descriptionEffect;
   return {
     ...item,
     englishName,
+    englishDescriptionEffect,
     name: translateCorepunkText(englishName),
     description: translateCorepunkText(item.description),
     descriptionEffect: translateCorepunkText(item.descriptionEffect),
