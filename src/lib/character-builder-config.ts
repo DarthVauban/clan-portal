@@ -210,7 +210,7 @@ export const builderStatGroups = [
     id: "physical",
     label: "Физическая атака",
     icon: "ap",
-    stats: ["wd", "ap", "as", "pcc", "pcp", "fppen", "ppen", "increase", "bleed"],
+    stats: ["wd", "ap", "as", "asrating", "pcc", "pcp", "fppen", "ppen", "increase", "bleed"],
   },
   {
     id: "magical",
@@ -254,6 +254,7 @@ export const fallbackStatLabels: Record<string, string> = {
   pcc: "Шанс физического критического удара",
   ppen: "Физическое пробивание",
   as: "Скорость атаки",
+  asrating: "Очки скорости атаки",
   sp: "Сила умений",
   mcp: "Сила магического критического удара",
   mcc: "Шанс магического критического удара",

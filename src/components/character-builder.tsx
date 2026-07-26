@@ -43,6 +43,12 @@ import {
   type BuilderProgressionScale,
 } from "@/lib/character-builder-config";
 import {
+  calculateCharacterStats,
+  COREPUNK_CALCULATOR_VERSION,
+  getArtifactSecondaryRange,
+  percentageStatIds,
+} from "@/lib/character-stat-calculator";
+import {
   builderArtifactSlotIds,
   builderArtifactSecondaryStats,
   builderQualities,
@@ -125,7 +131,7 @@ const sections: Array<{ id: BuilderSection; label: string; icon: typeof Swords }
 function formatNumber(value: number) {
   return Number.isInteger(value)
     ? new Intl.NumberFormat("ru-RU").format(value)
-    : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(value);
+    : new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(value);
 }
 
 function clamp(value: number, minimum: number, maximum: number) {
@@ -133,7 +139,8 @@ function clamp(value: number, minimum: number, maximum: number) {
 }
 
 function getStatImage(dataset: CharacterBuilderDataset, stat: string) {
-  return dataset.stats[stat]?.image || `/game-assets/stats/${stat}.png`;
+  const assetStat = stat === "asrating" ? "as" : stat;
+  return dataset.stats[assetStat]?.image || `/game-assets/stats/${assetStat}.png`;
 }
 
 function getSecondaryStatLimit(item: BuilderEquipmentItem | null, quality: BuilderQuality) {
@@ -760,7 +767,7 @@ function StatValue({
         <LoadableImage src={getStatImage(dataset, stat)} alt="" width={22} height={22} />
         <span>{fallbackStatLabels[stat] || asset?.label || stat.toUpperCase()}</span>
       </span>
-      <strong>{formatNumber(value)}</strong>
+      <strong>{formatNumber(value)}{percentageStatIds.has(stat) ? "%" : ""}</strong>
     </div>
   );
 }
@@ -781,6 +788,7 @@ function StatValueEditor({
   onChange: (value: number) => void;
 }) {
   const asset = dataset.stats[stat];
+  const safeValue = clamp(Number.isFinite(value) ? value : 0, 0, maximum);
   return (
     <label className={styles.statValueEditor}>
       <span className={styles.statEditorIdentity}>
@@ -790,15 +798,15 @@ function StatValueEditor({
           {maximum > minimum && <small>Ориентир предмета: {formatNumber(minimum)}–{formatNumber(maximum)}</small>}
         </span>
       </span>
-      <StatDiamonds value={value} minimum={minimum} maximum={maximum} />
+      <StatDiamonds value={safeValue} minimum={minimum} maximum={maximum} />
       <span className={styles.statNumberInput}>
         <input
           type="number"
           min={0}
-          max={1_000_000}
+          max={maximum}
           step="any"
-          value={Number.isFinite(value) ? value : 0}
-          onChange={(event) => onChange(clamp(Number(event.target.value) || 0, 0, 1_000_000))}
+          value={safeValue}
+          onChange={(event) => onChange(clamp(Number(event.target.value) || 0, 0, maximum))}
           aria-label={`Значение: ${fallbackStatLabels[stat] || asset?.label || stat}`}
         />
       </span>
@@ -854,6 +862,7 @@ function ChipEffectEditor({
   const statLabel = effect.statType
     ? fallbackStatLabels[effect.statType] || dataset.stats[effect.statType]?.label || effect.statType.toUpperCase()
     : null;
+  const safeValue = clamp(Number.isFinite(value) ? value : 0, 0, effect.max);
   return (
     <article className={styles.chipEffectCard}>
       <div className={styles.chipEffectHeading}>
@@ -867,11 +876,11 @@ function ChipEffectEditor({
           <strong>{statLabel ?? "Эффект чипа"}</strong>
         </span>
       </div>
-      <ChipEffectText dataset={dataset} text={effect.description} value={value} />
+      <ChipEffectText dataset={dataset} text={effect.description} value={safeValue} />
       <div className={styles.chipEffectControls}>
         <span>
           <small>Диапазон качества</small>
-          <StatDiamonds value={value} minimum={effect.min} maximum={effect.max} />
+          <StatDiamonds value={safeValue} minimum={effect.min} maximum={effect.max} />
         </span>
         <label className={styles.chipEffectInput}>
           <span>Фактическое значение</span>
@@ -879,10 +888,10 @@ function ChipEffectEditor({
             <input
               type="number"
               min={0}
-              max={1_000_000}
+              max={effect.max}
               step="any"
-              value={Number.isFinite(value) ? value : 0}
-              onChange={(event) => onChange(clamp(Number(event.target.value) || 0, 0, 1_000_000))}
+              value={safeValue}
+              onChange={(event) => onChange(clamp(Number(event.target.value) || 0, 0, effect.max))}
             />
             {effect.suffix && <em>{effect.suffix}</em>}
           </span>
@@ -1185,35 +1194,26 @@ export function CharacterBuilder({
   const masteryEdges = useMemo(() => getMasteryEdges(mastery), [mastery]);
 
   const stats = useMemo(() => {
-    const values: Record<string, number> = { ...(baseClassStats[state.heroClass] ?? baseClassStats.legionnary) };
-    const levelScale = 0.7 + state.level * 0.03;
-    for (const stat of Object.keys(values)) values[stat] *= levelScale;
-    const selections = [...Object.values(activeSet), ...Object.values(state.artifacts)];
-    for (const selection of selections) {
-      if (!selection) continue;
+    const selections = [...Object.values(activeSet), ...Object.values(state.artifacts)].flatMap((selection) => {
+      if (!selection) return [];
       const item = equipmentMap.get(selection.itemSlug);
-      const variation = item ? getVariation(item, selection.quality) : null;
-      for (const stat of variation?.stats ?? []) {
-        const value = selection.primaryStatValues[stat.type]
-          ?? stat.min + (stat.max - stat.min) * (selection.roll / 100);
-        values[stat.type] = (values[stat.type] ?? 0) + value;
-      }
-      for (const secondary of selection.secondaryStats) {
-        values[secondary] = (values[secondary] ?? 0) + (selection.secondaryStatValues[secondary] ?? 0);
-      }
-      for (const effect of variation?.effects ?? []) {
-        if (!effect.statType) continue;
-        const value = selection.effectValues[effect.id]
-          ?? effect.min + (effect.max - effect.min) * (selection.roll / 100);
-        values[effect.statType] = (values[effect.statType] ?? 0) + value * effect.direction;
-      }
-    }
-    for (const archetype of builderArchetypes) {
-      const ranks = archetype.nodes.reduce((sum, node) => sum + (state.talentRanks[node.id] ?? 0), 0);
-      values[archetype.passiveStat] = (values[archetype.passiveStat] ?? 0) + ranks * archetype.passivePerRank;
-    }
-    return values;
-  }, [activeSet, equipmentMap, state.artifacts, state.heroClass, state.level, state.talentRanks]);
+      return item ? [{ item, selection }] : [];
+    });
+    return calculateCharacterStats({
+      heroClass: state.heroClass,
+      level: state.level,
+      intrinsicStats: baseClassStats[state.heroClass] ?? baseClassStats.legionnary,
+      selections,
+      selectedArchetypes: state.selectedArchetypes,
+    }).values;
+  }, [
+    activeSet,
+    equipmentMap,
+    state.artifacts,
+    state.heroClass,
+    state.level,
+    state.selectedArchetypes,
+  ]);
 
   const talentAllocation = Object.values(state.talentRanks).filter((rank) => rank > 0).length;
   const talentLevelPoints = Object.values(state.talentRanks).reduce((sum, rank) => sum + Math.max(0, rank - 1), 0);
@@ -1232,21 +1232,6 @@ export function CharacterBuilder({
     equipmentEditorSelection?.quality ?? "uncommon",
   );
   const activeStats = builderStatGroups.find((group) => group.id === activeStatGroup)?.stats ?? builderStatGroups[0].stats;
-  const statRanges = useMemo(() => {
-    const ranges: Record<string, { minimum: number; maximum: number }> = {};
-    for (const item of dataset.equipment) {
-      for (const variation of item.variations) {
-        for (const stat of variation.stats) {
-          const current = ranges[stat.type];
-          ranges[stat.type] = current
-            ? { minimum: Math.min(current.minimum, stat.min), maximum: Math.max(current.maximum, stat.max) }
-            : { minimum: stat.min, maximum: stat.max };
-        }
-      }
-    }
-    return ranges;
-  }, [dataset.equipment]);
-
   const updateSelection = (slotId: BuilderSlotId, selection: BuilderItemSelection | null) => {
     setState((current) => {
       if (isArtifactSlot(slotId)) {
@@ -1727,7 +1712,9 @@ export function CharacterBuilder({
                 <div>
                   <span className={styles.eyebrow}><Zap size={16} /> Живой расчёт</span>
                   <h2>Характеристики</h2>
-                  <p>Оружейный комплект {state.activeSet === "one" ? "I" : "II"} + общий набор артефактов.</p>
+                  <p>
+                    Комплект {state.activeSet === "one" ? "I" : "II"} + артефакты · расчёт v{COREPUNK_CALCULATOR_VERSION}.
+                  </p>
                 </div>
               </div>
               <div className={styles.statsOverview}>
@@ -2412,7 +2399,7 @@ export function CharacterBuilder({
                             icon: <LoadableImage src={getStatImage(dataset, stat)} alt="" width={20} height={20} />,
                           })),
                       ];
-                      const range = selectedStat ? statRanges[selectedStat] : null;
+                      const range = selectedStat ? getArtifactSecondaryRange(selectedStat) : null;
                       return (
                         <article className={styles.artifactSecondarySlot} key={index}>
                           <div className={styles.artifactSecondarySelect}>
