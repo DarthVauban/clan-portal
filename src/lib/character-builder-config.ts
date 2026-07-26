@@ -196,13 +196,13 @@ export const builderMasteries = Object.fromEntries(
 ) as Record<string, BuilderMasteryConfig>;
 
 export const baseClassStats: Record<string, Record<string, number>> = {
-  legionnary: { health: 640, mana: 280, armor: 32, mr: 18, wd: 36, sp: 12, as: 100, hasp: 0 },
-  shaman: { health: 500, mana: 480, armor: 15, mr: 28, wd: 24, sp: 38, as: 96, hasp: 0 },
-  ranger: { health: 510, mana: 320, armor: 19, mr: 18, wd: 42, sp: 14, as: 106, hasp: 0 },
-  "blast-medic": { health: 550, mana: 430, armor: 20, mr: 25, wd: 25, sp: 34, as: 98, hasp: 2 },
-  infiltrator: { health: 490, mana: 300, armor: 17, mr: 17, wd: 44, sp: 18, as: 110, hasp: 0 },
-  destroyer: { health: 610, mana: 260, armor: 27, mr: 16, wd: 47, sp: 10, as: 96, hasp: 0 },
-  defender: { health: 680, mana: 300, armor: 36, mr: 23, wd: 32, sp: 16, as: 94, hasp: 0 },
+  legionnary: { ap: 0, sp: 0, health: 3583, mana: 875, armor: 60, mr: 40, wd: 0, as: 0.7, hasp: 0, ms: 3.9 },
+  shaman: { ap: 0, sp: 0, health: 3527, mana: 927, armor: 60, mr: 45, wd: 0, as: 1.5, hasp: 0, ms: 3.9 },
+  ranger: { ap: 0, sp: 0, health: 3198, mana: 875, armor: 40, mr: 40, wd: 0, as: 0.7, hasp: 0, ms: 3.9 },
+  "blast-medic": { ap: 0, sp: 0, health: 3171, mana: 1029, armor: 40, mr: 50, wd: 0, as: 0.6, hasp: 0, ms: 3.9 },
+  infiltrator: { ap: 0, sp: 0, health: 3477, mana: 927, armor: 55, mr: 40, wd: 0, as: 1.1, hasp: 0, ms: 3.9 },
+  destroyer: { ap: 0, sp: 0, health: 3328, mana: 875, armor: 50, mr: 50, wd: 0, as: 0.5, hasp: 0, ms: 3.9 },
+  defender: { ap: 0, sp: 0, health: 3530, mana: 875, armor: 55, mr: 45, wd: 0, as: 0.7, hasp: 0, ms: 3.9 },
 };
 
 export const builderStatGroups = [

@@ -400,7 +400,10 @@ export function normalizeCharacterBuildState(value: unknown): CharacterBuildStat
     schemaVersion: CHARACTER_BUILD_SCHEMA_VERSION,
     title: boundedString(candidate.title, 80) || "Новый билд",
     heroClass,
-    level: boundedInteger(candidate.level, 1, 20, 20),
+    // Level-dependent hero growth is not measured for v0.114. Keep the field
+    // for saved-build/API compatibility, but normalize every build to the
+    // fixed level-20 base-stat snapshot used by the calculator.
+    level: 20,
     activeSet: builderSetIds.includes(candidate.activeSet as BuilderSetId) ? candidate.activeSet as BuilderSetId : "one",
     sets,
     artifacts: normalizeArtifactSet(rawArtifacts),

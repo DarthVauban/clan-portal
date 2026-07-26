@@ -7,6 +7,7 @@ import {
   historicalPenetrationPercent,
   hyperbolicPercent,
   multiplicativeReductionPercent,
+  updateWeaponPrimaryStatValues,
 } from "../src/lib/character-stat-calculator.ts";
 import {
   createDefaultCharacterBuild,
@@ -67,6 +68,7 @@ test("ratings aggregate once while weapon bonuses remain direct", () => {
       quality: "uncommon",
       image: null,
       stats: [
+        { type: "wd", min: 200, max: 200 },
         { type: "as", min: 0.7, max: 0.7 },
         { type: "pcc", min: 5, max: 5 },
         { type: "fppen", min: 20, max: 20 },
@@ -97,12 +99,10 @@ test("ratings aggregate once while weapon bonuses remain direct", () => {
   const artifactOne = artifact("artifact-one");
   const artifactTwo = artifact("artifact-two");
   const weaponSelection = selection(weapon.slug);
-  weaponSelection.primaryStatValues = { as: 999, pcc: 999, fppen: 999 };
+  weaponSelection.primaryStatValues = { wd: 999, as: 999, pcc: 999, fppen: 999 };
 
   const result = calculateCharacterStats({
-    heroClass: "test",
-    level: 10,
-    intrinsicStats: { health: 1000, armor: 180, mr: 260, as: 100 },
+    intrinsicStats: { health: 1000, armor: 180, mr: 260, as: 1 },
     selectedArchetypes: ["tank", "hunter"],
     selections: [
       { item: weapon, selection: weaponSelection },
@@ -113,6 +113,7 @@ test("ratings aggregate once while weapon bonuses remain direct", () => {
 
   assert.equal(result.artifactRatings.pcc, 120);
   assert.equal(Number(result.values.pcc.toFixed(4)), Number((hyperbolicPercent(120, 950) + 5).toFixed(4)));
+  assert.equal(result.values.ap, 200);
   assert.equal(result.values.health, 1100);
   assert.equal(result.values.as, 0.77);
   assert.equal(result.values.fppen, 20);
@@ -156,9 +157,7 @@ test("repeated artifact affixes keep independent slot values", () => {
   repeatedSelection.quality = "epic";
 
   const result = calculateCharacterStats({
-    heroClass: "ranger",
-    level: 20,
-    intrinsicStats: { as: 70 },
+    intrinsicStats: { as: 0.7 },
     selectedArchetypes: [],
     selections: [{ item: artifact, selection: repeatedSelection }],
   });
@@ -168,8 +167,68 @@ test("repeated artifact affixes keep independent slot values", () => {
   assert.equal(result.values.as, 0.9333);
 });
 
+test("weapon damage and attack speed stay on the same inverse roll", () => {
+  const stats = [
+    { type: "as", min: 0.25, max: 0.8 },
+    { type: "wd", min: 50, max: 200 },
+  ];
+
+  assert.deepEqual(
+    updateWeaponPrimaryStatValues(stats, {}, "wd", 200),
+    { wd: 200, as: 0.25 },
+  );
+  assert.deepEqual(
+    updateWeaponPrimaryStatValues(stats, {}, "as", 0.8),
+    { as: 0.8, wd: 50 },
+  );
+  assert.deepEqual(
+    updateWeaponPrimaryStatValues(stats, {}, "wd", 125),
+    { wd: 125, as: 0.525 },
+  );
+});
+
+test("attack speed is capped at 2.5 for every class", () => {
+  const weapon = {
+    slug: "fast-weapon",
+    name: "Fast weapon",
+    englishName: "Fast weapon",
+    type: "weapon",
+    slot: null,
+    mastery: null,
+    tier: 3,
+    profession: null,
+    description: "",
+    descriptionEffect: "",
+    recipes: [],
+    variations: [{
+      slug: "fast-weapon-uncommon",
+      quality: "uncommon",
+      image: null,
+      stats: [{ type: "as", min: 2.4, max: 2.4 }],
+      effects: [{
+        id: "attack-speed-boost",
+        description: "",
+        statType: "as",
+        min: 100,
+        max: 100,
+        suffix: "%",
+        direction: 1,
+      }],
+    }],
+  };
+
+  const result = calculateCharacterStats({
+    intrinsicStats: { as: 1.5 },
+    selectedArchetypes: [],
+    selections: [{ item: weapon, selection: selection(weapon.slug) }],
+  });
+
+  assert.equal(result.values.as, 2.5);
+});
+
 test("legacy stat-keyed artifact values migrate without removing duplicate affixes", () => {
   const draft = createDefaultCharacterBuild();
+  draft.level = 1;
   draft.artifacts["implant-1"] = selection(
     "legacy-artifact",
     ["pcc", "pcc", "pcc"],
@@ -179,6 +238,7 @@ test("legacy stat-keyed artifact values migrate without removing duplicate affix
   const normalized = normalizeCharacterBuildState(draft);
   const migrated = normalized.artifacts["implant-1"];
   assert.ok(migrated);
+  assert.equal(normalized.level, 20);
   assert.deepEqual(migrated.secondaryStats, ["pcc", "pcc", "pcc"]);
   assert.deepEqual(
     migrated.secondaryStats.map((_, index) => getSecondaryStatValue(migrated, index)),

@@ -47,6 +47,7 @@ import {
   COREPUNK_CALCULATOR_VERSION,
   getArtifactSecondaryRange,
   percentageStatIds,
+  updateWeaponPrimaryStatValues,
 } from "@/lib/character-stat-calculator";
 import {
   builderArtifactSlotIds,
@@ -156,10 +157,12 @@ function getSecondaryStatLimit(item: BuilderEquipmentItem | null, quality: Build
 
 function createPrimaryStatValues(item: BuilderEquipmentItem, quality: BuilderQuality, roll = 100) {
   const variation = getVariation(item, quality);
-  return Object.fromEntries((variation?.stats ?? []).map((stat) => [
+  const values = Object.fromEntries((variation?.stats ?? []).map((stat) => [
     stat.type,
     Math.round((stat.min + (stat.max - stat.min) * (roll / 100)) * 1000) / 1000,
   ]));
+  if (item.type !== "weapon" || values.wd === undefined || !variation) return values;
+  return updateWeaponPrimaryStatValues(variation.stats, values, "wd", values.wd);
 }
 
 function createEffectValues(item: BuilderEquipmentItem, quality: BuilderQuality, roll = 100) {
@@ -1191,7 +1194,7 @@ export function CharacterBuilder({
   const activeSet = state.sets[state.activeSet];
   const selectedClass = dataset.classes.find((entry) => entry.slug === state.heroClass) ?? dataset.classes[0];
   const mastery = builderMasteries[state.heroClass] ?? builderMasteries.legionnary;
-  const allowedArchetypes = state.level >= 15 ? 3 : state.level >= 10 ? 2 : 1;
+  const allowedArchetypes = 3;
   const selectedTalentBranches = builderArchetypes.filter((entry) => state.selectedArchetypes.includes(entry.id));
   const masteryGridNodes = useMemo(() => getMasteryGridNodes(mastery), [mastery]);
   const masteryEdges = useMemo(() => getMasteryEdges(mastery), [mastery]);
@@ -1203,8 +1206,6 @@ export function CharacterBuilder({
       return item ? [{ item, selection }] : [];
     });
     return calculateCharacterStats({
-      heroClass: state.heroClass,
-      level: state.level,
       intrinsicStats: baseClassStats[state.heroClass] ?? baseClassStats.legionnary,
       selections,
       selectedArchetypes: state.selectedArchetypes,
@@ -1214,7 +1215,6 @@ export function CharacterBuilder({
     equipmentMap,
     state.artifacts,
     state.heroClass,
-    state.level,
     state.selectedArchetypes,
   ]);
 
@@ -1230,6 +1230,18 @@ export function CharacterBuilder({
   const equipmentEditorVariation = equipmentEditorItem && equipmentEditorSelection
     ? getVariation(equipmentEditorItem, equipmentEditorSelection.quality)
     : null;
+  const equipmentEditorPrimaryValues = equipmentEditorVariation && equipmentEditorSelection
+    ? (() => {
+      const values = Object.fromEntries(equipmentEditorVariation.stats.map((stat) => [
+        stat.type,
+        equipmentEditorSelection.primaryStatValues[stat.type]
+          ?? stat.min + (stat.max - stat.min) * (equipmentEditorSelection.roll / 100),
+      ]));
+      return equipmentEditorItem?.type === "weapon" && values.wd !== undefined
+        ? updateWeaponPrimaryStatValues(equipmentEditorVariation.stats, values, "wd", values.wd)
+        : values;
+    })()
+    : {};
   const artifactSecondaryLimit = getSecondaryStatLimit(
     equipmentEditorItem,
     equipmentEditorSelection?.quality ?? "uncommon",
@@ -1600,32 +1612,11 @@ export function CharacterBuilder({
               startIcon={<Shield size={17} />}
               size="regular"
             />
-            <CustomSelect
-              value={String(state.level)}
-              onChange={(value) => setState((current) => {
-                const level = Number(value);
-                const archetypeLimit = level >= 15 ? 3 : level >= 10 ? 2 : 1;
-                const selectedArchetypes = current.selectedArchetypes.slice(0, archetypeLimit);
-                const selectedSet = new Set(selectedArchetypes);
-                const talentRanks = Object.fromEntries(
-                  Object.entries(current.talentRanks).filter(([nodeId]) => (
-                    builderArchetypes.some((archetype) => selectedSet.has(archetype.id) && nodeId.startsWith(`${archetype.id}-`))
-                  )),
-                );
-                return { ...current, level, selectedArchetypes, talentRanks };
-              })}
-              options={Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: `Уровень ${index + 1}` }))}
-              ariaLabel="Уровень героя"
-              startIcon={<Zap size={17} />}
-              size="regular"
-            />
             <button className={styles.resetButton} type="button" onClick={resetBuild}>
               <RefreshCcw size={17} /> Начать заново
             </button>
           </>
-        ) : (
-          <span className={styles.levelBadge}>Уровень {state.level}</span>
-        )}
+        ) : null}
       </section>
 
       <nav className={styles.sectionNav} aria-label="Разделы конструктора">
@@ -1781,7 +1772,7 @@ export function CharacterBuilder({
             <div>
               <span className={styles.eyebrow}><Sparkles size={16} /> Развитие героя</span>
               <h2>Ветки талантов</h2>
-              <p>На уровне {state.level} доступно веток: {allowedArchetypes}. Первый ранг расходует очко распределения, следующие — очки уровня.</p>
+              <p>Доступно веток: {allowedArchetypes}. Первый ранг расходует очко распределения, следующие — очки уровня.</p>
             </div>
             <div className={styles.panelControls}>
               <div className={styles.points}>
@@ -1811,7 +1802,7 @@ export function CharacterBuilder({
                   onClick={() => {
                     if (readOnly || selected) return;
                     if (state.selectedArchetypes.length >= allowedArchetypes) {
-                      setNotice(`На этом уровне можно выбрать только ${allowedArchetypes} ветки.`);
+                      setNotice(`Можно выбрать только ${allowedArchetypes} ветки.`);
                       return;
                     }
                     setState((current) => ({ ...current, selectedArchetypes: [...current.selectedArchetypes, archetype.id] }));
@@ -2318,16 +2309,23 @@ export function CharacterBuilder({
                         key={stat.type}
                         dataset={dataset}
                         stat={stat.type}
-                        value={equipmentEditorSelection.primaryStatValues[stat.type]
+                        value={equipmentEditorPrimaryValues[stat.type]
                           ?? stat.min + (stat.max - stat.min) * (equipmentEditorSelection.roll / 100)}
                         minimum={stat.min}
                         maximum={stat.max}
                         onChange={(value) => updateSelection(equipmentEditorSlot, {
                           ...equipmentEditorSelection,
-                          primaryStatValues: {
-                            ...equipmentEditorSelection.primaryStatValues,
-                            [stat.type]: value,
-                          },
+                          primaryStatValues: equipmentEditorItem.type === "weapon"
+                            ? updateWeaponPrimaryStatValues(
+                              equipmentEditorVariation?.stats ?? [],
+                              equipmentEditorSelection.primaryStatValues,
+                              stat.type,
+                              value,
+                            )
+                            : {
+                              ...equipmentEditorSelection.primaryStatValues,
+                              [stat.type]: value,
+                            },
                         })}
                       />
                     ))}
@@ -2500,7 +2498,7 @@ export function CharacterBuilder({
                     <span className={styles.savedClass}>
                       {classEntry?.image ? <LoadableImage src={classEntry.image} alt="" width={46} height={46} /> : <UserRound size={24} />}
                     </span>
-                    <div><strong>{build.title}</strong><span>{classEntry?.name || build.heroClass} · уровень {build.level}</span><small>Обновлено {new Date(build.updatedAt).toLocaleString("ru-RU")}</small></div>
+                    <div><strong>{build.title}</strong><span>{classEntry?.name || build.heroClass}</span><small>Обновлено {new Date(build.updatedAt).toLocaleString("ru-RU")}</small></div>
                     <button type="button" onClick={() => loadBuild(build)}>Открыть</button>
                     <button type="button" className={styles.iconButton} onClick={async () => {
                       await navigator.clipboard.writeText(`${window.location.origin}/character-builder/shared/${build.shareSlug}`);

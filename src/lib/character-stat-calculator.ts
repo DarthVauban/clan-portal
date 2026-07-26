@@ -155,8 +155,6 @@ export type CharacterStatSelection = {
 };
 
 export type CharacterStatCalculationInput = {
-  heroClass: string;
-  level: number;
   intrinsicStats: Record<string, number>;
   selections: CharacterStatSelection[];
   selectedArchetypes: string[];
@@ -279,6 +277,37 @@ function getPrimaryValue(
   return clamp(safeNumber(selection.primaryStatValues[stat.type], fallback), 0, stat.max);
 }
 
+function roundPrimaryStat(value: number) {
+  return Math.round(value * 1000) / 1000;
+}
+
+export function updateWeaponPrimaryStatValues(
+  stats: BuilderItemVariation["stats"],
+  currentValues: Record<string, number>,
+  changedStat: string,
+  changedValue: number,
+) {
+  const nextValues = {
+    ...currentValues,
+    [changedStat]: roundPrimaryStat(changedValue),
+  };
+  if (changedStat !== "wd" && changedStat !== "as") return nextValues;
+
+  const source = stats.find((stat) => stat.type === changedStat);
+  const coupled = stats.find((stat) => stat.type === (changedStat === "wd" ? "as" : "wd"));
+  if (!source || !coupled) return nextValues;
+
+  const sourceRange = source.max - source.min;
+  const progress = sourceRange > 0
+    ? (clamp(changedValue, source.min, source.max) - source.min) / sourceRange
+    : 0;
+  nextValues[changedStat] = roundPrimaryStat(clamp(changedValue, source.min, source.max));
+  nextValues[coupled.type] = roundPrimaryStat(
+    coupled.max - progress * (coupled.max - coupled.min),
+  );
+  return nextValues;
+}
+
 function collectPrimaryStat(
   sources: MutableSources,
   item: BuilderEquipmentItem,
@@ -336,24 +365,7 @@ function collectArchetypeBonuses(sources: MutableSources, selectedArchetypes: st
   if (selected.has("support")) add(sources.directPercent, "ms", 5);
 }
 
-function getApproximateIntrinsicStats(
-  baseStats: Record<string, number>,
-  level: number,
-) {
-  const result: Record<string, number> = {};
-  const levelScale = 0.7 + clamp(level, 1, 20) * 0.03;
-  for (const [stat, value] of Object.entries(baseStats)) {
-    // Exact v0.114 hero tables are not public. Preserve the portal's explicit
-    // approximation for level-dependent flat values, but never scale rates,
-    // percentages or weapon attacks-per-second with character level.
-    result[stat] = stat === "as" ? value / 100 : value * levelScale;
-  }
-  return result;
-}
-
 export function calculateCharacterStats({
-  heroClass,
-  level,
   intrinsicStats,
   selections,
   selectedArchetypes,
@@ -365,15 +377,24 @@ export function calculateCharacterStats({
     directPercent: {},
   };
   let weaponAttackSpeed: number | null = null;
+  let weaponDamage: number | null = null;
 
   for (const { item, selection } of selections) {
     const variation = findVariation(item, selection);
     if (!variation) continue;
 
+    const primaryValues = Object.fromEntries(
+      variation.stats.map((stat) => [stat.type, getPrimaryValue(selection, stat)]),
+    );
+    const normalizedPrimaryValues = item.type === "weapon" && primaryValues.wd !== undefined
+      ? updateWeaponPrimaryStatValues(variation.stats, primaryValues, "wd", primaryValues.wd)
+      : primaryValues;
+
     for (const stat of variation.stats) {
-      const value = getPrimaryValue(selection, stat);
+      const value = normalizedPrimaryValues[stat.type] ?? getPrimaryValue(selection, stat);
       collectPrimaryStat(sources, item, stat.type, value);
       if (item.type === "weapon" && stat.type === "as") weaponAttackSpeed = value;
+      if (item.type === "weapon" && stat.type === "wd") weaponDamage = value;
     }
 
     if (item.type === "implant") {
@@ -393,7 +414,7 @@ export function calculateCharacterStats({
 
   collectArchetypeBonuses(sources, selectedArchetypes);
 
-  const intrinsic = getApproximateIntrinsicStats(intrinsicStats, level);
+  const intrinsic = { ...intrinsicStats };
   const values: Record<string, number> = { ...zeroBaseStats };
 
   for (const stat of new Set([
@@ -406,6 +427,13 @@ export function calculateCharacterStats({
       + (sources.mainFlat[stat] ?? 0)
       + (sources.directFlat[stat] ?? 0);
   }
+
+  // In the current combat model the equipped weapon's damage becomes the
+  // character's base attack power. Explicit AP bonuses are still added on top.
+  values.ap = (intrinsic.ap ?? 0)
+    + (weaponDamage ?? 0)
+    + (sources.mainFlat.ap ?? 0)
+    + (sources.directFlat.ap ?? 0);
 
   for (const stat of mainFlatStatIds) {
     const multiplier = sources.directPercent[stat] ?? 0;
@@ -452,9 +480,8 @@ export function calculateCharacterStats({
   values.asrating = sources.artifactRating.as ?? 0;
   const attackSpeedFromRating = baseAttackSpeed
     * (1 + convertArtifactRating("as", values.asrating) / 100);
-  const attackSpeedCap = ["shaman", "infiltrator"].includes(heroClass) ? 3.5 : 2.5;
   values.as = Math.min(
-    attackSpeedCap,
+    2.5,
     attackSpeedFromRating * (1 + (sources.directPercent.as ?? 0) / 100),
   );
 

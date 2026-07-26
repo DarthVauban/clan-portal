@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: SharedBuildPageProps): Promis
   if (!build) return { title: "Билд не найден" };
   return {
     title: `${build.title} · Конструктор персонажа`,
-    description: `Билд ${build.ownerName || "игрока"} для класса ${build.heroClass}, уровень ${build.level}.`,
+    description: `Билд ${build.ownerName || "игрока"} для класса ${build.heroClass}.`,
   };
 }
 
