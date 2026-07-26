@@ -778,6 +778,45 @@ function StatValue({
   );
 }
 
+function useEditableNumberInput(
+  value: number,
+  maximum: number,
+  onChange: (value: number) => void,
+) {
+  const safeValue = clamp(Number.isFinite(value) ? value : 0, 0, maximum);
+  const [draftValue, setDraftValue] = useState<string | null>(null);
+
+  const updateInputValue = (nextValue: string) => {
+    setDraftValue(nextValue);
+    if (nextValue.trim() === "") return;
+    const parsedValue = Number(nextValue);
+    if (Number.isFinite(parsedValue)) onChange(clamp(parsedValue, 0, maximum));
+  };
+
+  const commitInputValue = () => {
+    if (draftValue === null) return;
+    if (draftValue.trim() === "") {
+      setDraftValue(null);
+      return;
+    }
+    const parsedValue = Number(draftValue);
+    if (!Number.isFinite(parsedValue)) {
+      setDraftValue(null);
+      return;
+    }
+    const nextValue = clamp(parsedValue, 0, maximum);
+    setDraftValue(null);
+    if (nextValue !== safeValue) onChange(nextValue);
+  };
+
+  return {
+    safeValue,
+    inputValue: draftValue ?? String(safeValue),
+    updateInputValue,
+    commitInputValue,
+  };
+}
+
 function StatValueEditor({
   dataset,
   stat,
@@ -794,7 +833,12 @@ function StatValueEditor({
   onChange: (value: number) => void;
 }) {
   const asset = dataset.stats[stat];
-  const safeValue = clamp(Number.isFinite(value) ? value : 0, 0, maximum);
+  const {
+    safeValue,
+    inputValue,
+    updateInputValue,
+    commitInputValue,
+  } = useEditableNumberInput(value, maximum, onChange);
   return (
     <label className={styles.statValueEditor}>
       <span className={styles.statEditorIdentity}>
@@ -811,8 +855,9 @@ function StatValueEditor({
           min={0}
           max={maximum}
           step="any"
-          value={safeValue}
-          onChange={(event) => onChange(clamp(Number(event.target.value) || 0, 0, maximum))}
+          value={inputValue}
+          onChange={(event) => updateInputValue(event.target.value)}
+          onBlur={commitInputValue}
           aria-label={`Значение: ${fallbackStatLabels[stat] || asset?.label || stat}`}
         />
       </span>
@@ -868,7 +913,12 @@ function ChipEffectEditor({
   const statLabel = effect.statType
     ? fallbackStatLabels[effect.statType] || dataset.stats[effect.statType]?.label || effect.statType.toUpperCase()
     : null;
-  const safeValue = clamp(Number.isFinite(value) ? value : 0, 0, effect.max);
+  const {
+    safeValue,
+    inputValue,
+    updateInputValue,
+    commitInputValue,
+  } = useEditableNumberInput(value, effect.max, onChange);
   return (
     <article className={styles.chipEffectCard}>
       <div className={styles.chipEffectHeading}>
@@ -896,8 +946,9 @@ function ChipEffectEditor({
               min={0}
               max={effect.max}
               step="any"
-              value={safeValue}
-              onChange={(event) => onChange(clamp(Number(event.target.value) || 0, 0, effect.max))}
+              value={inputValue}
+              onChange={(event) => updateInputValue(event.target.value)}
+              onBlur={commitInputValue}
             />
             {effect.suffix && <em>{effect.suffix}</em>}
           </span>
