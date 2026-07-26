@@ -150,6 +150,16 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+async function tryWriteClipboardText(value: string) {
+  if (!navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getStatImage(dataset: CharacterBuilderDataset, stat: string) {
   const assetStat = stat === "asrating" ? "as" : stat;
   return dataset.stats[assetStat]?.image || `/game-assets/stats/${assetStat}.png`;
@@ -1158,6 +1168,7 @@ export function CharacterBuilder({
   const [equipmentEditorSlot, setEquipmentEditorSlot] = useState<BuilderSlotId | null>(null);
   const [activeStatGroup, setActiveStatGroup] = useState<(typeof builderStatGroups)[number]["id"]>("physical");
   const [showSaved, setShowSaved] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [captureTarget, setCaptureTarget] = useState<"talents" | "mastery" | null>(null);
@@ -1167,6 +1178,7 @@ export function CharacterBuilder({
   const masteryBoardRef = useRef<HTMLDivElement>(null);
   const masteryFullscreenRef = useRef<HTMLDivElement>(null);
   const masteryViewportRef = useRef<HTMLDivElement>(null);
+  const shareInputRef = useRef<HTMLInputElement>(null);
   const equipmentMap = useMemo(() => new Map(dataset.equipment.map((item) => [item.slug, item])), [dataset.equipment]);
 
   useEffect(() => {
@@ -1556,12 +1568,39 @@ export function CharacterBuilder({
     }
   };
 
-  const copyShareLink = async () => {
-    const build = currentBuild ?? await saveBuild();
-    if (!build) return;
+  const showShareLink = async (build: SavedCharacterBuild) => {
     const url = `${window.location.origin}/character-builder/shared/${build.shareSlug}`;
-    await navigator.clipboard.writeText(url);
-    setNotice("Ссылка на билд скопирована.");
+    setShareUrl(url);
+    const copied = await tryWriteClipboardText(url);
+    setNotice(copied
+      ? "Ссылка на билд скопирована."
+      : "Ссылка готова. Скопируйте её в открывшемся окне.");
+  };
+
+  const copyShareLink = async () => {
+    const build = await saveBuild();
+    if (!build) return;
+    await showShareLink(build);
+  };
+
+  const copyVisibleShareLink = async () => {
+    if (!shareUrl) return;
+    if (await tryWriteClipboardText(shareUrl)) {
+      setNotice("Ссылка на билд скопирована.");
+      return;
+    }
+    const input = shareInputRef.current;
+    input?.focus();
+    input?.select();
+    let copied = false;
+    try {
+      copied = Boolean(input && document.execCommand("copy"));
+    } catch {
+      copied = false;
+    }
+    setNotice(copied
+      ? "Ссылка на билд скопирована."
+      : "Браузер заблокировал копирование. Ссылка выделена — нажмите Ctrl+C.");
   };
 
   const resetBuild = () => {
@@ -1715,8 +1754,8 @@ export function CharacterBuilder({
             <button className={styles.secondaryButton} type="button" onClick={() => setShowSaved(true)}>
               <Database size={18} /> Мои билды <span>{savedBuilds.length}</span>
             </button>
-            <button className={styles.secondaryButton} type="button" onClick={copyShareLink}>
-              <Link2 size={18} /> Поделиться
+            <button className={styles.secondaryButton} type="button" onClick={copyShareLink} disabled={busy}>
+              <Link2 size={18} /> {busy ? "Готовим ссылку…" : "Поделиться"}
             </button>
             <button className={`${styles.primaryButton} ${styles.saveBuildButton}`} type="button" onClick={saveBuild} disabled={busy}>
               <Save size={18} /> {busy ? "Сохраняем…" : currentBuild ? "Сохранить изменения" : "Сохранить билд"}
@@ -2710,6 +2749,49 @@ export function CharacterBuilder({
         </div>
       )}
 
+      {shareUrl && !readOnly && (
+        <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setShareUrl("")}>
+          <section
+            className={styles.shareModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ссылка на билд"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className={styles.modalHeader}>
+              <div>
+                <span className={styles.eyebrow}>Публичный билд</span>
+                <h2>Поделиться билдом</h2>
+              </div>
+              <button type="button" onClick={() => setShareUrl("")} aria-label="Закрыть">
+                <X size={22} />
+              </button>
+            </header>
+            <div className={styles.shareModalBody}>
+              <p>Ссылка ведёт на публичную версию билда в режиме просмотра.</p>
+              <label className={styles.shareLinkField}>
+                <span>Ссылка на билд</span>
+                <input
+                  ref={shareInputRef}
+                  value={shareUrl}
+                  readOnly
+                  onFocus={(event) => event.currentTarget.select()}
+                  aria-label="Ссылка на публичный билд"
+                />
+              </label>
+              <div className={styles.shareModalActions}>
+                <button className={styles.primaryButton} type="button" onClick={copyVisibleShareLink}>
+                  <Copy size={17} /> Скопировать ссылку
+                </button>
+                <a className={styles.secondaryButton} href={shareUrl} target="_blank" rel="noreferrer">
+                  <Link2 size={17} /> Открыть
+                </a>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
       {showSaved && !readOnly && (
         <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setShowSaved(false)}>
           <section className={`${styles.pickerModal} ${styles.savedModal}`} role="dialog" aria-modal="true" aria-label="Мои билды" onMouseDown={(event) => event.stopPropagation()}>
@@ -2727,10 +2809,17 @@ export function CharacterBuilder({
                     </span>
                     <div><strong>{build.title}</strong><span>{classEntry?.name || build.heroClass}</span><small>Обновлено {new Date(build.updatedAt).toLocaleString("ru-RU")}</small></div>
                     <button type="button" onClick={() => loadBuild(build)}>Открыть</button>
-                    <button type="button" className={styles.iconButton} onClick={async () => {
-                      await navigator.clipboard.writeText(`${window.location.origin}/character-builder/shared/${build.shareSlug}`);
-                      setNotice("Ссылка скопирована.");
-                    }} aria-label={`Копировать ссылку на ${build.title}`}><Copy size={18} /></button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={() => {
+                        setShowSaved(false);
+                        void showShareLink(build);
+                      }}
+                      aria-label={`Копировать ссылку на ${build.title}`}
+                    >
+                      <Copy size={18} />
+                    </button>
                     <button type="button" className={styles.iconButtonDanger} onClick={() => deleteBuild(build)} aria-label={`Удалить ${build.title}`}><Trash2 size={18} /></button>
                   </article>
                 );
